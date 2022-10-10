@@ -165,8 +165,7 @@ namespace bxlx::detail {
         constexpr static auto edge_source = getter_t<0>{};
         constexpr static auto edge_target = getter_t<1>{};
 
-        template<bool node = true>
-        constexpr static std::size_t max_size = 0;
+        constexpr static std::size_t storage_size = 0;
     };
 
     template<class graph_t, type_classification like = classify<graph_t>, class = void>
@@ -255,8 +254,7 @@ namespace bxlx::detail {
         constexpr static auto get_node_property = noop_t{};
         using node_repr_type = graph_t;
 
-        template<bool node = true>
-        constexpr static std::size_t max_size = 0;
+        constexpr static std::size_t storage_size = 0;
     };
 
     template<class graph_t>
@@ -270,8 +268,7 @@ namespace bxlx::detail {
         constexpr static auto get_node_property = noop_t{};
         using node_repr_type = graph_t;
 
-        template<bool node = true>
-        constexpr static std::size_t max_size = 0;
+        constexpr static std::size_t storage_size = 0;
     };
 
     template<class graph_t>
@@ -285,19 +282,14 @@ namespace bxlx::detail {
         constexpr static auto get_node_property = noop_t{};
         using node_repr_type = graph_t;
 
-        template<bool node = true>
-        constexpr static std::size_t max_size = 0;
+        constexpr static std::size_t storage_size = 0;
     };
 
     template<class graph_t, type_classification like>
     struct graph_element_traits<graph_t, like, std::enable_if_t<like == type_classification::random_access_range || like == type_classification::range>, true>
         : graph_element_traits<graph_t, like, void, false>
     {
-        template<bool node = true>
-        constexpr static std::size_t max_size =
-            graph_element_traits<graph_t, like, void, false>::representation == graph_representation::adjacency_array ?
-            std::tuple_size_v<graph_t> * (node ? 2 : 1) :
-            node ? std::tuple_size_v<graph_t> : std::tuple_size_v<graph_t> * std::tuple_size_v<graph_t>;
+        constexpr static std::size_t storage_size = std::tuple_size_v<graph_t>;
     };
 
 
@@ -349,47 +341,60 @@ namespace bxlx::detail {
             std::invoke_result_t<decltype(impl::get_edge_property), typename impl::edge_repr_type>>;
         constexpr static bool has_edge_property = !std::is_void_v<edge_property_type>;
 
-        template<class T, bool node = true>
-        using storage_t = std::conditional_t<
-            (impl::template max_size<node> > 0),
-            std::array<T, impl::template max_size<node>>,
-            std::vector<T>>;
-
-        template<class T, bool node = true>
-        constexpr static storage_t<T, node> storage_init([[maybe_unused]] const graph_t& g) {
-            if constexpr(impl::template max_size<node> > 0) {
-                return {};
-            } else {
-                return storage_t<T, node>(
-                    size(impl::get_data(g)) +
-                    (node && impl::representation == graph_representation::adjacency_array));
+        template<char operation, std::size_t component>
+        constexpr static auto transform_size(std::size_t s) {
+            switch (operation) {
+                case '+':
+                    return s + component;
+                case '*':
+                    return s * component;
+                case '^':
+                    if (s == 2) {
+                        return s * s;
+                    }
+                    [[fallthrough]];
+                default:
+                    return s;
             }
         }
 
-        template<class T, bool node = true>
-        using storage_unfilled_t =
-            std::conditional_t<(impl::template max_size<node> > 0),
-                std::array<std::optional<T>, impl::template max_size<node>>,
-                std::vector<T>>
-            ;
+        template<class T, char operation = ' ', std::size_t component = (operation == '+' ? 0 : 1)>
+        using storage_t = std::conditional_t<
+            (impl::storage_size > 0),
+            std::array<T, transform_size<operation, component>(impl::storage_size)>,
+            std::vector<T>>;
 
-        template<class T, bool node = true>
-        constexpr static storage_unfilled_t<T, node> storage_unfilled_init([[maybe_unused]] graph_t&& g) {
-            if constexpr(impl::template max_size<node> > 0) {
+        template<class T, char operation = ' ', std::size_t component = (operation == '+' ? 0 : 1)>
+        constexpr static storage_t<T, operation, component> storage_init([[maybe_unused]] const graph_t& g) {
+            if constexpr(impl::storage_size > 0) {
                 return {};
             } else {
-                storage_unfilled_t<T, node> res;
-                res.reserve(size(impl::get_data(g)) +
-                            (node && impl::representation == graph_representation::adjacency_array));
+                return storage_t<T, operation, component>(transform_size<operation, component>(size(impl::get_data(g))));
+            }
+        }
+
+        template<class T, char operation = ' ', std::size_t component = (operation == '+' ? 0 : 1)>
+        using storage_unfilled_t =
+            std::conditional_t<(impl::storage_size > 0),
+                std::array<std::optional<T>, transform_size<operation, component>(impl::storage_size)>,
+                std::vector<T>>;
+
+        template<class T, char operation = ' ', std::size_t component = (operation == '+' ? 0 : 1)>
+        constexpr static storage_unfilled_t<T, operation, component> storage_unfilled_init([[maybe_unused]] graph_t&& g) {
+            if constexpr(impl::storage_size > 0) {
+                return {};
+            } else {
+                storage_unfilled_t<T, operation, component> res;
+                res.reserve(transform_size<operation, component>(size(impl::get_data(g))));
                 return res;
             }
         }
 
-        template<class T, bool node = true, class ...Ts>
-        constexpr static typename storage_unfilled_t<T, node>::iterator storage_unfilled_emplace(
-            [[maybe_unused]] storage_unfilled_t<T, node>& storage,
-            typename storage_unfilled_t<T, node>::iterator it, Ts&& ... ts) {
-            if constexpr (impl::template max_size<node> > 0) {
+        template<class T, char operation = ' ', std::size_t component = (operation == '+' ? 0 : 1), class ...Ts>
+        constexpr static typename storage_unfilled_t<T, operation, component>::iterator storage_unfilled_emplace(
+            [[maybe_unused]] storage_unfilled_t<T, operation, component>& storage,
+            typename storage_unfilled_t<T, operation, component>::iterator it, Ts&& ... ts) {
+            if constexpr (impl::storage_size > 0) {
                 it->emplace(std::forward<Ts>(ts)...);
                 return std::next(it);
             } else {
@@ -397,6 +402,5 @@ namespace bxlx::detail {
             }
         }
     };
-
 }
 #endif //BXLX_GRAPH_TRAITS_GRAPH_TRAITS_IMPL_HPP

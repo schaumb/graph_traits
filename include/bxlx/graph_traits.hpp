@@ -37,10 +37,6 @@ namespace bxlx {
         // 0 if cannot be calculated
         constexpr static std::size_t max_node_compile_time = impl::template max_size<true>;
         constexpr static std::size_t max_edge_compile_time = impl::template max_size<false>;
-
-
-
-
     };
 }
 

@@ -18,6 +18,7 @@
 #include <cassert>
 #include <functional>
 #include <limits>
+#include <execution>
 
 namespace bxlx::graph {
     template<class Graph, class GraphTraits = graph_traits<std::remove_const_t<std::remove_reference_t<Graph>>>>
@@ -30,10 +31,17 @@ namespace bxlx::graph {
     };
 
     namespace detail {
-        template<class Graph, class GraphTraits, graph_representation = GraphTraits::representation>
-        struct bfs_impl : utils::iterable<bfs_impl<Graph, GraphTraits>, bfs_result<Graph, GraphTraits>> {
-            constexpr bfs_impl(Graph&& g, typename GraphTraits::node_index_t start_index)
-                : graph(std::forward<Graph>(g))
+        template<class ExeccutionPolicy>
+        struct member_from_base {
+            ExeccutionPolicy policy;
+        };
+
+        template<class Graph, class GraphTraits, graph_representation repr, class ... ExecutionPolicy>
+        struct bfs_impl : utils::iterable<bfs_impl<Graph, GraphTraits, repr, ExecutionPolicy...>, bfs_result<Graph, GraphTraits>>,
+                member_from_base<ExecutionPolicy> ... {
+            constexpr bfs_impl(Graph&& g, typename GraphTraits::node_index_t start_index, ExecutionPolicy&&... policy)
+                : member_from_base<ExecutionPolicy>{std::forward<ExecutionPolicy>(policy)}...
+                , graph(std::forward<Graph>(g))
                 , curr(vec.begin())
                 , write(size(vec) ? std::next(curr) : curr)
             {
@@ -45,7 +53,7 @@ namespace bxlx::graph {
                 }
             }
 
-            friend utils::iterable<bfs_impl<Graph, GraphTraits>, bfs_result<Graph, GraphTraits>>;
+            friend utils::iterable<bfs_impl<Graph, GraphTraits, repr, ExecutionPolicy...>, bfs_result<Graph, GraphTraits>>;
         private:
             constexpr void next() {
                 typename GraphTraits::node_index_t neigh{};
@@ -75,7 +83,7 @@ namespace bxlx::graph {
                     }
 
                     if constexpr(GraphTraits::representation == bxlx::graph_representation::adjacency_matrix)
-                            ++neigh;
+                        ++neigh;
                 }
                 ++curr;
             }
@@ -105,11 +113,13 @@ namespace bxlx::graph {
             typename storage_type::iterator curr, write;
         };
 
-        template<class Graph, class GraphTraits>
-        struct bfs_impl<Graph, GraphTraits, graph_representation::adjacency_array>
-            : utils::iterable<bfs_impl<Graph, GraphTraits>, bfs_result<Graph, GraphTraits>> {
-            constexpr bfs_impl(Graph&& g, typename GraphTraits::node_index_t start_index)
-                : graph(std::forward<Graph>(g))
+        template<class Graph, class GraphTraits, class ... ExecutionPolicy>
+        struct bfs_impl<Graph, GraphTraits, graph_representation::adjacency_array, ExecutionPolicy...>
+            : utils::iterable<bfs_impl<Graph, GraphTraits, graph_representation::adjacency_array, ExecutionPolicy...>, bfs_result<Graph, GraphTraits>>,
+                member_from_base<ExecutionPolicy> ... {
+            constexpr bfs_impl(Graph&& g, typename GraphTraits::node_index_t start_index, ExecutionPolicy&&... policy)
+                : member_from_base<ExecutionPolicy>{std::forward<ExecutionPolicy>(policy)}...
+                , graph(std::forward<Graph>(g))
                 , curr(storage.begin())
                 , no_info(size(storage) ? std::next(curr) : curr)
                 , discarded(storage.end())
@@ -118,12 +128,16 @@ namespace bxlx::graph {
                 curr->index = start_index;
 
                 std::size_t ix{};
-                for (auto&& edge : GraphTraits::get_data(graph)) {
-                    auto& [source, target, distance, edge_p, node_p] = storage[++ix];
-                    source = GraphTraits::edge_source(edge);
-                    target = GraphTraits::edge_target(edge);
-                    edge_p = &edge;
-                }
+                auto&& data = GraphTraits::get_data(graph);
+                std::transform(this->member_from_base<ExecutionPolicy>::policy..., begin(data), end(data), no_info, [] (auto&& edge) {
+                    return bfs_result<Graph, GraphTraits>{
+                        GraphTraits::edge_source(edge),
+                        GraphTraits::edge_target(edge),
+                        0,
+                        &edge,
+                        nullptr
+                    };
+                });
             }
 
             bool has_end() {
@@ -135,11 +149,11 @@ namespace bxlx::graph {
             }
 
             void next() {
-                discarded = std::partition(std::next(curr), discarded, [t = curr->index](auto& res) {
+                discarded = std::partition(this->member_from_base<ExecutionPolicy>::policy..., std::next(curr), discarded, [t = curr->index](auto& res) {
                     return res.index != t;
                 });
 
-                auto new_no_info = std::partition(no_info, discarded, [t = curr->index](auto& res) {
+                auto new_no_info = std::partition(this->member_from_base<ExecutionPolicy>::policy..., no_info, discarded, [t = curr->index](auto& res) {
                     return res.parent == t;
                 });
 
@@ -150,26 +164,51 @@ namespace bxlx::graph {
                 ++curr;
             }
 
-            using storage_type = typename GraphTraits::template storage_t<bfs_result<Graph, GraphTraits>>;
+            using storage_type = typename GraphTraits::template storage_t<bfs_result<Graph, GraphTraits>, '+', 1>;
 
             Graph graph;
-            storage_type storage = GraphTraits::template storage_init<bfs_result<Graph, GraphTraits>>(graph);
+            storage_type storage = GraphTraits::template storage_init<bfs_result<Graph, GraphTraits>, '+', 1>(graph);
+
             typename storage_type::iterator curr, no_info, discarded;
         };
-
     }
 
-    template<class Graph, class GraphTraits = graph_traits<std::remove_const_t<std::remove_reference_t<Graph>>>>
-    constexpr detail::bfs_impl<Graph, GraphTraits> bfs(Graph&& graph, typename GraphTraits::node_index_t start_index) {
+
+    template<class graph_t, class = void>
+    struct graph_traits_traits;
+
+    template<class graph_t>
+    struct graph_traits_traits<graph_t, std::enable_if_t<!std::is_execution_policy_v<bxlx::detail::remove_cvref_t<graph_t>>>> {
+        using type = bxlx::graph_traits<graph_t>;
+    };
+
+    template<class Graph, class GraphTraits = typename graph_traits_traits<Graph>::type>
+    constexpr detail::bfs_impl<Graph, GraphTraits, GraphTraits::representation> bfs(Graph&& graph, typename GraphTraits::node_index_t start_index) {
         return {std::forward<Graph>(graph), start_index};
     }
 
-    template<class Graph, class GraphTraits = graph_traits<std::remove_const_t<std::remove_reference_t<Graph>>>, class OutputIterator>
+    template<class ExecutionPolicy, class Graph, class GraphTraits =
+        typename std::enable_if_t<std::is_execution_policy_v<bxlx::detail::remove_cvref_t<ExecutionPolicy>>, graph_traits_traits<Graph>>::type>
+    constexpr detail::bfs_impl<Graph, GraphTraits, GraphTraits::representation, ExecutionPolicy> bfs(
+        ExecutionPolicy&& policy, Graph&& graph, typename GraphTraits::node_index_t start_index) {
+        return {std::forward<Graph>(graph), start_index, std::forward<ExecutionPolicy>(policy)};
+    }
+
+    template<class Graph, class GraphTraits = typename graph_traits_traits<Graph>::type, class OutputIterator>
     constexpr OutputIterator bfs(Graph&& graph, typename GraphTraits::node_index_t start_index, OutputIterator out) {
         for (auto elem : bfs<Graph, GraphTraits>(std::forward<Graph>(graph), start_index))
             *out++ = elem;
         return out;
     }
+
+    template<class ExecutionPolicy, class Graph, class GraphTraits =
+        typename std::enable_if_t<std::is_execution_policy_v<bxlx::detail::remove_cvref_t<ExecutionPolicy>>, graph_traits_traits<Graph>>::type, class OutputIterator>
+    constexpr OutputIterator bfs(ExecutionPolicy&& policy, Graph&& graph, typename GraphTraits::node_index_t start_index, OutputIterator out) {
+        for (auto elem : bfs<ExecutionPolicy, Graph, GraphTraits>(std::forward<ExecutionPolicy>(policy), std::forward<Graph>(graph), start_index))
+            *out++ = elem;
+        return out;
+    }
+
 }
 
 #endif //BXLX_GRAPH_TRAITS_BREADTH_FIRST_SEARCH_HPP
