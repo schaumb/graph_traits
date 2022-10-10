@@ -161,15 +161,15 @@ namespace bxlx::graph {
 
     template<class Graph, class GraphTraits = graph_traits<std::remove_const_t<std::remove_reference_t<Graph>>>>
     constexpr detail::bfs_impl<Graph, GraphTraits> bfs(Graph&& graph, typename GraphTraits::node_index_t start_index) {
-    return {std::forward<Graph>(graph), start_index};
-}
+        return {std::forward<Graph>(graph), start_index};
+    }
 
-template<class Graph, class GraphTraits = graph_traits<std::remove_const_t<std::remove_reference_t<Graph>>>, class OutputIterator>
-constexpr OutputIterator bfs(Graph&& graph, typename GraphTraits::node_index_t start_index, OutputIterator out) {
-for (auto elem : bfs<Graph, GraphTraits>(std::forward<Graph>(graph), start_index))
-*out++ = elem;
-return out;
-}
+    template<class Graph, class GraphTraits = graph_traits<std::remove_const_t<std::remove_reference_t<Graph>>>, class OutputIterator>
+    constexpr OutputIterator bfs(Graph&& graph, typename GraphTraits::node_index_t start_index, OutputIterator out) {
+        for (auto elem : bfs<Graph, GraphTraits>(std::forward<Graph>(graph), start_index))
+            *out++ = elem;
+        return out;
+    }
 }
 
 #endif //BXLX_GRAPH_TRAITS_BREADTH_FIRST_SEARCH_HPP
