@@ -31,9 +31,9 @@ namespace bxlx::graph {
     };
 
     namespace detail {
-        template<class ExeccutionPolicy>
+        template<class ExecutionPolicy>
         struct member_from_base {
-            ExeccutionPolicy policy;
+            ExecutionPolicy policy;
         };
 
         template<class Graph, class GraphTraits, class = void, class ... ExecutionPolicy>
