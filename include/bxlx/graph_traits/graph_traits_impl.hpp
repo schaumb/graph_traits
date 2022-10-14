@@ -38,7 +38,7 @@ namespace bxlx::detail {
     template<class T>
     using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
-    template<class T, class = void>
+    template<class, class = void>
     constexpr static bool is_random_access_range = false;
 
     template<class T>
@@ -52,14 +52,14 @@ namespace bxlx::detail {
     constexpr static bool is_char = std::is_same_v<T, char> || std::is_same_v<T, char16_t>
         || std::is_same_v<T, char32_t> || std::is_same_v<T, wchar_t> || std::is_same_v<T, decltype(u8'\0')>;
 
-    template<class T, class = void>
+    template<class, class = void>
     constexpr static bool is_string_like = false;
 
     template<class T>
     constexpr static bool is_string_like<T, std::enable_if_t<is_random_access_range<T>>> =
         is_char<remove_cvref_t<decltype(*std::begin(std::declval<T&>()))>>;
 
-    template<class T, class = void>
+    template<class, class = void>
     constexpr static std::size_t tuple_like_size = 0;
 
     template<class T>
@@ -150,12 +150,6 @@ namespace bxlx::detail {
     template<class graph_t>
     struct adjacency_array_traits<graph_t, type_classification::tuple_like, std::enable_if_t<(std::tuple_size_v<graph_t> == 2 || std::tuple_size_v<graph_t> == 3)>>
     {
-        // static_assert(classify<std::tuple_element_t<0, graph_t>> == type_classification::integral, "Adjacency array 0th component must be an integer type");
-        // static_assert(classify<std::tuple_element_t<1, graph_t>> == type_classification::integral, "Adjacency array 1th component must be an integer type");
-        // This is needed?
-        //static_assert(std::is_same_v<remove_cvref_t<std::tuple_element_t<0, graph_t>>, remove_cvref_t<std::tuple_element_t<1, graph_t>>>,
-        //    "Adjacency array first 2 component type must be the same");
-
         constexpr static graph_representation representation = graph_representation::adjacency_array;
 
         constexpr static auto get_edge_property = std::conditional_t<std::tuple_size_v<graph_t> == 3, getter_t<2>, noop_t>{};
