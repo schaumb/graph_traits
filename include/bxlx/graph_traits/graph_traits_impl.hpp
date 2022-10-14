@@ -27,6 +27,7 @@ namespace bxlx::detail {
         tuple_like,
         optional,
         bool_t,
+        bitset,
         integral,
         string
     };
@@ -93,6 +94,13 @@ namespace bxlx::detail {
 
     template<class T>
     constexpr static type_classification classify<T, std::enable_if_t<
+        !is_random_access_range<T> &&
+        std::is_integral_v<decltype(std::size(std::declval<T&>()))> &&
+        std::is_same_v<typename T::reference, decltype(std::declval<T&>()[std::size(std::declval<T>())])>
+    >> = type_classification::bitset;
+
+    template<class T>
+    constexpr static type_classification classify<T, std::enable_if_t<
         !is_random_access_range<T> && (tuple_like_size<T> > 0)
     >> = type_classification::tuple_like;
 
@@ -139,6 +147,14 @@ namespace bxlx::detail {
         template<class T, class ...Ts>
         [[nodiscard]] constexpr T&& operator()(T&& val, Ts&&...) const noexcept {
             return std::forward<T>(val);
+        }
+    };
+
+    template<class type1, class type2>
+    struct composition_t {
+        template<class T, class ...Ts>
+        [[nodiscard]] constexpr auto operator()(T&& val, Ts&&... ts) const noexcept {
+            return type1{}(type2{}(std::forward<T>(val), ts...), ts...);
         }
     };
 
@@ -216,7 +232,7 @@ namespace bxlx::detail {
 
     template<class graph_t, type_classification like = classify<graph_t>, class = void, std::size_t = tuple_like_size<graph_t>>
     struct graph_element_traits {
-        static_assert(always_false<graph_t>, "graph_t elements must be range or tuple.");
+        static_assert(always_false<graph_t>, "graph_t elements must be range tuple or bitset.");
     };
 
     template<class graph_t, std::size_t tuple_size>
@@ -235,7 +251,7 @@ namespace bxlx::detail {
                               classify<std::tuple_element_t<0, graph_t>> == type_classification::random_access_range>, 2>
         : graph_element_traits<std::tuple_element_t<0, graph_t>>
     {
-        constexpr static auto out_edges = getter_t<0>{};
+        constexpr static auto out_edges = composition_t<decltype(graph_element_traits<std::tuple_element_t<0, graph_t>>::out_edges), getter_t<0>>{};
         constexpr static auto get_node_property = getter_t<1>{};
         using node_repr_type = graph_t;
     };
@@ -275,6 +291,50 @@ namespace bxlx::detail {
         using node_repr_type = graph_t;
 
         constexpr static std::size_t inside_storage_size = 0;
+    };
+
+    template<class graph_t, std::size_t tuple_size>
+    struct graph_element_traits<graph_t, type_classification::bitset, void, tuple_size>
+        : adjacency_matrix_traits<std::remove_reference_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>>
+    {
+        struct bitset_iterator_getter {
+            struct bitset_range;
+
+            struct bitset_iterator {
+                std::size_t ix = 0;
+                graph_t* g = nullptr;
+
+                bool operator!=(const bitset_iterator& oth) const {
+                    return this->g != oth.g || this->ix != oth.ix;
+                }
+
+                bitset_iterator& operator++() {
+                    ++ix;
+                    return *this;
+                }
+
+                auto operator*() {
+                    return (*g)[ix];
+                }
+            };
+            struct bitset_range {
+                bitset_iterator begin_, end_;
+
+                bitset_iterator begin() const {
+                    return begin_;
+                }
+                bitset_iterator end() const {
+                    return end_;
+                }
+            };
+            constexpr bitset_range operator()(graph_t& gr) const {
+                return bitset_range{{0, &gr}, {inside_storage_size, &gr}};
+            }
+        } constexpr static out_edges{};
+        constexpr static auto get_node_property = noop_t{};
+        using node_repr_type = graph_t;
+
+        constexpr static std::size_t inside_storage_size = graph_t{}.size();
     };
 
     template<class graph_t, type_classification like, std::size_t tuple_size>
