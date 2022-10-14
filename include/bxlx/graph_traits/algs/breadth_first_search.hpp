@@ -36,8 +36,8 @@ namespace bxlx::graph {
             ExeccutionPolicy policy;
         };
 
-        template<class Graph, class GraphTraits, graph_representation repr, class ... ExecutionPolicy>
-        struct bfs_impl : utils::iterable<bfs_impl<Graph, GraphTraits, repr, ExecutionPolicy...>, bfs_result<Graph, GraphTraits>>,
+        template<class Graph, class GraphTraits, class = void, class ... ExecutionPolicy>
+        struct bfs_impl : utils::iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, bfs_result<Graph, GraphTraits>>,
                 member_from_base<ExecutionPolicy> ... {
             constexpr bfs_impl(Graph&& g, typename GraphTraits::node_index_t start_index, ExecutionPolicy&&... policy)
                 : member_from_base<ExecutionPolicy>{std::forward<ExecutionPolicy>(policy)}...
@@ -53,7 +53,7 @@ namespace bxlx::graph {
                 }
             }
 
-            friend utils::iterable<bfs_impl<Graph, GraphTraits, repr, ExecutionPolicy...>, bfs_result<Graph, GraphTraits>>;
+            friend utils::iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, bfs_result<Graph, GraphTraits>>;
         private:
             constexpr void next() {
                 typename GraphTraits::node_index_t neigh{};
@@ -65,17 +65,17 @@ namespace bxlx::graph {
 
                     if (neigh >= size(vec)) {
                         if constexpr(GraphTraits::representation == bxlx::graph_representation::adjacency_list)
-                        if (neigh == std::numeric_limits<typename GraphTraits::node_index_t>::max())
-                            break;
+                            if (neigh == std::numeric_limits<typename GraphTraits::node_index_t>::max())
+                                break;
                         throw std::overflow_error("Edge " + std::to_string(curr->res.index) + " neighbour " +
                                                   std::to_string(neigh) + " is bigger than size: " + std::to_string(size(vec)) + ". For an invalid element, use numeric_limits<>::max().");
                     }
 
                     if constexpr(GraphTraits::representation == bxlx::graph_representation::adjacency_matrix)
-                    if (!edge) {
-                        ++neigh;
-                        continue;
-                    }
+                        if (!edge) {
+                            ++neigh;
+                            continue;
+                        }
 
                     if (auto &n = vec[neigh]; !n.visited) {
                         write++->set_node({curr->res.index, neigh, curr->res.distance + 1, &edge, &GraphTraits::get_data(graph)[neigh]});
@@ -114,8 +114,8 @@ namespace bxlx::graph {
         };
 
         template<class Graph, class GraphTraits, class ... ExecutionPolicy>
-        struct bfs_impl<Graph, GraphTraits, graph_representation::adjacency_array, ExecutionPolicy...>
-            : utils::iterable<bfs_impl<Graph, GraphTraits, graph_representation::adjacency_array, ExecutionPolicy...>, bfs_result<Graph, GraphTraits>>,
+        struct bfs_impl<Graph, GraphTraits, std::enable_if_t<GraphTraits::representation == graph_representation::adjacency_array>, ExecutionPolicy...>
+            : utils::iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, bfs_result<Graph, GraphTraits>>,
                 member_from_base<ExecutionPolicy> ... {
             constexpr bfs_impl(Graph&& g, typename GraphTraits::node_index_t start_index, ExecutionPolicy&&... policy)
                 : member_from_base<ExecutionPolicy>{std::forward<ExecutionPolicy>(policy)}...
@@ -127,7 +127,6 @@ namespace bxlx::graph {
                 curr->parent = start_index;
                 curr->index = start_index;
 
-                std::size_t ix{};
                 auto&& data = GraphTraits::get_data(graph);
                 std::transform(this->member_from_base<ExecutionPolicy>::policy..., begin(data), end(data), no_info, [] (auto&& edge) {
                     return bfs_result<Graph, GraphTraits>{
@@ -183,13 +182,13 @@ namespace bxlx::graph {
     };
 
     template<class Graph, class GraphTraits = typename graph_traits_traits<Graph>::type>
-    constexpr detail::bfs_impl<Graph, GraphTraits, GraphTraits::representation> bfs(Graph&& graph, typename GraphTraits::node_index_t start_index) {
+    constexpr detail::bfs_impl<Graph, GraphTraits> bfs(Graph&& graph, typename GraphTraits::node_index_t start_index) {
         return {std::forward<Graph>(graph), start_index};
     }
 
     template<class ExecutionPolicy, class Graph, class GraphTraits =
         typename std::enable_if_t<std::is_execution_policy_v<bxlx::detail::remove_cvref_t<ExecutionPolicy>>, graph_traits_traits<Graph>>::type>
-    constexpr detail::bfs_impl<Graph, GraphTraits, GraphTraits::representation, ExecutionPolicy> bfs(
+    constexpr detail::bfs_impl<Graph, GraphTraits, void, ExecutionPolicy> bfs(
         ExecutionPolicy&& policy, Graph&& graph, typename GraphTraits::node_index_t start_index) {
         return {std::forward<Graph>(graph), start_index, std::forward<ExecutionPolicy>(policy)};
     }
@@ -204,9 +203,8 @@ namespace bxlx::graph {
     template<class ExecutionPolicy, class Graph, class GraphTraits =
         typename std::enable_if_t<std::is_execution_policy_v<bxlx::detail::remove_cvref_t<ExecutionPolicy>>, graph_traits_traits<Graph>>::type, class OutputIterator>
     constexpr OutputIterator bfs(ExecutionPolicy&& policy, Graph&& graph, typename GraphTraits::node_index_t start_index, OutputIterator out) {
-        for (auto elem : bfs<ExecutionPolicy, Graph, GraphTraits>(std::forward<ExecutionPolicy>(policy), std::forward<Graph>(graph), start_index))
-            *out++ = elem;
-        return out;
+        auto&& cont = bfs<ExecutionPolicy&, Graph, GraphTraits>(policy, std::forward<Graph>(graph), start_index);
+        return std::copy(std::forward<ExecutionPolicy>(policy), begin(cont), end(cont), out);
     }
 
 }

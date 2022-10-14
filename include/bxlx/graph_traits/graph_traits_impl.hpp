@@ -43,8 +43,9 @@ namespace bxlx::detail {
 
     template<class T>
     constexpr static bool is_random_access_range<T, std::enable_if_t<
-        std::is_integral_v<decltype(size(std::declval<T&>()))> &&
-        std::is_same_v<decltype(*std::declval<T&>().begin()), decltype(std::declval<T&>()[size(std::declval<T&>())])>
+        std::is_integral_v<decltype(std::size(std::declval<T>()))> &&
+        (std::is_same_v<decltype(*std::begin(std::declval<T&>())), decltype(std::declval<T&>()[std::size(std::declval<T>())])> ||
+            std::is_array_v<T>)
     >> = true;
 
     template<class T>
@@ -56,15 +57,18 @@ namespace bxlx::detail {
 
     template<class T>
     constexpr static bool is_string_like<T, std::enable_if_t<is_random_access_range<T>>> =
-        is_char<remove_cvref_t<decltype(*std::declval<T&>().begin())>>;
+        is_char<remove_cvref_t<decltype(*std::begin(std::declval<T&>()))>>;
 
     template<class T, class = void>
-    constexpr static bool is_tuple_like = false;
+    constexpr static std::size_t tuple_like_size = 0;
 
     template<class T>
-    constexpr static bool is_tuple_like<T, std::enable_if_t<
+    constexpr static std::size_t tuple_like_size<T, std::enable_if_t<
         sizeof(std::tuple_size<T>) != 0
-    >> = true;
+    >> = std::tuple_size_v<T>;
+
+    template<class T>
+    constexpr static std::size_t tuple_like_size<T, std::enable_if_t<std::is_array_v<T>>> = std::extent_v<T>;
 
 
     template<class T, class = void>
@@ -82,17 +86,18 @@ namespace bxlx::detail {
     template<class T>
     constexpr static type_classification classify<T, std::enable_if_t<
         !is_random_access_range<T> &&
-        std::is_integral_v<decltype(size(std::declval<T&>()))> &&
-        std::is_void_v<std::void_t<decltype(*std::declval<T&>().begin())>>
+        std::is_integral_v<decltype(std::size(std::declval<T&>()))> &&
+        std::is_void_v<std::void_t<decltype(*std::begin(std::declval<T&>()))>>
     >> = type_classification::range;
 
     template<class T>
     constexpr static type_classification classify<T, std::enable_if_t<
-        !is_random_access_range<T> && is_tuple_like<T>
+        !is_random_access_range<T> && (tuple_like_size<T> > 0)
     >> = type_classification::tuple_like;
 
     template<class T>
     constexpr static type_classification classify<T, std::enable_if_t<
+        !is_random_access_range<T> &&
         std::is_void_v<std::void_t<decltype(*std::declval<T&>()), decltype(static_cast<bool>(std::declval<T&>()))>>
     >> = type_classification::optional;
 
@@ -217,26 +222,25 @@ namespace bxlx::detail {
     };
 
 
-    template<class graph_t, type_classification like = classify<graph_t>, class = void, bool tuple_like = is_tuple_like<graph_t>>
+    template<class graph_t, type_classification like = classify<graph_t>, class = void, std::size_t = tuple_like_size<graph_t>>
     struct graph_element_traits {
         static_assert(always_false<graph_t>, "graph_t elements must be range or tuple.");
     };
 
-    template<class graph_t>
+    template<class graph_t, std::size_t tuple_size>
     struct graph_element_traits<graph_t, type_classification::tuple_like,
         std::enable_if_t<(classify<std::tuple_element_t<0, graph_t>> != type_classification::range &&
             classify<std::tuple_element_t<0, graph_t>> != type_classification::random_access_range) ||
-            std::tuple_size_v<graph_t> == 3>, true>
+            tuple_size == 3>, tuple_size>
         : adjacency_array_traits<graph_t>
     {
-
+        constexpr static std::size_t inside_storage_size = 0;
     };
 
     template<class graph_t>
     struct graph_element_traits<graph_t, type_classification::tuple_like,
-        std::enable_if_t<(classify<std::tuple_element_t<0, graph_t>> == type_classification::range ||
-                              classify<std::tuple_element_t<0, graph_t>> == type_classification::random_access_range) &&
-                        std::tuple_size_v<graph_t> == 2>, true>
+        std::enable_if_t<classify<std::tuple_element_t<0, graph_t>> == type_classification::range ||
+                              classify<std::tuple_element_t<0, graph_t>> == type_classification::random_access_range>, 2>
         : graph_element_traits<std::tuple_element_t<0, graph_t>>
     {
         constexpr static auto get_node_property = getter_t<1>{};
@@ -246,60 +250,60 @@ namespace bxlx::detail {
     };
 
     template<class graph_t>
-    struct graph_element_traits<graph_t, type_classification::range, void, false>
-        : adjacency_list_traits<std::remove_reference_t<decltype(*std::declval<graph_t&>().begin())>>
+    struct graph_element_traits<graph_t, type_classification::range, void, 0>
+        : adjacency_list_traits<std::remove_reference_t<decltype(*std::begin(std::declval<graph_t&>()))>>
     {
-        using node_index_t = decltype(size(std::declval<graph_t&>()));
+        using node_index_t = decltype(std::size(std::declval<graph_t&>()));
         constexpr static auto out_edges = identity_t{};
         constexpr static auto get_node_property = noop_t{};
         using node_repr_type = graph_t;
 
-        constexpr static std::size_t storage_size = 0;
+        constexpr static std::size_t inside_storage_size = 0;
     };
 
     template<class graph_t>
     struct graph_element_traits<graph_t, type_classification::random_access_range, std::enable_if_t<
-        classify<remove_cvref_t<decltype(std::declval<graph_t&>()[size(std::declval<graph_t&>())])>> == type_classification::integral ||
-        classify<remove_cvref_t<decltype(std::declval<graph_t&>()[size(std::declval<graph_t&>())])>> == type_classification::tuple_like
-        >, false> : adjacency_list_traits<std::remove_reference_t<decltype(std::declval<graph_t&>()[size(std::declval<graph_t&>())])>>
+        classify<remove_cvref_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>> == type_classification::integral ||
+        classify<remove_cvref_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>> == type_classification::tuple_like
+        >, 0> : adjacency_list_traits<std::remove_reference_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>>
     {
-        using node_index_t = decltype(size(std::declval<graph_t&>()));
+        using node_index_t = decltype(std::size(std::declval<graph_t&>()));
         constexpr static auto out_edges = identity_t{};
         constexpr static auto get_node_property = noop_t{};
         using node_repr_type = graph_t;
 
-        constexpr static std::size_t storage_size = 0;
+        constexpr static std::size_t inside_storage_size = 0;
     };
 
     template<class graph_t>
     struct graph_element_traits<graph_t, type_classification::random_access_range, std::enable_if_t<
-        classify<remove_cvref_t<decltype(std::declval<graph_t&>()[size(std::declval<graph_t&>())])>> == type_classification::bool_t ||
-        classify<remove_cvref_t<decltype(std::declval<graph_t&>()[size(std::declval<graph_t&>())])>> == type_classification::optional
-    >, false> : adjacency_matrix_traits<std::remove_reference_t<decltype(std::declval<graph_t&>()[size(std::declval<graph_t&>())])>>
+        classify<remove_cvref_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>> == type_classification::bool_t ||
+        classify<remove_cvref_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>> == type_classification::optional
+    >, 0> : adjacency_matrix_traits<std::remove_reference_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>>
     {
-        using node_index_t = decltype(size(std::declval<graph_t&>()));
+        using node_index_t = decltype(std::size(std::declval<graph_t&>()));
         constexpr static auto out_edges = identity_t{};
         constexpr static auto get_node_property = noop_t{};
         using node_repr_type = graph_t;
 
-        constexpr static std::size_t storage_size = 0;
+        constexpr static std::size_t inside_storage_size = 0;
     };
 
-    template<class graph_t, type_classification like>
-    struct graph_element_traits<graph_t, like, std::enable_if_t<like == type_classification::random_access_range || like == type_classification::range>, true>
-        : graph_element_traits<graph_t, like, void, false>
+    template<class graph_t, type_classification like, std::size_t tuple_size>
+    struct graph_element_traits<graph_t, like, std::enable_if_t<(like == type_classification::random_access_range || like == type_classification::range) && (tuple_size > 0)>, tuple_size>
+        : graph_element_traits<graph_t, like, void, 0>
     {
-        constexpr static std::size_t storage_size = std::tuple_size_v<graph_t>;
+        constexpr static std::size_t inside_storage_size = tuple_size;
     };
 
 
-    template<class graph_t, type_classification like = classify<graph_t>>
+    template<class graph_t, type_classification like = classify<graph_t>, class = void, std::size_t tuple_size = tuple_like_size<graph_t>>
     struct graph_traits_impl {
         static_assert(always_false<graph_t>, "graph_t type is not a tuple and not a range.");
     };
 
-    template<class graph_t>
-    struct graph_traits_impl<graph_t, type_classification::tuple_like>
+    template<class graph_t, std::size_t tuple_size>
+    struct graph_traits_impl<graph_t, type_classification::tuple_like, void, tuple_size>
         : graph_traits_impl<std::tuple_element_t<0, graph_t>>
     {
         constexpr static auto get_graph_property = getter_t<1>{};
@@ -308,21 +312,41 @@ namespace bxlx::detail {
     };
 
     template<class graph_t>
-    struct graph_traits_impl<graph_t, type_classification::random_access_range>
-        : graph_element_traits<std::remove_reference_t<decltype(std::declval<graph_t&>()[size(std::declval<graph_t&>())])>>
+    struct graph_traits_impl<graph_t, type_classification::random_access_range, void, 0>
+        : graph_element_traits<std::remove_reference_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>>
     {
+        using impl = graph_element_traits<std::remove_reference_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>>;
         constexpr static auto get_graph_property = noop_t{};
         constexpr static auto get_data = identity_t{};
         using graph_repr_type = graph_t;
+
+        constexpr static std::size_t storage_size =
+            impl::representation == graph_representation::adjacency_array ?
+            impl::inside_storage_size : 0;
     };
 
     template<class graph_t>
-    struct graph_traits_impl<graph_t, type_classification::range>
-        : adjacency_array_traits<std::remove_reference_t<decltype(*std::declval<graph_t&>().begin())>>
+    struct graph_traits_impl<graph_t, type_classification::range, void, 0>
+        : adjacency_array_traits<std::remove_reference_t<decltype(*std::begin(std::declval<graph_t&>()))>>
     {
         constexpr static auto get_graph_property = noop_t{};
         constexpr static auto get_data = identity_t{};
         using graph_repr_type = graph_t;
+
+        constexpr static std::size_t storage_size = 0;
+    };
+    template<class graph_t, type_classification like, std::size_t tuple_size>
+    struct graph_traits_impl<graph_t, like, std::enable_if_t<(like == type_classification::random_access_range || like == type_classification::range) && (tuple_size > 0)>, tuple_size>
+        : graph_traits_impl<graph_t, like, void, 0>
+    {
+        using impl = graph_traits_impl<graph_t, like, void, false>;
+        constexpr static std::size_t storage_size = tuple_size;
+        constexpr static std::size_t inside_storage_size =
+            impl::representation != graph_representation::adjacency_matrix || impl::inside_storage_size > 0 ?
+                impl::inside_storage_size : storage_size;
+
+        static_assert(impl::representation != graph_representation::adjacency_matrix || inside_storage_size == storage_size,
+                          "Adjacency matrix storage sizes must be the same length");
     };
 
     template<class graph_t>
@@ -369,7 +393,7 @@ namespace bxlx::detail {
             if constexpr(impl::storage_size > 0) {
                 return {};
             } else {
-                return storage_t<T, operation, component>(transform_size<operation, component>(size(impl::get_data(g))));
+                return storage_t<T, operation, component>(transform_size<operation, component>(std::size(impl::get_data(g))));
             }
         }
 
@@ -385,7 +409,7 @@ namespace bxlx::detail {
                 return {};
             } else {
                 storage_unfilled_t<T, operation, component> res;
-                res.reserve(transform_size<operation, component>(size(impl::get_data(g))));
+                res.reserve(transform_size<operation, component>(std::size(impl::get_data(g))));
                 return res;
             }
         }

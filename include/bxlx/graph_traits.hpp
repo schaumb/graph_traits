@@ -35,8 +35,13 @@ namespace bxlx {
         using edge_repr_type = typename impl::edge_repr_type;
 
         // 0 if cannot be calculated
-        constexpr static std::size_t max_node_compile_time = impl::template max_size<true>;
-        constexpr static std::size_t max_edge_compile_time = impl::template max_size<false>;
+        constexpr static std::size_t max_node_compile_time =
+            representation == graph_representation::adjacency_array ?
+            impl::storage_size * 2 : impl::storage_size;
+
+        constexpr static std::size_t max_edge_compile_time =
+            representation == graph_representation::adjacency_array ?
+            impl::storage_size : impl::inside_storage_size * impl::storage_size;
     };
 }
 
