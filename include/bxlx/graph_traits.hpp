@@ -41,7 +41,9 @@ namespace bxlx {
 
         constexpr static std::size_t max_edge_compile_time =
             representation == graph_representation::adjacency_array ?
-            impl::storage_size : impl::inside_storage_size * impl::storage_size;
+            impl::storage_size :
+            (representation == graph_representation::adjacency_matrix && impl::inside_storage_size == 0 ? impl::storage_size : impl::inside_storage_size) *
+            impl::storage_size;
     };
 }
 

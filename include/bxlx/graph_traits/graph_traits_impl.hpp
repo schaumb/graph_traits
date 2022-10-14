@@ -289,6 +289,7 @@ namespace bxlx::detail {
         constexpr static auto out_edges = identity_t{};
         constexpr static auto get_node_property = noop_t{};
         using node_repr_type = graph_t;
+        constexpr static auto node_connections_class = type_classification::random_access_range;
 
         constexpr static std::size_t inside_storage_size = 0;
     };
@@ -333,6 +334,7 @@ namespace bxlx::detail {
         } constexpr static out_edges{};
         constexpr static auto get_node_property = noop_t{};
         using node_repr_type = graph_t;
+        constexpr static auto node_connections_class = type_classification::bitset;
 
         constexpr static std::size_t inside_storage_size = graph_t{}.size();
     };
@@ -395,11 +397,8 @@ namespace bxlx::detail {
     {
         using impl = graph_traits_impl<graph_t, like, void, false>;
         constexpr static std::size_t storage_size = tuple_size;
-        constexpr static std::size_t inside_storage_size =
-            impl::representation != graph_representation::adjacency_matrix || impl::inside_storage_size > 0 ?
-                impl::inside_storage_size : storage_size;
 
-        static_assert(impl::representation != graph_representation::adjacency_matrix || inside_storage_size == storage_size,
+        static_assert(impl::representation != graph_representation::adjacency_matrix || impl::inside_storage_size == 0 || impl::inside_storage_size == storage_size,
                           "Adjacency matrix storage sizes must be the same length");
     };
 
