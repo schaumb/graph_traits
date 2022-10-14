@@ -35,7 +35,7 @@ static_assert(graph_traits<
 The result always this struct
 
 ```cpp
-struct bfs_result {
+struct breadth_first_search_result {
     node_index_t parent;
     node_index_t index;
     size_t distance;
@@ -61,7 +61,7 @@ void run_bfs() {
         {"e", "a"}, {"e", "c"}, {"e", "f"}
     }; 
     
-    for (auto&& bfs_res : bxlx::graph::bfs(edge_list, "a")) {
+    for (auto&& bfs_res : bxlx::graph::breadth_first_search(edge_list, "a")) {
         if (bfs_res.edge) // not the first node
             std::cout << bfs_res.parent << " -> ";
         std::cout << bfs_res.index << " (dist: " << bfs_res.distance << ")\n";
@@ -100,7 +100,7 @@ void run_bfs_2() {
         {{},            "node 8"},
         {{8},           "node 9"},
     }};
-    for (auto&& bfs_res : bxlx::graph::bfs(graph, 2)) {
+    for (auto&& bfs_res : bxlx::graph::breadth_first_search(graph, 2)) {
         if (bfs_res.edge) // not the first node
             cout << bfs_res.parent << " -> ";
         cout << "\"" << bfs_res.node->second << "\" "
