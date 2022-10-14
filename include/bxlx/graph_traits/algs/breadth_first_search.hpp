@@ -122,21 +122,21 @@ namespace bxlx::graph {
                 , graph(std::forward<Graph>(g))
                 , curr(storage.begin())
                 , no_info(size(storage) ? std::next(curr) : curr)
-                , discarded(storage.end())
+                , discarded([this] {
+                    auto&& data = GraphTraits::get_data(graph);
+                    return std::transform(this->member_from_base<ExecutionPolicy>::policy..., begin(data), end(data), no_info, [] (auto&& edge) {
+                        return breadth_first_search_result<Graph, GraphTraits>{
+                            GraphTraits::edge_source(edge),
+                            GraphTraits::edge_target(edge),
+                            0,
+                            &edge,
+                            nullptr
+                        };
+                    });
+                } ())
             {
                 curr->parent = start_index;
                 curr->index = start_index;
-
-                auto&& data = GraphTraits::get_data(graph);
-                std::transform(this->member_from_base<ExecutionPolicy>::policy..., begin(data), end(data), no_info, [] (auto&& edge) {
-                    return breadth_first_search_result<Graph, GraphTraits>{
-                        GraphTraits::edge_source(edge),
-                        GraphTraits::edge_target(edge),
-                        0,
-                        &edge,
-                        nullptr
-                    };
-                });
             }
 
             bool has_end() {
@@ -163,10 +163,10 @@ namespace bxlx::graph {
                 ++curr;
             }
 
-            using storage_type = typename GraphTraits::template storage_t<breadth_first_search_result<Graph, GraphTraits>, '+', 1>;
+            using storage_type = typename GraphTraits::template storage_t<breadth_first_search_result<Graph, GraphTraits>, std::plus<>, 1>;
 
             Graph graph;
-            storage_type storage = GraphTraits::template storage_init<breadth_first_search_result<Graph, GraphTraits>, '+', 1>(graph);
+            storage_type storage = GraphTraits::template storage_init<breadth_first_search_result<Graph, GraphTraits>, std::plus<>, 1>(graph);
 
             typename storage_type::iterator curr, no_info, discarded;
         };
