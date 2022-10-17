@@ -29,10 +29,24 @@ static_assert(graph_traits<
 > == adjacency_matrix); // it has bounded edge, node and graph properties
 ```
 
+---
+
+The main concepts:
+- all graph function allocate maximum once, at begin.
+- if constexpr time known the nodes or edges (maximum) size, no heap allocation happens.
+- overloaded functions with first argument `std::execution::*` is the parallel/vectorized algorithms.
+- all function except parallel/vectorized overloads must be `constexpr`.
+- multiple algorithm can be existing based on output iterator category.
+  - random access range output to copy the whole data efficiently
+  - input iterator range when not needed the whole data in memory, like filtered `take_while` or `drop_while` algorithms.
+
+
+---
+
 
 ### Breadth first search
 
-The result always this struct
+The result is always a range of this struct
 
 ```cpp
 struct breadth_first_search_result {
@@ -44,9 +58,12 @@ struct breadth_first_search_result {
 };
 ```
 
-`*_repr_type` are depends from graph representation.
+`*_repr_type` are depends on graph representation.
 
 #### Example for `adjacency_array`
+
+*current implementation is O(n\*e) where e is the edges count and n is the connected graph nodes count from start. This can be O((n + e)\*log(e)) later*
+
 ```cpp
 #include <bxlx/graph_traits/algs/breadth_first_search.hpp>
 #include <vector>
@@ -79,6 +96,8 @@ void run_bfs() {
 ```
 
 #### Example for `adjacency_list` with bounded node property
+
+*O(n + e)*
 
 ```cpp
 #include <bxlx/graph_traits/algs/breadth_first_search.hpp>
