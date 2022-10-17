@@ -422,7 +422,9 @@ namespace bxlx::detail {
         template<class T, class Op = std::plus<>, std::size_t count = 0>
         using storage_t = std::conditional_t<
             (impl::storage_size > 0),
-            std::array<T, Op{}(impl::storage_size, count)>,
+            std::conditional_t<std::is_same_v<T, bool>,
+                std::bitset<Op{}(impl::storage_size, count)>,
+                std::array<T, Op{}(impl::storage_size, count)>>,
             std::vector<T>>;
 
         template<class T, class Op = std::plus<>, std::size_t count = 0>
