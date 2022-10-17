@@ -60,6 +60,26 @@ struct breadth_first_search_result {
 
 `*_repr_type` are depends on graph representation.
 
+---
+
+```cpp
+template<class Graph, class GraphTraits = /* traits */>
+constexpr /* range<bfs_res> */ breadth_first_search(Graph&& graph, node_index_t start_index);
+
+template<class ExPcy, class Graph, class GraphTraits = /* traits */>
+constexpr /* range<bfs_res> */ breadth_first_search(ExPcy&& policy, Graph&& graph, node_index_t start_index);
+
+template<class Graph, class GraphTraits = /* traits */, class OutputIterator>
+constexpr OutputIterator breadth_first_search(Graph&& graph, node_index_t start_index, 
+                                              OutputIterator out);
+
+template<class ExPcy, class Graph, class GraphTraits = /* traits */, class OutputIterator>
+constexpr OutputIterator breadth_first_search(ExPcy&& policy, Graph&& graph, 
+                                              node_index_t start_index, OutputIterator out);
+```
+
+---
+
 #### Example for `adjacency_array`
 
 *current implementation is O(n\*e) where e is the edges count and n is the connected graph nodes count from start. This can be O((n + e)\*log(e)) later*
@@ -138,3 +158,59 @@ void run_bfs_2() {
     // 7 -> "node 3" (dist: 4)
 }
 ```
+
+
+---
+
+## More examples to graph mapping
+
+### `adjacency_list`
+
+- `random_access_range<sequence_range<integer>>`
+- `random_access_range<sequence_range<pair<integer, edge_prop>>>`
+- `random_access_range<pair<sequence_range<integer>, node_prop>>`
+- `pair<random_access_range<sequence_range<integer>>, graph_prop>`
+- node/edge/graph properties any combination
+
+### `adjacency_matrix`
+
+- `random_access_range<random_access_range<bool>>`
+- `random_access_range<bitset<>>`
+- `random_access_range<random_access_range<optional<edge_prop>>>`
+- `random_access_range<pair<random_access_range<bool>, node_prop>>`
+- `pair<random_access_range<random_access_range<bool>>, graph_prop>`
+- node/edge/graph properties any combination
+
+### `adjacency_array`
+
+- `map<node_index, node_index>` // deprecated, probably it will be deleted
+- `sequence_range<pair<node_index, node_index>>`
+- `sequence_range<tuple<node_index, node_index, edge_prop>>`
+- `pair<sequence_range<tuple<node_index, node_index>>, graph_prop>`
+- edge/graph properties combination
+
+---
+
+## coming
+
+### `adjacency_list`
+
+- `map<node_index, sequence_range<node_index>`
+- `map<node_index, sequence_range<pair<node_index, edge_prop>>`
+- `map<node_index, pair<sequence_range<node_index>, node_prop>>`
+
+
+### `adjacency_matrix`
+
+- `random_access_range<set<integer>>` // current impl handles as adj_list.
+- `random_access_range<map<integer, edge_prop>>` // current impl handles as adj_list.
+- `map<node_index, set<node_index>>`
+- `map<node_index, map<node_index, edge_prop>>`
+
+
+### `adjacency_array`
+
+- `pair<random_access_range<node_prop>, forward_range<pair<integer, integer>>>`
+- `pair<random_access_range<node_prop>, forward_range<tuple<integer, integer, edge_prop>>>`
+
+

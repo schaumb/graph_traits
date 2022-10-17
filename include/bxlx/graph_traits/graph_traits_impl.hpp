@@ -165,7 +165,8 @@ namespace bxlx::detail {
     };
 
     template<class graph_t>
-    struct adjacency_array_traits<graph_t, type_classification::tuple_like, std::enable_if_t<(std::tuple_size_v<graph_t> == 2 || std::tuple_size_v<graph_t> == 3)>>
+    struct adjacency_array_traits<graph_t, type_classification::tuple_like, std::enable_if_t<(std::tuple_size_v<graph_t> == 2 || std::tuple_size_v<graph_t> == 3) &&
+        !std::is_void_v<std::common_type_t<remove_cvref_t<std::tuple_element_t<0, graph_t>>, remove_cvref_t<std::tuple_element_t<1, graph_t>>>>>>
     {
         constexpr static graph_representation representation = graph_representation::adjacency_array;
 
