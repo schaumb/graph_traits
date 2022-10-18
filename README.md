@@ -37,8 +37,9 @@ The main concepts:
 - overloaded functions with first argument `std::execution::*` is the parallel/vectorized algorithms.
 - all function except parallel/vectorized overloads must be `constexpr`.
 - multiple algorithm can be existing based on output iterator category.
-  - random access range output to copy the whole data efficiently
-  - input iterator range when not needed the whole data in memory, like filtered `take_while` or `drop_while` algorithms.
+  - random access range output to copy/iterate the whole data efficiently (default)
+  - input iterator range when not needed the whole data in memory, like for `take_while` or `drop_while` algorithms.
+    - activated when you pass `bxlx::execution::lazy` execution argument.
 
 
 ---
