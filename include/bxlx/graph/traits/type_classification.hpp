@@ -42,7 +42,9 @@ namespace bxlx::detail2 {
     };
 
     template<template <class> class OptionalLike, class real_value_type>
-    struct optional_traits<OptionalLike<real_value_type>, std::void_t<decltype(static_cast<bool>(std::declval<OptionalLike<real_value_type*>&>()))>> {
+    struct optional_traits<OptionalLike<real_value_type>, std::void_t<
+        std::enable_if_t<std::is_same_v<real_value_type*&, typename optional_traits2<OptionalLike<real_value_type*>>::value_type>>
+    >> {
         using value_type = real_value_type;
     };
 
@@ -64,40 +66,73 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr inline bool is_index_v = std::is_integral_v<T> && !std::is_same_v<bool, T> && !is_char_v<T>;
 
+    template <class T, std::size_t ...Ix>
+    constexpr auto tuple_is_same_values(std::index_sequence<Ix...>) {
+        using V = std::tuple_element_t<0, T>;
+        return std::bool_constant<(std::is_same_v<V, std::tuple_element_t<Ix, T>> && ...)>{};
+    }
+
+    template <class T>
+    constexpr auto tuple_is_same_values() {
+        return tuple_is_same_values<T>(std::make_index_sequence<std::tuple_size_v<T>>{});
+    }
+
     template<class T, class = void>
     struct range_traits_impl2 {
+        constexpr static bool random_access = false;
     };
 
     template<class T>
     struct range_traits_impl2<T, std::void_t<decltype(*std::begin(std::declval<T&>()))>>{
         using reference = decltype(*std::begin(std::declval<T&>()));
         using value_type = std::remove_reference_t<reference>;
+        constexpr static bool random_access = std::is_invocable_v<std::minus<>, decltype(std::begin(std::declval<T&>())), decltype(std::begin(std::declval<T&>()))>;
     };
 
     template<class T, class = void>
-    struct range_traits_impl : range_traits_impl2<T> {
+    struct range_traits_impl1 : range_traits_impl2<T> {
     };
 
     template<class T>
-    struct range_traits_impl<T, std::enable_if_t<
+    struct range_traits_impl1<T, std::enable_if_t<
         !std::is_void_v<typename std::iterator_traits<decltype(std::begin(std::declval<T&>()))>::reference> &&
         !std::is_void_v<typename std::iterator_traits<decltype(std::begin(std::declval<T&>()))>::value_type> &&
         std::is_void_v<std::void_t<decltype(std::end(std::declval<T&>()))>>>> {
         using reference = typename std::iterator_traits<decltype(std::begin(std::declval<T&>()))>::reference;
         using value_type = typename std::iterator_traits<decltype(std::begin(std::declval<T&>()))>::value_type;
+
+        constexpr static bool random_access =
+            std::is_base_of_v<std::random_access_iterator_tag, typename std::iterator_traits<decltype(std::begin(std::declval<T&>()))>::iterator_category>;
     };
 
+    template<class T, class = void>
+    struct range_traits_impl : range_traits_impl1<T> {
+        constexpr static bool is_sized = false; //dunno
+    };
+
+    template<class T>
+    struct range_traits_impl<T, std::void_t<decltype(std::size(std::declval<T&>()))>> : range_traits_impl1<T> {
+        constexpr static bool is_sized = true;
+    };
 
     template<class T, bool = is_tuple_like_v<T>, class = void>
     struct range_traits : range_traits_impl<T> {
+    };
+
+    template<class T, bool = decltype(tuple_is_same_values<T>())::value, class = void>
+    struct range_tuple_traits {
         constexpr static bool is_sized = false; //dunno
         constexpr static bool random_access = false;
     };
 
     template<class T>
-    struct range_traits<T, true, void> {
-        constexpr static bool is_sized = false; //dunno
-        constexpr static bool random_access = false;
+    struct range_tuple_traits<T, true, std::enable_if_t<defined_type<std::tuple_element_t<0, T>>(0)>>
+        : range_traits_impl<T>
+    {};
+
+
+    template<class T>
+    struct range_traits<T, true, void> : range_tuple_traits<T> {
     };
 
     template<class the_value_type, std::size_t Ix>
@@ -177,17 +212,6 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr inline bool is_bool_v<T, true> = is_bool_ref_v<T>;
 
-    template<class T, bool = std::is_array_v<T> && (std::extent_v<T> != 0) || range_traits<T>::random_access, bool = is_sized_range_v<T>, class = void>
-    constexpr inline bool is_random_access_range_v = false;
-    template<class T>
-    constexpr inline bool is_random_access_range_v<T, true, true, void> = true;
-    template<class T>
-    constexpr inline bool is_random_access_range_v<T, false, true, std::void_t<
-        decltype(std::declval<T&>()[std::size_t{}])
-    >> = std::is_same_v<
-        std::remove_cv_t<std::remove_reference_t<decltype(std::declval<T&>()[std::size_t{}])>>,
-        std::remove_cv_t<std::remove_reference_t<decltype(*std::begin(std::declval<T&>()))>>>;
-
 
     template<class T, bool = is_range_v<T>>
     constexpr inline bool is_string_like_v = false;
@@ -201,7 +225,19 @@ namespace bxlx::detail2 {
     constexpr inline bool is_bitset_like_v<T, true, std::void_t<
         decltype(std::declval<T>()[std::size(std::declval<T>())])
     >> = is_index_v<decltype(std::size(std::declval<T>()))> &&
-        is_bool_ref_v<decltype(std::declval<T>()[std::size(std::declval<T>())])>;
+         is_bool_ref_v<decltype(std::declval<T>()[std::size(std::declval<T>())])>;
+
+    template<class T, bool = (std::is_array_v<T> && std::extent_v<T> != 0) || range_traits<T>::random_access, bool = is_sized_range_v<T> && !is_bitset_like_v<T>, class = void>
+    constexpr inline bool is_random_access_range_v = false;
+    template<class T>
+    constexpr inline bool is_random_access_range_v<T, true, true, void> = true;
+    template<class T>
+    constexpr inline bool is_random_access_range_v<T, false, true, std::void_t<
+        decltype(std::declval<T&>()[std::size_t{}])
+    >> = std::is_same_v<
+        std::remove_cv_t<std::remove_reference_t<decltype(std::declval<T&>()[std::size_t{}])>>,
+        std::remove_cv_t<std::remove_reference_t<decltype(*std::begin(std::declval<T&>()))>>>;
+
 
     template<class T, bool = std::is_array_v<T> && std::extent_v<T> != 0, bool = is_tuple_like_v<T>, bool = is_bitset_like_v<T>, class = void>
     constexpr inline std::size_t is_compile_time_sized_v = 0;
@@ -369,11 +405,24 @@ namespace bxlx::detail2 {
 
 
     template<class T, std::size_t C>
-    struct MyArray { // only works with this template arguments (type, size)!
+    struct MyArray { // we can guess the size() from template argument
         T t[C];
 
         template<std::size_t I>
         const std::enable_if_t<(I < C), T>& get() const { return t[I]; }
+    };
+
+    struct MyArray2 {
+        int t[10];
+
+        template<std::size_t I>
+        const std::enable_if_t<(I < 10), int>& get() const { return t[I]; }
+
+        [[nodiscard]] std::size_t size() const {
+            return 10;
+        }
+        [[nodiscard]] int* begin() const { return {}; }
+        [[nodiscard]] int* end() const { return {}; }
     };
 
     template<class T>
@@ -490,6 +539,16 @@ namespace bxlx::detail2 {
     };
 
     static_assert(classify<MyOptional> == type_classification::optional);
+
+    template<class T, class = std::enable_if_t<!std::is_pointer_v<T>>>
+    struct MyOptional2 {
+        explicit operator bool() const {
+            return {};
+        }
+        T& operator*() const;
+    };
+
+    static_assert(classify<MyOptional2<class A>> == type_classification::optional);
 }
 
 template<std::size_t I, class T, std::size_t M>
@@ -500,6 +559,14 @@ struct ::std::tuple_element<I, bxlx::detail2::MyArray<T, M>> {
 template<class T, std::size_t M>
 struct ::std::tuple_size<bxlx::detail2::MyArray<T, M>> : std::integral_constant<std::size_t, M> {};
 
+template<std::size_t I>
+struct ::std::tuple_element<I, bxlx::detail2::MyArray2> {
+    using type = std::conditional_t<(I < 10), const int&, void>;
+};
+
+template<>
+struct ::std::tuple_size<bxlx::detail2::MyArray2> : std::integral_constant<std::size_t, 10> {};
+
 template<std::size_t I, class T>
 struct ::std::tuple_element<I, bxlx::detail2::MyTuple<T>> {
     using type = std::conditional_t<(I < 10), const T&, void>;
@@ -509,6 +576,7 @@ template<class T>
 struct ::std::tuple_size<bxlx::detail2::MyTuple<T>> : std::integral_constant<std::size_t, 10> {};
 
 static_assert(bxlx::detail2::classify<bxlx::detail2::MyArray<int, 1>> == bxlx::detail2::type_classification::compile_time_random_access_range);
+static_assert(bxlx::detail2::classify<bxlx::detail2::MyArray2> == bxlx::detail2::type_classification::compile_time_random_access_range);
 static_assert(bxlx::detail2::classify<bxlx::detail2::MyTuple<int>> == bxlx::detail2::type_classification::tuple_like);
 
 
