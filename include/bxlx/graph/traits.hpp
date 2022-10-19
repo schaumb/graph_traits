@@ -9,7 +9,7 @@
 #define BXLX_GRAPH_TRAITS_GRAPH_TRAITS_HPP
 
 #include <cstddef>
-#include "graph_traits/graph_traits_impl.hpp"
+#include "traits/traits_impl.hpp"
 
 namespace bxlx {
     using detail::graph_representation;
@@ -35,15 +35,8 @@ namespace bxlx {
         using edge_repr_type = typename impl::edge_repr_type;
 
         // 0 if cannot be calculated
-        constexpr static std::size_t max_node_compile_time =
-            representation == graph_representation::adjacency_array ?
-            impl::storage_size * 2 : impl::storage_size;
-
-        constexpr static std::size_t max_edge_compile_time =
-            representation == graph_representation::adjacency_array ?
-            impl::storage_size :
-            (representation == graph_representation::adjacency_matrix && impl::inside_storage_size == 0 ? impl::storage_size : impl::inside_storage_size) *
-            impl::storage_size;
+        constexpr static std::size_t max_node_compile_time = impl::max_node_compile_time;
+        constexpr static std::size_t max_edge_compile_time = impl::max_edge_compile_time;
     };
 }
 

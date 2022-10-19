@@ -18,7 +18,8 @@ namespace bxlx::detail {
     enum class graph_representation {
         adjacency_list,
         adjacency_array,
-        adjacency_matrix
+        adjacency_matrix,
+        adjacency_compressed_matrix
     };
 
     enum class type_classification {
@@ -465,6 +466,14 @@ namespace bxlx::detail {
                 return storage.emplace(it, std::forward<Ts>(ts)...);
             }
         }
+        constexpr static std::size_t max_node_compile_time =
+            impl::representation == graph_representation::adjacency_array ? impl::storage_size * 2 : impl::storage_size;
+
+        constexpr static std::size_t max_edge_compile_time =
+            impl::representation == graph_representation::adjacency_array ?
+            impl::storage_size :
+            (impl::representation == graph_representation::adjacency_matrix && impl::inside_storage_size == 0 ? impl::storage_size : impl::inside_storage_size) *
+            impl::storage_size;
     };
 }
 #endif //BXLX_GRAPH_TRAITS_GRAPH_TRAITS_IMPL_HPP

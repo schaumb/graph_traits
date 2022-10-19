@@ -15,11 +15,13 @@ set(CXX_STANDARD 17 CACHE STRING "C++ Standard Version. [17|20|23]")
 set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
 
 add_library(${PROJECT_NAME} INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph_traits.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph_traits/graph_traits_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph_traits/iterable_alg.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph_traits/algorithms/breadth_first_search.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph_traits/execution.hpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits/traits_impl.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/iterable_alg.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/algorithms/breadth_first_search.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/execution.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits/type_classification.hpp
+    )
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang")
     target_compile_options(${PROJECT_NAME} INTERFACE

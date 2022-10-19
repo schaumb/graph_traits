@@ -8,11 +8,13 @@
 #ifndef BXLX_GRAPH_TRAITS_ITERABLE_ALG_HPP
 #define BXLX_GRAPH_TRAITS_ITERABLE_ALG_HPP
 
+#include <iterator>
+
 namespace bxlx::utils {
     struct default_sentinel_t {} constexpr sentinel;
 
     template<class impl_t, class value_t>
-    struct iterable {
+    struct lazy_iterable {
         struct const_iterator {
 
             [[nodiscard]] constexpr bool operator !=(default_sentinel_t) const {

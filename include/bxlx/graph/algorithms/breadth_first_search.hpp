@@ -8,7 +8,7 @@
 #ifndef BXLX_GRAPH_TRAITS_BREADTH_FIRST_SEARCH_HPP
 #define BXLX_GRAPH_TRAITS_BREADTH_FIRST_SEARCH_HPP
 
-#include "../../graph_traits.hpp"
+#include "../traits.hpp"
 #include "../iterable_alg.hpp"
 
 #include <utility>
@@ -21,7 +21,7 @@
 #include <execution>
 
 namespace bxlx::graph {
-    template<class Graph, class GraphTraits = graph_traits<std::remove_const_t<std::remove_reference_t<Graph>>>>
+    template<class Graph, class GraphTraits = graph_traits<Graph>>
     struct breadth_first_search_result {
         typename GraphTraits::node_index_t parent;
         typename GraphTraits::node_index_t index;
@@ -37,7 +37,7 @@ namespace bxlx::graph {
         };
 
         template<class Graph, class GraphTraits, class = void, class ... ExecutionPolicy>
-        struct bfs_impl : utils::iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, breadth_first_search_result<Graph, GraphTraits>>,
+        struct bfs_impl : utils::lazy_iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, breadth_first_search_result<Graph, GraphTraits>>,
                 member_from_base<ExecutionPolicy> ... {
             constexpr bfs_impl(Graph&& g, typename GraphTraits::node_index_t start_index, ExecutionPolicy&&... policy)
                 : member_from_base<ExecutionPolicy>{std::forward<ExecutionPolicy>(policy)}...
@@ -53,7 +53,7 @@ namespace bxlx::graph {
                 }
             }
 
-            friend utils::iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, breadth_first_search_result<Graph, GraphTraits>>;
+            friend utils::lazy_iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, breadth_first_search_result<Graph, GraphTraits>>;
         private:
             constexpr void next() {
                 typename GraphTraits::node_index_t neigh{};
@@ -115,13 +115,13 @@ namespace bxlx::graph {
 
         template<class Graph, class GraphTraits, class ... ExecutionPolicy>
         struct bfs_impl<Graph, GraphTraits, std::enable_if_t<GraphTraits::representation == graph_representation::adjacency_array>, ExecutionPolicy...>
-            : utils::iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, breadth_first_search_result<Graph, GraphTraits>>,
+            : utils::lazy_iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, breadth_first_search_result<Graph, GraphTraits>>,
                 member_from_base<ExecutionPolicy> ... {
             constexpr bfs_impl(Graph&& g, typename GraphTraits::node_index_t start_index, ExecutionPolicy&&... policy)
                 : member_from_base<ExecutionPolicy>{std::forward<ExecutionPolicy>(policy)}...
                 , graph(std::forward<Graph>(g))
-                , curr(storage.begin())
-                , no_info(size(storage) ? std::next(curr) : curr)
+                , curr(std::begin(storage))
+                , no_info(std::size(storage) ? std::next(curr) : curr)
                 , discarded([this] {
                     auto&& data = GraphTraits::get_data(graph);
                     return std::transform(this->member_from_base<ExecutionPolicy>::policy..., begin(data), end(data), no_info, [] (auto&& edge) {

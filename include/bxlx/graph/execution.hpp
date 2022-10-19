@@ -10,15 +10,14 @@
 
 #include <execution>
 
-namespace bxlx::execution {
+namespace bxlx::graph::execution {
     class lazy_policy {
     public:
         static constexpr std::true_type _lazy() { return {}; }
     } constexpr lazy{};
 
-
-    template <class T>
-    struct is_execution_policy : std::is_execution_policy<T>
+    template <class>
+    struct is_graph_execution_policy : std::false_type
     {
     };
 
