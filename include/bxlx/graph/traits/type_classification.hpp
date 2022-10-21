@@ -43,7 +43,7 @@ namespace bxlx::detail2 {
 
     template<template <class> class OptionalLike, class real_value_type>
     struct optional_traits<OptionalLike<real_value_type>, std::void_t<
-        std::enable_if_t<std::is_same_v<real_value_type*&, typename optional_traits2<OptionalLike<real_value_type*>>::value_type>>
+        std::enable_if_t<std::is_same_v<void *, std::remove_cv_t<std::remove_reference_t<typename optional_traits2<OptionalLike<void *>>::value_type>>>>
     >> {
         using value_type = real_value_type;
     };
@@ -119,17 +119,20 @@ namespace bxlx::detail2 {
     struct range_traits : range_traits_impl<T> {
     };
 
-    template<class T, bool = decltype(tuple_is_same_values<T>())::value, class = void>
+    template<class T, class = void>
+    struct range_tuple_traits2 {
+        constexpr static bool is_sized = false; //dunno
+        constexpr static bool random_access = false;
+    };
+
+    template<class T, bool = decltype(tuple_is_same_values<T>())::value>
     struct range_tuple_traits {
         constexpr static bool is_sized = false; //dunno
         constexpr static bool random_access = false;
     };
 
     template<class T>
-    struct range_tuple_traits<T, true, std::enable_if_t<defined_type<std::tuple_element_t<0, T>>(0)>>
-        : range_traits_impl<T>
-    {};
-
+    struct range_tuple_traits<T, true> : range_tuple_traits2<T> {};
 
     template<class T>
     struct range_traits<T, true, void> : range_tuple_traits<T> {
@@ -200,6 +203,31 @@ namespace bxlx::detail2 {
         = !std::is_void_v<typename optional_traits<T>::value_type>;
 
 
+
+    template<class T, class = void>
+    struct is_defined : decltype(defined_type<T>(0)) {
+    };
+
+    template<class T>
+    struct is_defined<T, std::enable_if_t<
+        is_tuple_like_v<T>
+    >> {
+        template<std::size_t ...Ix>
+        constexpr static auto is_all_defined(std::index_sequence<Ix...>) {
+            return std::bool_constant<(is_defined<std::tuple_element_t<Ix, T>>::value && ...)>{};
+        }
+        constexpr static bool value = decltype(is_all_defined(std::make_index_sequence<std::tuple_size_v<T>>{}))::value;
+    };
+
+    template<class T>
+    struct is_defined<T, std::enable_if_t<is_optional_v<T>>> : is_defined<typename optional_traits<T>::value_type> {};
+
+
+    template<class T>
+    struct range_tuple_traits2<T, std::enable_if_t<is_defined<std::tuple_element_t<0, T>>::value>>
+        : range_traits_impl<T>
+    {
+    };
 
     template<class T, bool = std::is_class_v<T> && !is_tuple_like_v<T> && !is_optional_v<T> && decltype(defined_type<T>(0))::value >
     constexpr inline bool is_bool_ref_v = false;
@@ -389,6 +417,15 @@ namespace bxlx::detail2 {
     static_assert(classify<A*> == type_classification::optional);
     static_assert(classify<std::array<A, 10>> == type_classification::compile_time_random_access_range);
     static_assert(classify<std::optional<A>> == type_classification::optional);
+    static_assert(classify<std::optional<std::pair<A, A>>> == type_classification::optional);
+    static_assert(classify<std::optional<std::optional<A>>> == type_classification::optional);
+    static_assert(classify<std::array<std::optional<A>, 10>> == type_classification::compile_time_random_access_range);
+    static_assert(classify<std::optional<A>[10]> == type_classification::compile_time_random_access_range);
+    static_assert(classify<std::map<A, std::pair<A, A>>> == type_classification::map_like_container);
+
+    static_assert(classify<std::pair<std::array<A, 10>, std::array<A, 10>>> == type_classification::tuple_like);
+    static_assert(classify<std::pair<std::optional<A>, std::optional<A>>> == type_classification::tuple_like);
+    static_assert(classify<std::pair<std::pair<A, A>, std::pair<A, A>>> == type_classification::tuple_like);
 
     static_assert(classify<A> == type_classification::pre_declared);
 
