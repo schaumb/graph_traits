@@ -50,11 +50,11 @@ namespace bxlx::detail2 {
 
     template<class T, size_t = sizeof(T)>
     constexpr std::true_type defined_type(int) { return {}; }
-    template<class T>
+    template<class>
     constexpr std::false_type defined_type(...);
 
 
-    template<class T, class = void>
+    template<class, class = void>
     constexpr inline bool is_tuple_like_v = false;
     template<class T>
     constexpr inline bool is_tuple_like_v<T, std::enable_if_t<sizeof(std::tuple_size<T>)>> = std::tuple_size_v<T>;
@@ -432,11 +432,11 @@ namespace bxlx::detail2 {
     struct C {};
     static_assert(classify<C> == type_classification::indeterminate);
 
-    template<class T>
+    template<class>
     struct CICA {};
     static_assert(classify<CICA<int>> == type_classification::indeterminate);
 
-    template<class T, std::size_t C>
+    template<class, std::size_t>
     struct ArrayLike {};
     static_assert(classify<ArrayLike<int, 1>> == type_classification::indeterminate);
 
