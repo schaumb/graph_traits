@@ -5,13 +5,13 @@ C++17 Graph traits and algorithms
 
 ## Quick overview
 
-This `graph_traits` library recognizes 3 graph representation type automatically from c++ classes:
+This `graph_traits` library recognizes 4 graph representation type automatically from c++ classes:
 ```cpp
 enum class graph_representation {
     adjacency_list, // range of range node
+    adjacency_set // range of set/bitset 
     adjacency_array, // pair of node in a list
     adjacency_matrix, // range of range bool
-    adjacency_compressed_matrix // range of bitset 
 };
 ```
 
@@ -174,6 +174,14 @@ void run_bfs_2() {
 - `pair<random_access_range<sequence_range<integer>>, graph_prop>`
 - node/edge/graph properties any combination
 
+### `adjacency_set`
+- `random_access_range<bitset_like>`
+- `random_access_range<pair<bitset_like, node_prop>>`
+- `pair<random_access_range<bitset_like>, graph_prop>`
+- node/graph properties combination
+
+*bitset_like: std::bitset<>, std::vector&lt;bool&gt;*
+
 ### `adjacency_array`
 
 - `map<node_index, node_index>` // deprecated, probably it will be deleted
@@ -190,14 +198,6 @@ void run_bfs_2() {
 - `pair<random_access_range<random_access_range<bool>>, graph_prop>`
 - node/edge/graph properties any combination
 
-### `adjacency_compressed_matrix`
-- `random_access_range<bitset_like>`
-- `random_access_range<pair<bitset_like, node_prop>>`
-- `pair<random_access_range<bitset_like>, graph_prop>`
-- node/graph properties combination
-
-*bitset_like: std::bitset<>, std::vector&lt;bool&gt;*
-
 ---
 
 ## coming
@@ -208,16 +208,16 @@ void run_bfs_2() {
 - `map<node_index, sequence_range<pair<node_index, edge_prop>>`
 - `map<node_index, pair<sequence_range<node_index>, node_prop>>`
 
-### `adjacency_array`
-
-- `pair<random_access_range<node_prop>, forward_range<pair<integer, integer>>>`
-- `pair<random_access_range<node_prop>, forward_range<tuple<integer, integer, edge_prop>>>`
-
-### `adjacency_matrix`
+### `adjacency_set`
 
 - `random_access_range<set<integer>>` // current impl handles as adj_list.
 - `random_access_range<map<integer, edge_prop>>` // current impl handles as adj_list.
 - `map<node_index, set<node_index>>`
 - `map<node_index, map<node_index, edge_prop>>`
+
+### `adjacency_array`
+
+- `pair<random_access_range<node_prop>, forward_range<pair<integer, integer>>>`
+- `pair<random_access_range<node_prop>, forward_range<tuple<integer, integer, edge_prop>>>`
 
 
