@@ -13,6 +13,8 @@
 #include <vector>
 #include <array>
 #include <type_traits>
+#include <functional>
+#include <bitset>
 
 namespace bxlx::detail {
     enum class graph_representation {
@@ -300,40 +302,7 @@ namespace bxlx::detail {
     struct graph_element_traits<graph_t, type_classification::bitset, void, tuple_size>
         : adjacency_matrix_traits<std::remove_reference_t<decltype(std::declval<graph_t&>()[std::size(std::declval<graph_t&>())])>>
     {
-        struct bitset_iterator_getter {
-            struct bitset_range;
-
-            struct bitset_iterator {
-                std::size_t ix = 0;
-                graph_t* g = nullptr;
-
-                bool operator!=(const bitset_iterator& oth) const {
-                    return this->g != oth.g || this->ix != oth.ix;
-                }
-
-                bitset_iterator& operator++() {
-                    ++ix;
-                    return *this;
-                }
-
-                auto operator*() {
-                    return (*g)[ix];
-                }
-            };
-            struct bitset_range {
-                bitset_iterator begin_, end_;
-
-                bitset_iterator begin() const {
-                    return begin_;
-                }
-                bitset_iterator end() const {
-                    return end_;
-                }
-            };
-            constexpr bitset_range operator()(graph_t& gr) const {
-                return bitset_range{{0, &gr}, {inside_storage_size, &gr}};
-            }
-        } constexpr static out_edges{};
+        constexpr static auto out_edges = identity_t{};
         constexpr static auto get_node_property = noop_t{};
         using node_repr_type = graph_t;
         constexpr static auto node_connections_class = type_classification::bitset;

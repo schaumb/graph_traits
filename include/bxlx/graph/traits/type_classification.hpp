@@ -8,17 +8,9 @@
 #ifndef GRAPH_TYPE_CLASSIFICATION_HPP
 #define GRAPH_TYPE_CLASSIFICATION_HPP
 
+#include <utility>
+#include <iterator>
 #include <tuple>
-#include <array>
-#include <type_traits>
-#include <vector>
-#include <deque>
-#include <map>
-#include <set>
-#include <unordered_map>
-#include <unordered_set>
-#include <list>
-#include <forward_list>
 
 namespace bxlx::detail2 {
     template<class T, class = void>
@@ -48,11 +40,6 @@ namespace bxlx::detail2 {
         using value_type = real_value_type;
     };
 
-    template<class T, size_t = sizeof(T)>
-    constexpr std::true_type defined_type(int) { return {}; }
-    template<class>
-    constexpr std::false_type defined_type(...);
-
 
     template<class, class = void>
     constexpr inline bool is_tuple_like_v = false;
@@ -67,14 +54,11 @@ namespace bxlx::detail2 {
     constexpr inline bool is_index_v = std::is_integral_v<T> && !std::is_same_v<bool, T> && !is_char_v<T>;
 
     template <class T, std::size_t ...Ix>
-    constexpr auto tuple_is_same_values(std::index_sequence<Ix...>) {
-        using V = std::tuple_element_t<0, T>;
-        return std::bool_constant<(std::is_same_v<V, std::tuple_element_t<Ix, T>> && ...)>{};
-    }
-
-    template <class T>
-    constexpr auto tuple_is_same_values() {
-        return tuple_is_same_values<T>(std::make_index_sequence<std::tuple_size_v<T>>{});
+    constexpr auto tuple_is_same_values(std::index_sequence<Ix...> = {}) {
+        if constexpr (std::tuple_size_v<T> != sizeof...(Ix))
+            return tuple_is_same_values<T>(std::make_index_sequence<std::tuple_size_v<T>>{});
+        else
+            return std::bool_constant<(std::is_same_v<std::tuple_element_t<0, T>, std::tuple_element_t<Ix, T>> && ...)>{};
     }
 
     template<class T, class = void>
@@ -115,10 +99,6 @@ namespace bxlx::detail2 {
         constexpr static bool is_sized = true;
     };
 
-    template<class T, bool = is_tuple_like_v<T>, class = void>
-    struct range_traits : range_traits_impl<T> {
-    };
-
     template<class T, class = void>
     struct range_tuple_traits2 {
         constexpr static bool is_sized = false; //dunno
@@ -134,6 +114,10 @@ namespace bxlx::detail2 {
     template<class T>
     struct range_tuple_traits<T, true> : range_tuple_traits2<T> {};
 
+    template<class T, bool = is_tuple_like_v<T>, class = void>
+    struct range_traits : range_traits_impl<T> {
+    };
+
     template<class T>
     struct range_traits<T, true, void> : range_tuple_traits<T> {
     };
@@ -146,7 +130,6 @@ namespace bxlx::detail2 {
         constexpr static bool random_access = true;
     };
 
-
     template<class T>
     struct range_traits<T, false, std::enable_if_t<std::is_void_v<std::void_t<typename optional_traits<T>::value_type>>>> {
         constexpr static bool is_sized = false; // dunno
@@ -155,7 +138,7 @@ namespace bxlx::detail2 {
 
     template<template <class, std::size_t> class container, class the_value_type, std::size_t Ix>
     struct range_traits<container<the_value_type, Ix>, true, void> {
-        using value_type = the_value_type;
+        using value_type = std::tuple_element_t<0, container<the_value_type, Ix>>;
         using reference = value_type&;
         constexpr static bool is_sized = true;
         constexpr static bool random_access = true;
@@ -204,18 +187,19 @@ namespace bxlx::detail2 {
 
 
 
+    template<class T, size_t = sizeof(T)>
+    constexpr std::true_type defined_type(int) { return {}; }
+    template<class>
+    constexpr std::false_type defined_type(...);
+
     template<class T, class = void>
     struct is_defined : decltype(defined_type<T>(0)) {
     };
 
     template<class T>
-    struct is_defined<T, std::enable_if_t<
-        is_tuple_like_v<T>
-    >> {
+    struct is_defined<T, std::enable_if_t<is_tuple_like_v<T>>> {
         template<std::size_t ...Ix>
-        constexpr static auto is_all_defined(std::index_sequence<Ix...>) {
-            return std::bool_constant<(is_defined<std::tuple_element_t<Ix, T>>::value && ...)>{};
-        }
+        static std::bool_constant<(is_defined<std::tuple_element_t<Ix, T>>::value && ...)> is_all_defined(std::index_sequence<Ix...>);
         constexpr static bool value = decltype(is_all_defined(std::make_index_sequence<std::tuple_size_v<T>>{}))::value;
     };
 
@@ -305,7 +289,7 @@ namespace bxlx::detail2 {
     };
 
     template<class T, class = void>
-    constexpr inline type_classification classify = decltype(defined_type<T&>(0))::value ? type_classification::indeterminate : type_classification::pre_declared;
+    constexpr inline type_classification classify = decltype(defined_type<T>(0))::value ? type_classification::indeterminate : type_classification::pre_declared;
 
 
     template<class T>
@@ -365,256 +349,6 @@ namespace bxlx::detail2 {
     constexpr inline type_classification classify<T,
         std::enable_if_t<is_index_v<T>>>
         = type_classification::index;
-
-
-    static_assert(!std::is_void_v<typename range_traits<std::array<int, 10>>::value_type>);
-    static_assert(classify<std::array<int, 10>> == type_classification::compile_time_random_access_range);
-    static_assert(classify<int[10]> == type_classification::compile_time_random_access_range);
-    static_assert(classify<std::bitset<10>> == type_classification::compile_time_bitset_like_container);
-    static_assert(classify<std::vector<bool>> == type_classification::bitset_like_container);
-    static_assert(classify<std::string> == type_classification::string_like_range);
-    static_assert(classify<std::wstring> == type_classification::string_like_range);
-    static_assert(classify<std::basic_string<decltype(u8'\0')>> == type_classification::string_like_range);
-
-    static_assert(classify<std::vector<int>> == type_classification::random_access_range);
-    static_assert(classify<std::deque<bool>> == type_classification::random_access_range);
-    static_assert(classify<std::map<int, int>> == type_classification::map_like_container);
-    static_assert(classify<std::multimap<int, int>> == type_classification::map_like_container);
-    static_assert(classify<std::unordered_map<int, int>> == type_classification::map_like_container);
-    static_assert(classify<std::unordered_multimap<int, int>> == type_classification::map_like_container);
-    static_assert(classify<std::set<int, int>> == type_classification::set_like_container);
-    static_assert(classify<std::multiset<int, int>> == type_classification::set_like_container);
-    static_assert(classify<std::unordered_set<int, int>> == type_classification::set_like_container);
-    static_assert(classify<std::unordered_multiset<int, int>> == type_classification::set_like_container);
-    static_assert(classify<std::list<int>> == type_classification::sized_range);
-    static_assert(classify<std::forward_list<int>> == type_classification::range);
-
-    static_assert(classify<std::pair<int, int>> == type_classification::tuple_like);
-    static_assert(classify<std::tuple<int, int>> == type_classification::tuple_like);
-    static_assert(classify<std::tuple<bool, int, int>> == type_classification::tuple_like);
-    static_assert(classify<std::optional<int>> == type_classification::optional);
-    static_assert(classify<int*> == type_classification::optional);
-    static_assert(classify<bool> == type_classification::bool_t);
-    static_assert(classify<std::vector<bool>::reference> == type_classification::bool_t);
-    static_assert(classify<std::bitset<10>::reference> == type_classification::bool_t);
-    static_assert(classify<int> == type_classification::index);
-    static_assert(classify<std::ptrdiff_t> == type_classification::index);
-    static_assert(classify<std::size_t> == type_classification::index);
-    static_assert(classify<unsigned char> == type_classification::index);
-
-    // predeclared classes
-    class A;
-    static_assert(classify<A[10]> == type_classification::compile_time_random_access_range);
-    static_assert(classify<std::vector<A>> == type_classification::random_access_range);
-    static_assert(classify<std::deque<A>> == type_classification::random_access_range);
-    static_assert(classify<std::set<A>> == type_classification::set_like_container);
-    static_assert(classify<std::list<A>> == type_classification::sized_range);
-    static_assert(classify<std::forward_list<A>> == type_classification::range);
-    static_assert(classify<std::map<A, class B>> == type_classification::map_like_container);
-
-    static_assert(classify<std::tuple<A, A>> == type_classification::tuple_like);
-    static_assert(classify<std::pair<A, A>> == type_classification::tuple_like);
-    static_assert(classify<A*> == type_classification::optional);
-    static_assert(classify<std::array<A, 10>> == type_classification::compile_time_random_access_range);
-    static_assert(classify<std::optional<A>> == type_classification::optional);
-    static_assert(classify<std::optional<std::pair<A, A>>> == type_classification::optional);
-    static_assert(classify<std::optional<std::optional<A>>> == type_classification::optional);
-    static_assert(classify<std::array<std::optional<A>, 10>> == type_classification::compile_time_random_access_range);
-    static_assert(classify<std::optional<A>[10]> == type_classification::compile_time_random_access_range);
-    static_assert(classify<std::map<A, std::pair<A, A>>> == type_classification::map_like_container);
-
-    static_assert(classify<std::pair<std::array<A, 10>, std::array<A, 10>>> == type_classification::tuple_like);
-    static_assert(classify<std::pair<std::optional<A>, std::optional<A>>> == type_classification::tuple_like);
-    static_assert(classify<std::pair<std::pair<A, A>, std::pair<A, A>>> == type_classification::tuple_like);
-
-    static_assert(classify<A> == type_classification::pre_declared);
-
-    struct C {};
-    static_assert(classify<C> == type_classification::indeterminate);
-
-    template<class>
-    struct CICA {};
-    static_assert(classify<CICA<int>> == type_classification::indeterminate);
-
-    template<class, std::size_t>
-    struct ArrayLike {};
-    static_assert(classify<ArrayLike<int, 1>> == type_classification::indeterminate);
-
-
-    template<class T, std::size_t C>
-    struct MyArray { // we can guess the size() from template argument
-        T t[C];
-
-        template<std::size_t I>
-        const std::enable_if_t<(I < C), T>& get() const { return t[I]; }
-    };
-
-    struct MyArray2 {
-        int t[10];
-
-        template<std::size_t I>
-        const std::enable_if_t<(I < 10), int>& get() const { return t[I]; }
-
-        [[nodiscard]] std::size_t size() const {
-            return 10;
-        }
-        [[nodiscard]] int* begin() const { return {}; }
-        [[nodiscard]] int* end() const { return {}; }
-    };
-
-    template<class T>
-    struct MyTuple {
-        T t[10];
-
-        template<std::size_t I>
-        const std::enable_if_t<(I < 10), T>& get() const { return t[I]; }
-    };
-
-    struct CTBitset {
-        struct reference {
-            operator bool() { return false; }
-        };
-        [[nodiscard]] constexpr std::size_t size() const { return 5; }
-        [[nodiscard]] reference operator[](std::size_t ) { return {}; }
-    };
-
-    static_assert(classify<CTBitset> == type_classification::compile_time_bitset_like_container);
-
-    struct Bitset {
-        struct reference {
-            operator bool() { return false; }
-        };
-        [[nodiscard]] std::size_t size() const { return 5; }
-        [[nodiscard]] reference operator[](std::size_t ) { return {}; }
-    };
-
-    static_assert(classify<Bitset> == type_classification::bitset_like_container);
-
-    struct MyString {
-        struct my_iterator {
-            wchar_t operator*() { return {}; }
-            my_iterator& operator++() { return *this; }
-            bool operator!=(const my_iterator& oth) const { return false; }
-        };
-        [[nodiscard]] my_iterator begin() const { return {}; }
-        [[nodiscard]] my_iterator end() const { return {}; }
-    };
-    static_assert(classify<MyString> == type_classification::string_like_range);
-
-    struct MyRar {
-        struct my_iterator {
-            int operator*() { return {}; }
-            my_iterator& operator++() { return *this; }
-            bool operator!=(const my_iterator& oth) const { return false; }
-        };
-        int operator[](std::size_t) const { return {}; }
-        [[nodiscard]] my_iterator begin() const { return {}; }
-        [[nodiscard]] my_iterator end() const { return {}; }
-        [[nodiscard]] std::size_t size() const { return {}; }
-    };
-    static_assert(classify<MyRar> == type_classification::random_access_range);
-
-    struct MyMap {
-        struct Key {};
-        struct my_iterator {
-            std::pair<Key, int> operator*() { return {}; }
-            my_iterator& operator++() { return *this; }
-            bool operator!=(const my_iterator& oth) const { return false; }
-        };
-        [[nodiscard]] my_iterator find(Key) const { return {}; }
-        [[nodiscard]] my_iterator begin() const { return {}; }
-        [[nodiscard]] my_iterator end() const { return {}; }
-        [[nodiscard]] std::size_t size() const { return {}; }
-    };
-    static_assert(classify<MyMap> == type_classification::map_like_container);
-
-    struct MySet {
-        struct Key {};
-        struct my_iterator {
-            Key operator*() { return {}; }
-            my_iterator& operator++() { return *this; }
-            bool operator!=(const my_iterator& oth) const { return false; }
-        };
-        [[nodiscard]] my_iterator find(Key) const { return {}; }
-        [[nodiscard]] my_iterator begin() const { return {}; }
-        [[nodiscard]] my_iterator end() const { return {}; }
-        [[nodiscard]] std::size_t size() const { return {}; }
-    };
-    static_assert(classify<MySet> == type_classification::set_like_container);
-
-    struct MySizedRange {
-        struct Key {};
-        struct my_iterator {
-            Key operator*() { return {}; }
-            my_iterator& operator++() { return *this; }
-            bool operator!=(const my_iterator& oth) const { return false; }
-        };
-        [[nodiscard]] my_iterator begin() const { return {}; }
-        [[nodiscard]] my_iterator end() const { return {}; }
-        [[nodiscard]] std::size_t size() const { return {}; }
-    };
-    static_assert(classify<MySizedRange> == type_classification::sized_range);
-
-    struct MyRange {
-        struct Key {};
-        struct my_iterator {
-            Key operator*() { return {}; }
-            my_iterator& operator++() { return *this; }
-            bool operator!=(const my_iterator& oth) const { return false; }
-        };
-        [[nodiscard]] my_iterator begin() const { return {}; }
-        [[nodiscard]] my_iterator end() const { return {}; }
-    };
-    static_assert(classify<MyRange> == type_classification::range);
-
-    struct MyOptional {
-        struct A ;
-        explicit operator bool() const {
-            return {};
-        }
-        A operator*() const;
-    };
-
-    static_assert(classify<MyOptional> == type_classification::optional);
-
-    template<class T, class = std::enable_if_t<!std::is_pointer_v<T>>>
-    struct MyOptional2 {
-        explicit operator bool() const {
-            return {};
-        }
-        T& operator*() const;
-    };
-
-    static_assert(classify<MyOptional2<class A>> == type_classification::optional);
 }
-
-template<std::size_t I, class T, std::size_t M>
-struct ::std::tuple_element<I, bxlx::detail2::MyArray<T, M>> {
-    using type = std::conditional_t<(I < M), const T&, void>;
-};
-
-template<class T, std::size_t M>
-struct ::std::tuple_size<bxlx::detail2::MyArray<T, M>> : std::integral_constant<std::size_t, M> {};
-
-template<std::size_t I>
-struct ::std::tuple_element<I, bxlx::detail2::MyArray2> {
-    using type = std::conditional_t<(I < 10), const int&, void>;
-};
-
-template<>
-struct ::std::tuple_size<bxlx::detail2::MyArray2> : std::integral_constant<std::size_t, 10> {};
-
-template<std::size_t I, class T>
-struct ::std::tuple_element<I, bxlx::detail2::MyTuple<T>> {
-    using type = std::conditional_t<(I < 10), const T&, void>;
-};
-
-template<class T>
-struct ::std::tuple_size<bxlx::detail2::MyTuple<T>> : std::integral_constant<std::size_t, 10> {};
-
-static_assert(bxlx::detail2::classify<bxlx::detail2::MyArray<int, 1>> == bxlx::detail2::type_classification::compile_time_random_access_range);
-static_assert(bxlx::detail2::classify<bxlx::detail2::MyArray2> == bxlx::detail2::type_classification::compile_time_random_access_range);
-static_assert(bxlx::detail2::classify<bxlx::detail2::MyTuple<int>> == bxlx::detail2::type_classification::tuple_like);
-
 
 #endif //GRAPH_TYPE_CLASSIFICATION_HPP
