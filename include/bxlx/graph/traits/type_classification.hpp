@@ -13,32 +13,14 @@
 #include <tuple>
 
 namespace bxlx::detail2 {
-    template<class T, class = void>
-    struct optional_traits2 {
-    };
+    template<class T>
+    constexpr inline bool is_char_v = std::is_same_v<T, char> || std::is_same_v<T, char16_t> ||
+        std::is_same_v<T, char32_t> || std::is_same_v<T, wchar_t> || std::is_same_v<T, decltype(u8'\0')>;
+        // C++17 -> u8'\0' is same type as char, but C++20 it is char8_t, which is different from char
+
 
     template<class T>
-    struct optional_traits2<T, std::void_t<
-        decltype(static_cast<bool>(std::declval<T&>())),
-        decltype(*std::declval<T&>())
-    >> {
-        using value_type = decltype(*std::declval<T&>());
-    };
-
-    template<class T, class = void>
-    struct optional_traits : optional_traits2<T> {};
-
-    template<class T>
-    struct optional_traits<T*, void> {
-        using value_type = typename std::iterator_traits<T*>::value_type;
-    };
-
-    template<template <class> class OptionalLike, class real_value_type>
-    struct optional_traits<OptionalLike<real_value_type>, std::void_t<
-        std::enable_if_t<std::is_same_v<void *, std::remove_cv_t<std::remove_reference_t<typename optional_traits2<OptionalLike<void *>>::value_type>>>>
-    >> {
-        using value_type = real_value_type;
-    };
+    constexpr inline bool is_index_v = std::is_integral_v<T> && !std::is_same_v<bool, T> && !is_char_v<T>;
 
 
     template<class, class = void>
@@ -46,20 +28,95 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr inline bool is_tuple_like_v<T, std::enable_if_t<sizeof(std::tuple_size<T>)>> = std::tuple_size_v<T>;
 
-    template<class T>
-    constexpr inline bool is_char_v = std::is_same_v<T, char> || std::is_same_v<T, char16_t> ||
-                                      std::is_same_v<T, char32_t> || std::is_same_v<T, wchar_t> || std::is_same_v<T, decltype(u8'\0')>;
-
-    template<class T>
-    constexpr inline bool is_index_v = std::is_integral_v<T> && !std::is_same_v<bool, T> && !is_char_v<T>;
-
     template <class T, std::size_t ...Ix>
-    constexpr auto tuple_is_same_values(std::index_sequence<Ix...> = {}) {
-        if constexpr (std::tuple_size_v<T> != sizeof...(Ix))
-            return tuple_is_same_values<T>(std::make_index_sequence<std::tuple_size_v<T>>{});
-        else
-            return std::bool_constant<(std::is_same_v<std::tuple_element_t<0, T>, std::tuple_element_t<Ix, T>> && ...)>{};
+    constexpr bool tuple_is_same_values(std::index_sequence<Ix...>) {
+        return (std::is_same_v<std::tuple_element_t<0, T>, std::tuple_element_t<Ix, T>> && ...);
     }
+
+
+    template<class T, bool = is_tuple_like_v<T>, class = void>
+    struct optional_traits_impl {};
+
+    template<class T>
+    struct optional_traits_impl<T, false, std::void_t<          // not accept tuple like classes
+        decltype(static_cast<bool>(std::declval<T&>())),        // can cast to bool == std::is_convertible_v<T, bool>
+        decltype(*std::declval<T&>())                           // has operator*()
+    >> {
+        using value_type = std::remove_cv_t<std::remove_reference_t<decltype(*std::declval<T&>())>>;
+    };
+
+    template<class T, class = void>
+    struct optional_traits : optional_traits_impl<T> {};
+
+    // reflect on optional to work std::optional with predeclared classes
+    template<template <class> class optional_like_t, class real_value_type>
+    struct optional_traits<optional_like_t<real_value_type>, std::enable_if_t<std::is_same_v<void *,
+        typename optional_traits_impl<optional_like_t<void *>>::value_type
+    >>> {
+        using value_type = real_value_type;
+    };
+
+    template<class T, class = void>
+    constexpr inline bool is_optional_v = false;
+    template<class T>
+    constexpr inline bool is_optional_v<T, std::void_t<typename optional_traits<T>::value_type>>
+        = !std::is_void_v<typename optional_traits<T>::value_type>;
+
+
+    template<class T, std::size_t = sizeof(T)>
+    constexpr std::true_type defined_type(int) { return {}; }
+    template<class>
+    constexpr std::false_type defined_type(...);
+
+    template<class T, class = void>
+    struct is_defined : decltype(defined_type<T>(0)) {
+    };
+
+    template<class T>
+    struct is_defined<T, std::enable_if_t<is_tuple_like_v<T>>> {
+        template<std::size_t ...Ix>
+        static constexpr bool is_all_defined(std::index_sequence<Ix...>) {
+            return (is_defined<std::tuple_element_t<Ix, T>>::value && ...);
+        }
+        constexpr static bool value = is_all_defined(std::make_index_sequence<std::tuple_size_v<T>>{});
+    };
+
+    template<class T>
+    struct is_defined<T, std::enable_if_t<is_optional_v<T>>> : is_defined<typename optional_traits<T>::value_type> {};
+
+    template<class T>
+    constexpr inline bool is_defined_v = is_defined<T>::value;
+
+
+    template<class T, bool = is_defined_v<T>>
+    constexpr inline bool is_bool_ref_v = false;
+    template<class T>
+    constexpr inline bool is_bool_ref_v<T, true> =  // type must be defined
+        std::is_class_v<T> &&                       // bool ref can be only classes, whose
+        std::is_convertible_v<T, bool> &&           // can convert to bool
+        !std::is_constructible_v<T, bool>;          // cannot construct from bool
+
+    template<class T>
+    constexpr inline bool is_bool_v = std::is_same_v<T, bool> || is_bool_ref_v<T>;
+
+
+    template<class It, class Sentinel, class = void>
+    constexpr inline bool is_iterator_pair_v = false;
+    template<class It, class Sentinel>
+    constexpr inline bool is_iterator_pair_v<It, Sentinel, std::enable_if_t<
+        std::is_convertible_v<decltype(std::declval<It&>() != std::declval<Sentinel&>()), bool> &&
+        !std::is_void_v<decltype(*std::declval<It&>())> &&
+        std::is_same_v<decltype(++std::declval<It&>()), It&>
+    >> = true;
+
+    template<class It, class Sentinel, class = void>
+    constexpr inline bool is_random_access_iterator_pair_v = false;
+    template<class It, class Sentinel>
+    constexpr inline bool is_random_access_iterator_pair_v<It, Sentinel, std::enable_if_t<
+        is_iterator_pair_v<It, Sentinel> &&
+        std::is_invocable_v<std::minus<>, It, It>
+    >> = true;
+
 
     template<class T, class = void>
     struct range_traits_impl2 {
@@ -105,7 +162,13 @@ namespace bxlx::detail2 {
         constexpr static bool random_access = false;
     };
 
-    template<class T, bool = decltype(tuple_is_same_values<T>())::value>
+    template<class T>
+    struct range_tuple_traits2<T, std::enable_if_t<is_defined_v<std::tuple_element_t<0, T>>>>
+        : range_traits_impl<T>
+    {
+    };
+
+    template<class T, bool = tuple_is_same_values<T>(std::make_index_sequence<std::tuple_size_v<T>>{})>
     struct range_tuple_traits {
         constexpr static bool is_sized = false; //dunno
         constexpr static bool random_access = false;
@@ -178,53 +241,6 @@ namespace bxlx::detail2 {
         decltype(std::begin(std::declval<T&>()))>;
 
 
-
-    template<class T, bool = !is_map_like_container_v<T> && !is_tuple_like_v<T>, class = void>
-    constexpr inline bool is_optional_v = false;
-    template<class T>
-    constexpr inline bool is_optional_v<T, true, std::void_t<typename optional_traits<T>::value_type>>
-        = !std::is_void_v<typename optional_traits<T>::value_type>;
-
-
-
-    template<class T, size_t = sizeof(T)>
-    constexpr std::true_type defined_type(int) { return {}; }
-    template<class>
-    constexpr std::false_type defined_type(...);
-
-    template<class T, class = void>
-    struct is_defined : decltype(defined_type<T>(0)) {
-    };
-
-    template<class T>
-    struct is_defined<T, std::enable_if_t<is_tuple_like_v<T>>> {
-        template<std::size_t ...Ix>
-        static std::bool_constant<(is_defined<std::tuple_element_t<Ix, T>>::value && ...)> is_all_defined(std::index_sequence<Ix...>);
-        constexpr static bool value = decltype(is_all_defined(std::make_index_sequence<std::tuple_size_v<T>>{}))::value;
-    };
-
-    template<class T>
-    struct is_defined<T, std::enable_if_t<is_optional_v<T>>> : is_defined<typename optional_traits<T>::value_type> {};
-
-
-    template<class T>
-    struct range_tuple_traits2<T, std::enable_if_t<is_defined<std::tuple_element_t<0, T>>::value>>
-        : range_traits_impl<T>
-    {
-    };
-
-    template<class T, bool = std::is_class_v<T> && !is_tuple_like_v<T> && !is_optional_v<T> && decltype(defined_type<T>(0))::value >
-    constexpr inline bool is_bool_ref_v = false;
-    template<class T>
-    constexpr inline bool is_bool_ref_v<T, true>
-        = std::is_convertible_v<T, bool> && !std::is_constructible_v<T, bool>;
-
-    template<class T, bool = std::is_class_v<T> && !is_tuple_like_v<T> && !is_optional_v<T>>
-    constexpr inline bool is_bool_v = std::is_same_v<T, bool>;
-    template<class T>
-    constexpr inline bool is_bool_v<T, true> = is_bool_ref_v<T>;
-
-
     template<class T, bool = is_range_v<T>>
     constexpr inline bool is_string_like_v = false;
     template<class T>
@@ -289,7 +305,7 @@ namespace bxlx::detail2 {
     };
 
     template<class T, class = void>
-    constexpr inline type_classification classify = decltype(defined_type<T>(0))::value ? type_classification::indeterminate : type_classification::pre_declared;
+    constexpr inline type_classification classify = is_defined_v<T> ? type_classification::indeterminate : type_classification::pre_declared;
 
 
     template<class T>
