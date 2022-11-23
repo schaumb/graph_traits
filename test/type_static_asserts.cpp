@@ -98,7 +98,7 @@ static_assert(classify<ArrayLike<int, 1>> == type_classification::indeterminate)
 
 
 template<class T, std::size_t C>
-struct MyArray { // we can guess the size() from template argument
+struct MyArray { // we can guess the size() from template argument, or the tuple_size_v<>
     T t[C];
 
     template<std::size_t I>

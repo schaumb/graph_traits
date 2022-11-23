@@ -34,7 +34,7 @@ namespace bxlx {
         using node_repr_type = typename impl::node_repr_type;
         using edge_repr_type = typename impl::edge_repr_type;
 
-        // 0 if cannot be calculated
+        // 0 if it cannot be calculated
         constexpr static std::size_t max_node_compile_time = impl::max_node_compile_time;
         constexpr static std::size_t max_edge_compile_time = impl::max_edge_compile_time;
     };

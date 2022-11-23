@@ -28,11 +28,14 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr inline bool is_tuple_like_v<T, std::enable_if_t<sizeof(std::tuple_size<T>)>> = std::tuple_size_v<T>;
 
-    template <class T, std::size_t ...Ix>
-    constexpr bool tuple_is_same_values(std::index_sequence<Ix...>) {
+    template<class T, std::size_t ...Ix>
+    constexpr bool tuple_has_same_values(std::index_sequence<Ix...>) {
         return (std::is_same_v<std::tuple_element_t<0, T>, std::tuple_element_t<Ix, T>> && ...);
     }
 
+    template<class T>
+    constexpr inline bool tuple_has_same_values_v
+        = tuple_has_same_values<T>(std::make_index_sequence<std::tuple_size_v<T>>{});
 
     template<class T, bool = is_tuple_like_v<T>, class = void>
     struct optional_traits_impl {};
@@ -42,7 +45,8 @@ namespace bxlx::detail2 {
         decltype(static_cast<bool>(std::declval<T&>())),        // can cast to bool == std::is_convertible_v<T, bool>
         decltype(*std::declval<T&>())                           // has operator*()
     >> {
-        using value_type = std::remove_cv_t<std::remove_reference_t<decltype(*std::declval<T&>())>>;
+        using reference = decltype(*std::declval<T&>());
+        using value_type = std::remove_cv_t<std::remove_reference_t<reference>>;
     };
 
     template<class T, class = void>
@@ -53,10 +57,24 @@ namespace bxlx::detail2 {
     struct optional_traits<optional_like_t<real_value_type>, std::enable_if_t<std::is_same_v<void *,
         typename optional_traits_impl<optional_like_t<void *>>::value_type
     >>> {
+        using void_star_ref = typename optional_traits_impl<optional_like_t<void *>>::reference;
+        using copied_volatile = std::conditional_t<std::is_volatile_v<std::remove_reference_t<void_star_ref>>,
+            std::add_volatile_t<real_value_type>, real_value_type>;
+        using copied_cv = std::conditional_t<std::is_const_v<std::remove_reference_t<void_star_ref>>,
+            std::add_const_t<copied_volatile>, copied_volatile>;
+
+        using reference = std::conditional_t<
+            std::is_lvalue_reference_v<void_star_ref>,
+            std::add_lvalue_reference_t<copied_cv>,
+            std::conditional_t<std::is_rvalue_reference_v<void_star_ref>,
+                std::add_rvalue_reference_t<copied_cv>,
+                copied_cv
+            >
+        >;
         using value_type = real_value_type;
     };
 
-    template<class T, class = void>
+    template<class, class = void>
     constexpr inline bool is_optional_v = false;
     template<class T>
     constexpr inline bool is_optional_v<T, std::void_t<typename optional_traits<T>::value_type>>
@@ -64,7 +82,7 @@ namespace bxlx::detail2 {
 
 
     template<class T, std::size_t = sizeof(T)>
-    constexpr std::true_type defined_type(int) { return {}; }
+    constexpr std::true_type defined_type(int);
     template<class>
     constexpr std::false_type defined_type(...);
 
@@ -100,7 +118,59 @@ namespace bxlx::detail2 {
     constexpr inline bool is_bool_v = std::is_same_v<T, bool> || is_bool_ref_v<T>;
 
 
-    template<class It, class Sentinel, class = void>
+    template<class T, bool = is_defined_v<T>, class = void>
+    constexpr inline bool has_size_v = false;
+    template<class T>
+    constexpr inline bool has_size_v<T, true, std::enable_if_t<
+        is_index_v<decltype(std::size(std::declval<T&>()))>
+    >> = true;
+
+
+    template<class T, bool = has_size_v<T>, class = void>
+    constexpr inline bool is_bitset_like_v = false;
+    template<class T>
+    constexpr inline bool is_bitset_like_v<T, true, std::enable_if_t<
+        is_bool_ref_v<decltype(std::declval<T&>()[std::size(std::declval<T&>())])>
+    >> = true;
+
+
+    template<auto* Lambda, int=((*Lambda)(), 0)>
+    constexpr bool is_constexpr(char) { return true; }
+    template<auto*>
+    constexpr bool is_constexpr(...) { return false; }
+
+    template<class, class = void>
+    constexpr inline auto constexpr_std_size = [] { throw; };
+    template<class T>
+    constexpr inline auto constexpr_std_size<T, std::enable_if_t<std::is_trivially_destructible_v<T>>>
+        = [] { return std::size(T{}); };
+    // TODO add constexpr not trivially destructible (C++20) trait if recursively declared all class
+    // the main reason why it is disabled currently because if you had a predeclared class inside your container,
+    // you cannot instantiate the class without compile error
+
+    template<class T, bool = has_size_v<T>, class = void>
+    constexpr inline std::size_t constexpr_std_size_v = 0;
+    template<class T>
+    constexpr inline std::size_t constexpr_std_size_v<T, true, std::enable_if_t<
+        is_constexpr<&constexpr_std_size<T>>(0)>
+    > = constexpr_std_size<T>();
+
+    template<class, class = void>
+    constexpr inline std::size_t compile_time_sized_v = 0;
+    template<class T>
+    constexpr inline std::size_t compile_time_sized_v<T, std::enable_if_t<
+        std::is_array_v<T>
+    >> = std::extent_v<T>;
+    template<class T>
+    constexpr inline std::size_t compile_time_sized_v<T, std::enable_if_t<
+        is_tuple_like_v<T>
+    >> = tuple_has_same_values_v<T> ? std::tuple_size_v<T> : 0;
+    template<class T>
+    constexpr inline std::size_t compile_time_sized_v<T, std::enable_if_t<
+        !std::is_array_v<T> && !is_tuple_like_v<T> && constexpr_std_size_v<T>
+    >> = std::size(T{});
+
+    template<class, class, class = void>
     constexpr inline bool is_iterator_pair_v = false;
     template<class It, class Sentinel>
     constexpr inline bool is_iterator_pair_v<It, Sentinel, std::enable_if_t<
@@ -109,12 +179,11 @@ namespace bxlx::detail2 {
         std::is_same_v<decltype(++std::declval<It&>()), It&>
     >> = true;
 
-    template<class It, class Sentinel, class = void>
-    constexpr inline bool is_random_access_iterator_pair_v = false;
-    template<class It, class Sentinel>
-    constexpr inline bool is_random_access_iterator_pair_v<It, Sentinel, std::enable_if_t<
-        is_iterator_pair_v<It, Sentinel> &&
-        std::is_invocable_v<std::minus<>, It, It>
+    template<class, class = void>
+    constexpr inline bool has_begin_end_iterators_v = false;
+    template<class T>
+    constexpr inline bool has_begin_end_iterators_v<T, std::enable_if_t<
+        is_iterator_pair_v<decltype(std::begin(std::declval<T&>())), decltype(std::end(std::declval<T&>()))>
     >> = true;
 
 
@@ -168,7 +237,7 @@ namespace bxlx::detail2 {
     {
     };
 
-    template<class T, bool = tuple_is_same_values<T>(std::make_index_sequence<std::tuple_size_v<T>>{})>
+    template<class T, bool = tuple_has_same_values_v<T>>
     struct range_tuple_traits {
         constexpr static bool is_sized = false; //dunno
         constexpr static bool random_access = false;
@@ -247,14 +316,6 @@ namespace bxlx::detail2 {
     constexpr inline bool is_string_like_v<T, true>
         = is_char_v<std::remove_cv_t<std::remove_reference_t<typename range_traits<T>::reference>>>;
 
-    template<class T, bool = !is_tuple_like_v<T> && !is_optional_v<T> && !is_string_like_v<T>, class = void>
-    constexpr inline bool is_bitset_like_v = false;
-    template<class T>
-    constexpr inline bool is_bitset_like_v<T, true, std::void_t<
-        decltype(std::declval<T>()[std::size(std::declval<T>())])
-    >> = is_index_v<decltype(std::size(std::declval<T>()))> &&
-         is_bool_ref_v<decltype(std::declval<T>()[std::size(std::declval<T>())])>;
-
     template<class T, bool = (std::is_array_v<T> && std::extent_v<T> != 0) || range_traits<T>::random_access, bool = is_sized_range_v<T> && !is_bitset_like_v<T>, class = void>
     constexpr inline bool is_random_access_range_v = false;
     template<class T>
@@ -266,24 +327,11 @@ namespace bxlx::detail2 {
         std::remove_cv_t<std::remove_reference_t<decltype(std::declval<T&>()[std::size_t{}])>>,
         std::remove_cv_t<std::remove_reference_t<decltype(*std::begin(std::declval<T&>()))>>>;
 
-
-    template<class T, bool = std::is_array_v<T> && std::extent_v<T> != 0, bool = is_tuple_like_v<T>, bool = is_bitset_like_v<T>, class = void>
-    constexpr inline std::size_t is_compile_time_sized_v = 0;
-
     template<class T>
-    constexpr inline std::size_t is_compile_time_sized_v<T, true, false, false> = std::extent_v<T>;
-    template<class T>
-    constexpr inline std::size_t is_compile_time_sized_v<T, false, true, false> = std::tuple_size_v<T>;
-    template<class T>
-    constexpr inline std::size_t is_compile_time_sized_v<T, false, false, true, std::void_t<
-        std::integral_constant<std::size_t, std::size(T{})>
-    >> = std::size(T{}) > 0;
+    constexpr inline std::size_t is_compile_time_bitset_like_v = is_bitset_like_v<T> ? compile_time_sized_v<T> : 0;
 
     template<class T>
-    constexpr inline std::size_t is_compile_time_bitset_like_v = is_bitset_like_v<T> ? is_compile_time_sized_v<T> : 0;
-
-    template<class T>
-    constexpr inline std::size_t is_compile_time_random_access_range_v = is_random_access_range_v<T> ? is_compile_time_sized_v<T> : 0;
+    constexpr inline std::size_t is_compile_time_random_access_range_v = is_random_access_range_v<T> ? compile_time_sized_v<T> : 0;
 
 
     enum class type_classification {
@@ -317,7 +365,7 @@ namespace bxlx::detail2 {
     constexpr inline type_classification classify<T, std::enable_if_t<is_compile_time_random_access_range_v<T> != 0>>
         = type_classification::compile_time_random_access_range;
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_compile_time_bitset_like_v<T>>>
+    constexpr inline type_classification classify<T, std::enable_if_t<(is_compile_time_bitset_like_v<T> > 0)>>
         = type_classification::compile_time_bitset_like_container;
 
     template<class T>

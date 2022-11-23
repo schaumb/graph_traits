@@ -12,8 +12,6 @@
 
 namespace bxlx::graph::execution {
     class lazy_policy {
-    public:
-        static constexpr std::true_type _lazy() { return {}; }
     } constexpr lazy{};
 
     template <class>
@@ -23,12 +21,12 @@ namespace bxlx::graph::execution {
 
 
     template <>
-    struct is_execution_policy<lazy_policy> : std::true_type
+    struct is_graph_execution_policy<lazy_policy> : std::true_type
     {
     };
 
     template <class T>
-    constexpr bool is_execution_policy_v = is_execution_policy<T>::value;
+    constexpr bool is_graph_execution_policy_v = is_graph_execution_policy<T>::value;
 }
 
 #endif //BXLX_GRAPH_TRAITS_GRAPH_TRAITS_IMPL_HPP
