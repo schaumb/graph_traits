@@ -14,13 +14,10 @@ namespace bxlx {
     namespace traits {
         enum class graph_representation {
             adjacency_list,
-            adjacency_array,
-            adjacency_bitset,
             adjacency_matrix,
+            adjacency_bitset,
+            edge_list,
         };
-
-        template<class T>
-        using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
         struct noop_t {
             template<class ...Ts>
@@ -196,7 +193,7 @@ namespace bxlx {
             >;
 
             template<class SubType, class Graph, class Getter = constant<>, class =
-                std::bool_constant<SubType::representation == graph_representation::adjacency_array>>
+                std::bool_constant<SubType::representation == graph_representation::edge_list>>
             struct type {
                 constexpr static auto storage_size = Getter::template value<Graph>;
             };
@@ -232,15 +229,15 @@ namespace bxlx {
 
             template<class SubType, class Graph, class EdgeProp = noop_t>
             struct type {
-                constexpr static graph_representation representation = graph_representation::adjacency_array;
+                constexpr static graph_representation representation = graph_representation::edge_list;
                 constexpr static auto get_edge_property = EdgeProp{};
                 using edge_repr_type = Graph;
 
                 constexpr static auto get_node_property = noop_t{};
                 using node_repr_type = void*;
 
-                using node_index_t = std::common_type_t<remove_cvref_t<std::tuple_element_t<0, Graph>>,
-                                                        remove_cvref_t<std::tuple_element_t<1, Graph>>>;
+                using node_index_t = std::common_type_t<detail2::remove_cvref_t<std::tuple_element_t<0, Graph>>,
+                                                        detail2::remove_cvref_t<std::tuple_element_t<1, Graph>>>;
 
                 constexpr static auto edge_source = getter_t<0>{};
                 constexpr static auto edge_target = getter_t<1>{};
