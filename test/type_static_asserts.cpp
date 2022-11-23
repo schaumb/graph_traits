@@ -64,9 +64,11 @@ static_assert(classify<A[10]> == type_classification::compile_time_random_access
 static_assert(classify<std::vector<A>> == type_classification::random_access_range);
 static_assert(classify<std::deque<A>> == type_classification::random_access_range);
 static_assert(classify<std::set<A>> == type_classification::set_like_container);
+static_assert(classify<std::set<std::pair<A, A>>> == type_classification::set_like_container);
 static_assert(classify<std::list<A>> == type_classification::sized_range);
 static_assert(classify<std::forward_list<A>> == type_classification::range);
 static_assert(classify<std::map<A, class B>> == type_classification::map_like_container);
+static_assert(classify<std::map<std::pair<A, A>, class B>> == type_classification::map_like_container);
 
 static_assert(classify<std::tuple<A, A>> == type_classification::tuple_like);
 static_assert(classify<std::pair<A, A>> == type_classification::tuple_like);
@@ -98,11 +100,13 @@ static_assert(classify<ArrayLike<int, 1>> == type_classification::indeterminate)
 
 
 template<class T, std::size_t C>
-struct MyArray { // we can guess the size() from template argument, or the tuple_size_v<>
+struct MyArray { // we can guess the size() from tuple_size_v<>
     T t[C];
 
     template<std::size_t I>
     const std::enable_if_t<(I < C), T>& get() const { return t[I]; }
+    [[nodiscard]] T* begin() const { return {}; }
+    [[nodiscard]] T* end() const { return {}; }
 };
 
 struct MyArray2 {
