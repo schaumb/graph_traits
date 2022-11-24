@@ -5,7 +5,7 @@
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include <bxlx/graph/traits/graph_traits.hpp>
+#include <bxlx/graph/traits/type_classification.hpp>
 
 #include <array>
 #include <type_traits>
@@ -24,9 +24,9 @@
 using namespace bxlx::detail2;
 
 static_assert(!std::is_void_v<typename range_traits<std::array<int, 10>>::value_type>);
-static_assert(classify<std::array<int, 10>> == type_classification::compile_time_random_access_range);
-static_assert(classify<int[10]> == type_classification::compile_time_random_access_range);
-static_assert(classify<std::bitset<10>> == type_classification::compile_time_bitset_like_container);
+static_assert(classify<std::array<int, 10>> == type_classification::random_access_range);
+static_assert(classify<int[10]> == type_classification::random_access_range);
+static_assert(classify<std::bitset<10>> == type_classification::bitset_like_container);
 static_assert(classify<std::vector<bool>> == type_classification::bitset_like_container);
 static_assert(classify<std::string> == type_classification::string_like_range);
 static_assert(classify<std::wstring> == type_classification::string_like_range);
@@ -60,7 +60,7 @@ static_assert(classify<unsigned char> == type_classification::index);
 
 // predeclared classes
 class A;
-static_assert(classify<A[10]> == type_classification::compile_time_random_access_range);
+static_assert(classify<A[10]> == type_classification::random_access_range);
 static_assert(classify<std::vector<A>> == type_classification::random_access_range);
 static_assert(classify<std::deque<A>> == type_classification::random_access_range);
 static_assert(classify<std::set<A>> == type_classification::set_like_container);
@@ -73,12 +73,12 @@ static_assert(classify<std::map<std::pair<A, A>, class B>> == type_classificatio
 static_assert(classify<std::tuple<A, A>> == type_classification::tuple_like);
 static_assert(classify<std::pair<A, A>> == type_classification::tuple_like);
 static_assert(classify<A*> == type_classification::optional);
-static_assert(classify<std::array<A, 10>> == type_classification::compile_time_random_access_range);
+static_assert(classify<std::array<A, 10>> == type_classification::random_access_range);
 static_assert(classify<std::optional<A>> == type_classification::optional);
 static_assert(classify<std::optional<std::pair<A, A>>> == type_classification::optional);
 static_assert(classify<std::optional<std::optional<A>>> == type_classification::optional);
-static_assert(classify<std::array<std::optional<A>, 10>> == type_classification::compile_time_random_access_range);
-static_assert(classify<std::optional<A>[10]> == type_classification::compile_time_random_access_range);
+static_assert(classify<std::array<std::optional<A>, 10>> == type_classification::random_access_range);
+static_assert(classify<std::optional<A>[10]> == type_classification::random_access_range);
 static_assert(classify<std::map<A, std::pair<A, A>>> == type_classification::map_like_container);
 
 static_assert(classify<std::pair<std::array<A, 10>, std::array<A, 10>>> == type_classification::tuple_like);
@@ -138,7 +138,7 @@ struct CTBitset {
     [[nodiscard]] reference operator[](std::size_t ) { return {}; }
 };
 
-static_assert(classify<CTBitset> == type_classification::compile_time_bitset_like_container);
+static_assert(classify<CTBitset> == type_classification::bitset_like_container);
 
 struct Bitset {
     struct reference {
@@ -272,8 +272,8 @@ struct ::std::tuple_element<I, MyTuple<T>> {
 template<class T>
 struct ::std::tuple_size<MyTuple<T>> : std::integral_constant<std::size_t, 10> {};
 
-static_assert(classify<MyArray<int, 1>> == type_classification::compile_time_random_access_range);
-static_assert(classify<MyArray2> == type_classification::compile_time_random_access_range);
+static_assert(classify<MyArray<int, 1>> == type_classification::random_access_range);
+static_assert(classify<MyArray2> == type_classification::random_access_range);
 static_assert(classify<MyTuple<int>> == type_classification::tuple_like);
 
 int main() {}

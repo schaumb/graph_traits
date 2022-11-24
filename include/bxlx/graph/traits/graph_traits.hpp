@@ -15,10 +15,244 @@ namespace bxlx {
         enum class graph_representation {
             adjacency_list,
             adjacency_matrix,
-            adjacency_bitset,
             edge_list,
         };
 
+        template<detail2::type_classification ... types>
+        struct accept_only {
+            template<class T>
+            constexpr static bool is_valid() {
+                return ((detail2::classify<T> == types) || ...);
+            }
+        };
+
+        template<class nested, detail2::type_classification ... types>
+        struct accept_recursively {
+            template<class T>
+            constexpr static bool is_valid() {
+                if constexpr (accept_only<types...>::template is_valid<T>()) {
+                    return nested::template is_valid_nested<T>();
+                } else {
+                    return false;
+                }
+            }
+        };
+
+        struct always_valid {
+            template<class>
+            constexpr static bool is_valid() {
+                return true;
+            }
+        };
+
+        struct no_prop {
+            template<class>
+            using prop = std::tuple<>;
+        };
+
+        template<class Tup, class = std::make_index_sequence<std::tuple_size_v<Tup>>>
+        struct props_valid;
+        template<class Tup, std::size_t...Ix>
+        struct props_valid<Tup, std::index_sequence<Ix...>> {
+            template<class T, class U>
+            constexpr static bool check_same =
+                !std::is_same_v<std::tuple_element_t<0, T>, std::tuple_element_t<0, U>> ||
+                 std::is_same_v<std::tuple_element_t<1, T>, std::tuple_element_t<1, U>>;
+
+            template<class T>
+            constexpr static bool only_same = (check_same<T, std::tuple_element_t<Ix, Tup>> && ...);
+            constexpr static bool value = (only_same<std::tuple_element_t<Ix, Tup>> && ...);
+        };
+
+        template<class ... props>
+        using merge_props = decltype(std::tuple_cat(std::declval<props>()...));
+
+
+        struct edge_property : always_valid {
+            template<class T>
+            using prop = std::tuple<std::pair<edge_property, T>>;
+        };
+        struct node_property : always_valid {
+            template<class T>
+            using prop = std::tuple<std::pair<node_property, T>>;
+        };
+        struct graph_property : always_valid {
+            template<class T>
+            using prop = std::tuple<std::pair<graph_property, T>>;
+        };
+
+        struct node_index : always_valid {
+            template<class T>
+            using prop = std::tuple<std::pair<struct user_node_index, std::true_type>, std::pair<node_index, T>>;
+        };
+
+        struct index : accept_only<detail2::type_classification::index> {
+            template<class T>
+            using prop = std::tuple<std::pair<struct user_node_index, std::false_type>, std::pair<node_index, T>>;
+        };
+
+        struct bool_t : accept_only<detail2::type_classification::bool_t>, no_prop {};
+        struct bitset : accept_only<detail2::type_classification::bitset_like_container>, no_prop {};
+
+        template<class Cond>
+        struct optional : accept_recursively<optional<Cond>, detail2::type_classification::optional> {
+            template<class T>
+            constexpr static bool is_valid_nested() {
+                return Cond::template is_valid<typename detail2::optional_traits<T>::value_type>();
+            }
+
+            template<class T>
+            using prop = typename Cond::template prop<typename detail2::optional_traits<T>::value_type>;
+        };
+
+
+        template<class... Conds>
+        struct any_of {
+            template<class T>
+            constexpr static bool is_valid() {
+                return (Conds::template is_valid<T>() + ...) == 1;
+            }
+
+            template<class T>
+            constexpr static std::size_t the_valid_index() {
+                std::size_t ix{};
+                std::size_t res = ~std::size_t{};
+                static_cast<void>((..., (Conds::template is_valid<T>() ? res = ix : ++ix)));
+                return res;
+            }
+
+            template<class T>
+            using prop = typename std::tuple_element_t<the_valid_index<T>(), std::tuple<Conds...>>
+                ::template prop<T>;
+        };
+
+        template<class ...Conds>
+        struct tuple_like : accept_recursively<tuple_like<Conds...>, detail2::type_classification::tuple_like> {
+            template<class T, std::size_t ...Ix>
+            constexpr static bool is_valid_nested(std::index_sequence<Ix...>) {
+                return (Conds::template is_valid<std::tuple_element_t<Ix, T>>() && ...);
+            }
+
+            template<class T>
+            constexpr static bool is_valid_nested() {
+                if constexpr (sizeof...(Conds) == std::tuple_size_v<T>) {
+                    if constexpr (is_valid_nested<T>(std::make_index_sequence<std::tuple_size_v<T>>{})) {
+                        return props_valid<prop<T>>::value;
+                    }
+                }
+                return false;
+            }
+
+            template<class U, std::size_t ...Ix>
+            constexpr static merge_props<typename Conds::template prop<std::tuple_element_t<Ix, U>>...>
+                merge_props_tup(std::index_sequence<Ix...>);
+
+            template<class U>
+            using prop = decltype(merge_props_tup<U>(std::make_index_sequence<std::tuple_size_v<U>>{}));
+        };
+
+        template<class Cond>
+        struct range_impl {
+            template<class T>
+            constexpr static bool is_valid_nested() {
+                return Cond::template is_valid<typename detail2::range_traits<T>::value_type>();
+            }
+
+            template<class T>
+            using prop = typename Cond::template prop<typename detail2::range_traits<T>::value_type>;
+        };
+
+        template<class T>
+        struct range : accept_recursively<range_impl<T>,
+            detail2::type_classification::range,
+            detail2::type_classification::sized_range,
+            detail2::type_classification::random_access_range,
+            detail2::type_classification::set_like_container>, range_impl<T> {};
+
+        template<class T>
+        struct sized_range : accept_recursively<range_impl<T>,
+            detail2::type_classification::sized_range,
+            detail2::type_classification::random_access_range,
+            detail2::type_classification::set_like_container>, range_impl<T> {};
+
+        template<class T>
+        struct random_access_range : accept_recursively<random_access_range<T>,
+            detail2::type_classification::random_access_range> {
+            template<class U>
+            constexpr static bool is_valid_nested() {
+                if constexpr (range_impl<T>::template is_valid_nested<U>()) {
+                    return props_valid<prop<U>>::value;
+                }
+                return false;
+            }
+
+            template<class U>
+            using prop = merge_props<std::tuple<std::pair<struct user_node_index, std::false_type>>,
+                typename range_impl<T>::template prop<U>>;
+        };
+
+        template<class T, class U>
+        struct map : accept_recursively<range_impl<tuple_like<T, U>>,
+            detail2::type_classification::map_like_container>, range_impl<tuple_like<T, U>> {};
+
+        template<class T, class Property>
+        struct with_property : any_of<tuple_like<T, Property>, T> {};
+
+        template<class T>
+        struct with_graph_property : with_property<T, graph_property> {
+            template<class U>
+            using inside_prop = typename with_graph_property::template prop<U>;
+        };
+        template<class T>
+        struct with_node_property : with_property<T, node_property> {};
+        template<class T>
+        struct with_edge_property : with_property<T, edge_property> {};
+
+
+        struct adjacency_list : with_graph_property<any_of<
+            random_access_range<with_node_property<range<with_edge_property<index>>>>,
+            map<node_index, with_node_property<any_of<
+                range<with_edge_property<node_index>>,
+                map<node_index, edge_property>
+            >>>
+        >> {
+            template<class T>
+            using prop = merge_props<typename adjacency_list::template inside_prop<T>,
+                std::tuple<std::pair<graph_representation,
+                    std::integral_constant<graph_representation, graph_representation::adjacency_list>>>>;
+        };
+
+        struct adjacency_matrix : with_graph_property<
+            random_access_range<with_node_property<any_of<
+                random_access_range<any_of<
+                    bool_t,
+                    optional<edge_property>
+                >>,
+                bitset
+            >>>
+        > {
+            template<class T>
+            using prop = merge_props<typename adjacency_list::template inside_prop<T>,
+                std::tuple<std::pair<graph_representation,
+                    std::integral_constant<graph_representation, graph_representation::adjacency_matrix>>>>;
+        };
+
+        struct edge_list : with_graph_property<sized_range<any_of<
+            tuple_like<node_index, node_index>,
+            tuple_like<node_index, node_index, edge_property>
+        >>> {
+            template<class T>
+            using prop = merge_props<typename adjacency_list::template inside_prop<T>,
+                std::tuple<std::pair<graph_representation,
+                    std::integral_constant<graph_representation, graph_representation::edge_list>>>>;
+        };
+
+        struct graph : any_of<adjacency_list, adjacency_matrix, edge_list> {};
+
+        template<class T>
+        constexpr inline bool is_graph_v = graph::template is_valid<T>();
+
+        /*
         struct noop_t {
             template<class ...Ts>
             constexpr void operator()(Ts && ...) const noexcept {
@@ -83,30 +317,30 @@ namespace bxlx {
 
 
         template<class T>
-        using identity = std::common_type<T>;
+        using type_identity = std::common_type<T>;
 
         template<class, std::size_t = 0, class = void>
         struct get_inside_type {};
 
         template<class T, std::size_t iTh>
         struct get_inside_type<T, iTh, std::enable_if_t<tuple_with_size<iTh>::template type<T>::value>>
-            : identity<std::tuple_element_t<iTh, T>> {};
+            : type_identity<std::tuple_element_t<iTh, T>> {};
 
         template<class T>
         struct get_inside_type<T, 0, std::enable_if_t<detail2::classify<T> == detail2::type_classification::compile_time_random_access_range>>
-            : identity<std::tuple_element_t<0, T>> {};
+            : type_identity<std::tuple_element_t<0, T>> {};
 
         template<class T>
         struct get_inside_type<T, 0, std::enable_if_t<detail2::is_range_v<T> && detail2::classify<T> != detail2::type_classification::compile_time_random_access_range>>
-            : identity<typename detail2::range_traits<T>::value_type> {};
+            : type_identity<typename detail2::range_traits<T>::value_type> {};
 
         template<class T>
         struct get_inside_type<T, 0, std::enable_if_t<detail2::is_optional_v<T>>>
-            : identity<typename detail2::optional_traits<T>::value_type> {};
+            : type_identity<typename detail2::optional_traits<T>::value_type> {};
 
         template<class T>
         struct get_inside_type<T, 0, std::enable_if_t<detail2::is_bitset_like_v<T>>>
-            : identity<bool> {};
+            : type_identity<bool> {};
 
         template<class T>
         using get_inside_type_t = get_inside_type<T>;
@@ -133,7 +367,7 @@ namespace bxlx {
         };
 
 
-        template<class Condition, class ToState, template<class> class Transform = identity, class ... Additional>
+        template<class Condition, class ToState, template<class> class Transform = type_identity, class ... Additional>
         struct state_transition {
             template<class T>
             static constexpr bool valid = Condition::template type<T>::value;
@@ -202,12 +436,6 @@ namespace bxlx {
             struct type<SubType, Graph, Getter, std::false_type> : type<SubType, Graph, Getter, void> {
                 using node_index_t = decltype(std::size(std::declval<Graph&>()));
             };
-/*
-            template<class SubType, class Graph, class Getter>
-            struct type<SubType, Graph, Getter, std::true_type> : type<SubType, Graph, Getter, void> {
-                constexpr static auto in_storage_size = 0;
-            };
-*/
         };
 
         struct graph_rar {
@@ -224,7 +452,7 @@ namespace bxlx {
         struct graph_array {
             using tr = transitions<
                 state_transition<tuple_with_size<2>, end_state>,
-                state_transition<tuple_with_size<3>, end_state, identity, getter_t<2>>
+                state_transition<tuple_with_size<3>, end_state, type_identity, getter_t<2>>
             >;
 
             template<class SubType, class Graph, class EdgeProp = noop_t>
@@ -243,7 +471,7 @@ namespace bxlx {
                 constexpr static auto edge_target = getter_t<1>{};
             };
         };
-
+*/
         /*
     enum class type_classification {
         indeterminate,
@@ -263,7 +491,7 @@ namespace bxlx {
         index,
     };
          */
-
+/*
         template<class Graph, class State = graph_property, class = void>
         struct get_graph_traits_type {
             static_assert(State::tr::template valid<Graph>, "No valid state for this class");
@@ -284,6 +512,7 @@ namespace bxlx {
 
         template<class Graph>
         using graph_traits = typename get_graph_traits_type<Graph>::type;
+        */
     }
 }
 

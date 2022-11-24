@@ -67,7 +67,7 @@ namespace bxlx::detail2 {
         decltype(*std::declval<T&>())                           // has operator*()
     >> {
         using reference = decltype(*std::declval<T&>());
-        using value_type = remove_cvref_t<reference>;
+        using value_type [[maybe_unused]] = remove_cvref_t<reference>;
     };
 
     template<class T, class = void>
@@ -78,8 +78,8 @@ namespace bxlx::detail2 {
     struct optional_traits<optional_like_t<real_value_type>, std::enable_if_t<std::is_same_v<void *,
         typename optional_traits_impl<optional_like_t<void *>>::value_type
     >>> {
-        using reference = copy_cvref_t<typename optional_traits_impl<optional_like_t<void *>>::reference, real_value_type>;
-        using value_type = real_value_type;
+        using reference [[maybe_unused]] = copy_cvref_t<typename optional_traits_impl<optional_like_t<void *>>::reference, real_value_type>;
+        using value_type [[maybe_unused]] = real_value_type;
     };
 
     template<class, class = void>
@@ -90,7 +90,7 @@ namespace bxlx::detail2 {
 
 
     template<class T, std::size_t = sizeof(T)>
-    constexpr std::true_type defined_type(int);
+    [[maybe_unused]] constexpr std::true_type defined_type(int);
     template<class>
     constexpr std::false_type defined_type(...);
 
@@ -108,7 +108,7 @@ namespace bxlx::detail2 {
         static constexpr bool is_all_defined(std::index_sequence<Ix...>) {
             return (is_defined<std::tuple_element_t<Ix, T>>::value && ...);
         }
-        constexpr static bool value = is_all_defined(std::make_index_sequence<std::tuple_size_v<T>>{});
+        [[maybe_unused]] constexpr static bool value = is_all_defined(std::make_index_sequence<std::tuple_size_v<T>>{});
     };
 
     template<class T>
@@ -141,12 +141,12 @@ namespace bxlx::detail2 {
     template<class Helper, class T, bool is_const_v, class ...Args>
     struct member_function_invoke_result {
         template<class Res = Helper>
-        Res operator()(Res (std::remove_const_t<T>::*) (Args...)) const;
+        Res operator()(Res (std::remove_const_t<T>::*) (Args...)) const { return *static_cast<Res*>(nullptr); }
     };
     template<class Helper, class T, class ...Args>
     struct member_function_invoke_result<Helper, T, true, Args...> {
         template<class Res = Helper>
-        Res operator()(Res (std::remove_const_t<T>::*) (Args...) const) const;
+        Res operator()(Res (std::remove_const_t<T>::*) (Args...) const) const { return *static_cast<Res*>(nullptr); }
     };
 
     template<class Helper, class T, class ...Args>
@@ -165,7 +165,7 @@ namespace bxlx::detail2 {
         std::enable_if_t<!std::is_void_v<With>>,
         decltype(member_function_invoke_result_v<void, T, With>(&T::operator[]))
     >> {
-        using type = decltype(member_function_invoke_result_v<void, T, With>(&T::operator[]));
+        using type [[maybe_unused]] = decltype(member_function_invoke_result_v<void, T, With>(&T::operator[]));
     };
 
     template<class, class = void, class = void>
@@ -185,7 +185,7 @@ namespace bxlx::detail2 {
 
 
     template<auto* Lambda, int=((*Lambda)(), 0)>
-    constexpr bool is_constexpr(int) { return true; }
+    [[maybe_unused]] constexpr bool is_constexpr(int) { return true; }
     template<auto*>
     constexpr bool is_constexpr(...) { return false; }
 
@@ -258,12 +258,12 @@ namespace bxlx::detail2 {
         !has_std_iterator_traits_v<get_begin_iterator_t<T>>
     >> {
         using reference = decltype(*std::begin(std::declval<T&>()));
-        using value_type = remove_cvref_t<reference>;
-        constexpr static bool is_sized = has_size_v<T> || compile_time_size_v<T>;
-        constexpr static bool random_access =
+        using value_type [[maybe_unused]] = remove_cvref_t<reference>;
+        [[maybe_unused]] constexpr static bool is_sized = has_size_v<T> || compile_time_size_v<T>;
+        [[maybe_unused]] constexpr static bool random_access =
             has_subscript_operator<const T> ||
             std::is_invocable_r_v<get_begin_iterator_t<T>, std::plus<>, get_begin_iterator_t<T>, std::ptrdiff_t>;
-        constexpr static bool predeclared_array = false;
+        [[maybe_unused]]constexpr static bool predeclared_array = false;
     };
 
     template<class T>
@@ -271,12 +271,12 @@ namespace bxlx::detail2 {
         has_std_iterator_traits_v<get_begin_iterator_t<T>>
     >> {
         using reference = typename std::iterator_traits<get_begin_iterator_t<T>>::reference;
-        using value_type = typename std::iterator_traits<get_begin_iterator_t<T>>::value_type;
-        constexpr static bool is_sized = has_size_v<T> || compile_time_size_v<T>;
-        constexpr static bool random_access =
+        using value_type [[maybe_unused]] = typename std::iterator_traits<get_begin_iterator_t<T>>::value_type;
+        [[maybe_unused]] constexpr static bool is_sized = has_size_v<T> || compile_time_size_v<T>;
+        [[maybe_unused]] constexpr static bool random_access =
             std::is_base_of_v<std::random_access_iterator_tag,
             typename std::iterator_traits<get_begin_iterator_t<T>>::iterator_category>;
-        constexpr static bool predeclared_array = false;
+        [[maybe_unused]] constexpr static bool predeclared_array = false;
     };
 
     template<class T, bool = is_tuple_like_v<T>, class = void>
@@ -284,22 +284,22 @@ namespace bxlx::detail2 {
 
     template<class T, std::size_t Ix, bool any>
     struct range_traits<T[Ix], any> {
-        using reference = T&;
+        using reference [[maybe_unused]] = T&;
         using value_type = T;
-        constexpr static bool is_sized = true;
-        constexpr static bool random_access = true;
-        constexpr static bool predeclared_array = !is_defined_v<T>;
+        [[maybe_unused]] constexpr static bool is_sized = true;
+        [[maybe_unused]] constexpr static bool random_access = true;
+        [[maybe_unused]] constexpr static bool predeclared_array = !is_defined_v<T>;
     };
 
     template<template <class, std::size_t> class container, class real_value_type, std::size_t Ix>
     struct range_traits<container<real_value_type, Ix>, true, std::enable_if_t<
         std::is_same_v<void*, typename range_traits_impl<container<void*, Ix>>::value_type>
     >> {
-        using reference = copy_cvref_t<typename range_traits_impl<container<void*, Ix>>::reference, real_value_type>;
+        using reference [[maybe_unused]] = copy_cvref_t<typename range_traits_impl<container<void*, Ix>>::reference, real_value_type>;
         using value_type = real_value_type;
-        constexpr static bool is_sized = range_traits_impl<container<void*, Ix>>::is_sized;
-        constexpr static bool random_access = range_traits_impl<container<void*, Ix>>::random_access;
-        constexpr static bool predeclared_array = !is_defined_v<real_value_type>;
+        [[maybe_unused]] constexpr static bool is_sized = range_traits_impl<container<void*, Ix>>::is_sized;
+        [[maybe_unused]] constexpr static bool random_access = range_traits_impl<container<void*, Ix>>::random_access;
+        [[maybe_unused]] constexpr static bool predeclared_array = !is_defined_v<real_value_type>;
     };
 
     template<class, class = void>
@@ -340,12 +340,12 @@ namespace bxlx::detail2 {
             std::tuple_element_t<0, typename range_traits<T>::value_type>
         >>(&T::find))
     >> {
-        using type = decltype(member_function_invoke_result_v<get_begin_iterator_t<T>, T, copy_cvref_t<
+        using type [[maybe_unused]] = decltype(member_function_invoke_result_v<get_begin_iterator_t<T>, T, copy_cvref_t<
             typename range_traits<T>::reference,
             std::tuple_element_t<0, typename range_traits<T>::value_type>
         >>(&T::find));
 
-        using map_like_type = void;
+        using map_like_type [[maybe_unused]] = void;
     };
 
     template<class T, bool = std::is_class_v<T> && !range_traits<std::remove_const_t<T>>::predeclared_array, class = void>
@@ -355,9 +355,9 @@ namespace bxlx::detail2 {
     struct find_function_traits<T, true, std::void_t<
         decltype(member_function_invoke_result_v<get_begin_iterator_t<T>, T, typename range_traits<T>::reference>(&T::find))
     >> {
-        using type = decltype(member_function_invoke_result_v<get_begin_iterator_t<T>, T,
+        using type [[maybe_unused]] = decltype(member_function_invoke_result_v<get_begin_iterator_t<T>, T,
             typename range_traits<T>::reference>(&T::find));
-        using set_like_type = void;
+        using set_like_type [[maybe_unused]] = void;
     };
 
     template<class T, bool = is_sized_range_v<T>, class = void>
@@ -377,8 +377,6 @@ namespace bxlx::detail2 {
     enum class type_classification {
         indeterminate,
         pre_declared,
-        compile_time_random_access_range,
-        compile_time_bitset_like_container,
         random_access_range,
         bitset_like_container,
         string_like_range,
@@ -400,20 +398,14 @@ namespace bxlx::detail2 {
         std::enable_if_t<is_tuple_like_v<T> && !is_range_v<T>>>
         = type_classification::tuple_like;
 
-    template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_random_access_range_v<T> && compile_time_size_v<T>>>
-        = type_classification::compile_time_random_access_range;
 
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_random_access_range_v<T> && !compile_time_size_v<T> &&
+    constexpr inline type_classification classify<T, std::enable_if_t<is_random_access_range_v<T> &&
                                                                       !is_string_like_v<T> && !is_bitset_like_v<T>>>
         = type_classification::random_access_range;
-    template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_bitset_like_v<T> && compile_time_size_v<T>>>
-        = type_classification::compile_time_bitset_like_container;
 
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_bitset_like_v<T> && !compile_time_size_v<T>>>
+    constexpr inline type_classification classify<T, std::enable_if_t<is_bitset_like_v<T>>>
         = type_classification::bitset_like_container;
 
     template<class T>
