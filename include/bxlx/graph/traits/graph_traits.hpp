@@ -166,14 +166,12 @@ namespace bxlx {
         struct range : accept_recursively<range_impl<T>,
             detail2::type_classification::range,
             detail2::type_classification::sized_range,
-            detail2::type_classification::random_access_range,
-            detail2::type_classification::set_like_container>, range_impl<T> {};
+            detail2::type_classification::random_access_range>, range_impl<T> {};
 
         template<class T>
         struct sized_range : accept_recursively<range_impl<T>,
             detail2::type_classification::sized_range,
-            detail2::type_classification::random_access_range,
-            detail2::type_classification::set_like_container>, range_impl<T> {};
+            detail2::type_classification::random_access_range>, range_impl<T> {};
 
         template<class T>
         struct random_access_range : accept_recursively<random_access_range<T>,

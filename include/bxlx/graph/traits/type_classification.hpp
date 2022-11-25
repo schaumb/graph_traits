@@ -151,7 +151,7 @@ namespace bxlx::detail2 {
     constexpr inline bool is_size_t_wrapper = false;
     template<class T>
     constexpr inline bool is_size_t_wrapper<T, true> =  // type must be defined
-        (std::is_class_v<T> || std::is_enum_v<T>) &&                           // size_t wrapper can be only classes, whose
+        (std::is_class_v<T> || std::is_enum_v<T>) &&    // size_t wrapper can be only classes, whose
         is_nothrow_convertible_v<T, std::size_t> &&     // can convert to size_t
         is_nothrow_static_cast_v<std::size_t, T>;       // can convert from size_t
 
@@ -397,21 +397,13 @@ namespace bxlx::detail2 {
         typename find_function_traits<const T>::map_like_type
     >> = true;
 
-    template<class T, bool = is_sized_range_v<T>, class = void>
-    constexpr inline bool is_set_like_container_v = false;
-    template<class T>
-    constexpr inline bool is_set_like_container_v<T, true, std::void_t<
-        typename find_function_traits<const T>::set_like_type
-    >> = true;
 
     enum class type_classification {
         indeterminate,
         pre_declared,
         random_access_range,
         bitset_like_container,
-        string_like_range,
         map_like_container,
-        set_like_container,
         sized_range,
         range,
         tuple_like,
@@ -439,20 +431,12 @@ namespace bxlx::detail2 {
         = type_classification::bitset_like_container;
 
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_string_like_v<T>>>
-        = type_classification::string_like_range;
-
-    template<class T>
     constexpr inline type_classification classify<T, std::enable_if_t<is_map_like_container_v<T>>>
         = type_classification::map_like_container;
 
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_set_like_container_v<T>>>
-        = type_classification::set_like_container;
-
-    template<class T>
     constexpr inline type_classification classify<T, std::enable_if_t<is_sized_range_v<T> && !is_map_like_container_v<T>
-        && !is_set_like_container_v<T> && !is_random_access_range_v<T> && !is_bitset_like_v<T>>>
+        && !is_random_access_range_v<T> && !is_bitset_like_v<T>>>
         = type_classification::sized_range;
 
     template<class T>

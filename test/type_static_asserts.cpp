@@ -28,9 +28,9 @@ static_assert(classify<std::array<int, 10>> == type_classification::random_acces
 static_assert(classify<int[10]> == type_classification::random_access_range);
 static_assert(classify<std::bitset<10>> == type_classification::bitset_like_container);
 static_assert(classify<std::vector<bool>> == type_classification::bitset_like_container);
-static_assert(classify<std::string> == type_classification::string_like_range);
-static_assert(classify<std::wstring> == type_classification::string_like_range);
-static_assert(classify<std::basic_string<decltype(u8'\0')>> == type_classification::string_like_range);
+static_assert(classify<std::string> == type_classification::indeterminate);
+static_assert(classify<std::wstring> == type_classification::indeterminate);
+static_assert(classify<std::basic_string<decltype(u8'\0')>> == type_classification::indeterminate);
 
 static_assert(classify<std::vector<int>> == type_classification::random_access_range);
 static_assert(classify<std::deque<bool>> == type_classification::random_access_range);
@@ -38,10 +38,10 @@ static_assert(classify<std::map<int, int>> == type_classification::map_like_cont
 static_assert(classify<std::multimap<int, int>> == type_classification::map_like_container);
 static_assert(classify<std::unordered_map<int, int>> == type_classification::map_like_container);
 static_assert(classify<std::unordered_multimap<int, int>> == type_classification::map_like_container);
-static_assert(classify<std::set<int, int>> == type_classification::set_like_container);
-static_assert(classify<std::multiset<int, int>> == type_classification::set_like_container);
-static_assert(classify<std::unordered_set<int, int>> == type_classification::set_like_container);
-static_assert(classify<std::unordered_multiset<int, int>> == type_classification::set_like_container);
+static_assert(classify<std::set<int, int>> == type_classification::sized_range);
+static_assert(classify<std::multiset<int, int>> == type_classification::sized_range);
+static_assert(classify<std::unordered_set<int, int>> == type_classification::sized_range);
+static_assert(classify<std::unordered_multiset<int, int>> == type_classification::sized_range);
 static_assert(classify<std::list<int>> == type_classification::sized_range);
 static_assert(classify<std::forward_list<int>> == type_classification::range);
 
@@ -63,8 +63,8 @@ class A;
 static_assert(classify<A[10]> == type_classification::random_access_range);
 static_assert(classify<std::vector<A>> == type_classification::random_access_range);
 static_assert(classify<std::deque<A>> == type_classification::random_access_range);
-static_assert(classify<std::set<A>> == type_classification::set_like_container);
-static_assert(classify<std::set<std::pair<A, A>>> == type_classification::set_like_container);
+static_assert(classify<std::set<A>> == type_classification::sized_range);
+static_assert(classify<std::set<std::pair<A, A>>> == type_classification::sized_range);
 static_assert(classify<std::list<A>> == type_classification::sized_range);
 static_assert(classify<std::forward_list<A>> == type_classification::range);
 static_assert(classify<std::map<A, class B>> == type_classification::map_like_container);
@@ -171,7 +171,7 @@ struct MyString {
     [[nodiscard]] my_iterator begin() const { return {}; }
     [[nodiscard]] my_iterator end() const { return {}; }
 };
-static_assert(classify<MyString> == type_classification::string_like_range);
+static_assert(classify<MyString> == type_classification::indeterminate);
 
 struct MyRar {
     struct my_iterator {
@@ -212,7 +212,7 @@ struct MySet {
     [[nodiscard]] my_iterator end() const { return {}; }
     [[nodiscard]] std::size_t size() const { return {}; }
 };
-static_assert(classify<MySet> == type_classification::set_like_container);
+static_assert(classify<MySet> == type_classification::sized_range);
 
 struct MySizedRange {
     struct Key {};
