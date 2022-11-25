@@ -98,6 +98,18 @@ template<class, std::size_t>
 struct ArrayLike {};
 static_assert(classify<ArrayLike<int, 1>> == type_classification::indeterminate);
 
+struct my_index {
+    explicit my_index(std::size_t) noexcept {}
+    operator std::size_t() noexcept { return 0; }
+};
+
+static_assert(classify<my_index> == type_classification::index);
+
+enum EN : std::size_t {};
+
+static_assert(std::is_nothrow_constructible_v<std::size_t, EN>);
+static_assert(classify<EN> == type_classification::index);
+
 
 template<class T, std::size_t C>
 struct MyArray { // we can guess the size() from tuple_size_v<>
@@ -132,7 +144,7 @@ struct MyTuple {
 
 struct CTBitset {
     struct reference {
-        operator bool() { return false; }
+        operator bool() noexcept { return false; }
     };
     [[nodiscard]] constexpr std::size_t size() const { return 5; }
     [[nodiscard]] reference operator[](std::size_t ) { return {}; }
@@ -142,7 +154,7 @@ static_assert(classify<CTBitset> == type_classification::bitset_like_container);
 
 struct Bitset {
     struct reference {
-        operator bool() { return false; }
+        operator bool() noexcept { return false; }
     };
     [[nodiscard]] std::size_t size() const { return 5; }
     [[nodiscard]] reference operator[](std::size_t ) { return {}; }

@@ -19,10 +19,6 @@ namespace bxlx::detail2 {
         // C++17 -> u8'\0' is same type as char, but C++20 it is char8_t, which is different from char
 
 
-    template<class T>
-    constexpr inline bool is_index_v = std::is_integral_v<T> && !std::is_same_v<bool, T> && !is_char_v<T>;
-
-
     template<class, class = void>
     constexpr inline bool is_tuple_like_v = false;
     template<class T>
@@ -118,16 +114,50 @@ namespace bxlx::detail2 {
     constexpr inline bool is_defined_v = is_defined<T>::value;
 
 
+    template <bool IsConvertible, typename From, typename To>
+    struct is_nothrow_convertible_impl : std::false_type{};
+    template <typename From, typename To>
+    struct is_nothrow_convertible_impl<true, From, To> {
+        static void test(To) noexcept {}
+        constexpr static inline bool value = noexcept(test(std::declval<From>()));
+    };
+
+    template <typename From, typename To>
+    constexpr inline auto is_nothrow_convertible_v
+        = is_nothrow_convertible_impl<std::is_convertible_v<From,To>, From, To>::value;
+
+
+    template<class From, class To, class = void>
+    constexpr inline auto is_nothrow_static_cast_v = false;
+    template<class From, class To>
+    constexpr inline auto is_nothrow_static_cast_v<From, To, std::void_t<
+        decltype(static_cast<To>(std::declval<From>()))
+    >> = noexcept(static_cast<To>(std::declval<From>()));
+
+
     template<class T, bool = is_defined_v<T>>
     constexpr inline bool is_bool_ref_v = false;
     template<class T>
     constexpr inline bool is_bool_ref_v<T, true> =  // type must be defined
         std::is_class_v<T> &&                       // bool ref can be only classes, whose
-        std::is_convertible_v<T, bool> &&           // can convert to bool
+        is_nothrow_convertible_v<T, bool> &&        // can convert to bool
         !std::is_constructible_v<T, bool>;          // cannot construct from bool
 
     template<class T>
     constexpr inline bool is_bool_v = std::is_same_v<T, bool> || is_bool_ref_v<T>;
+
+
+    template<class T, bool = is_defined_v<T>>
+    constexpr inline bool is_size_t_wrapper = false;
+    template<class T>
+    constexpr inline bool is_size_t_wrapper<T, true> =  // type must be defined
+        (std::is_class_v<T> || std::is_enum_v<T>) &&                           // size_t wrapper can be only classes, whose
+        is_nothrow_convertible_v<T, std::size_t> &&     // can convert to size_t
+        is_nothrow_static_cast_v<std::size_t, T>;       // can convert from size_t
+
+    template<class T>
+    constexpr inline bool is_index_v = !std::is_same_v<bool, T> && !is_char_v<T> &&
+        (std::is_integral_v<T> || is_size_t_wrapper<T>);
 
 
     template<class T, bool = is_defined_v<T>, class = void>
