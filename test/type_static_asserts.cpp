@@ -288,4 +288,9 @@ static_assert(classify<MyArray<int, 1>> == type_classification::random_access_ra
 static_assert(classify<MyArray2> == type_classification::random_access_range);
 static_assert(classify<MyTuple<int>> == type_classification::tuple_like);
 
+
+static_assert(classify<std::map<int, int, std::less<>>> == type_classification::map_like_container);
+static_assert(classify<std::set<std::pair<int, int>, std::less<>>> == type_classification::sized_range);
+static_assert(classify<std::set<std::tuple<int>, std::less<>>> == type_classification::sized_range);
+
 int main() {}

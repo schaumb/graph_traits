@@ -119,7 +119,7 @@ namespace bxlx::detail2 {
     template <typename From, typename To>
     struct is_nothrow_convertible_impl<true, From, To> {
         static void test(To) noexcept {}
-        constexpr static inline bool value = noexcept(test(std::declval<From>()));
+        [[maybe_unused]] constexpr static inline bool value = noexcept(test(std::declval<From>()));
     };
 
     template <typename From, typename To>
@@ -127,7 +127,7 @@ namespace bxlx::detail2 {
         = is_nothrow_convertible_impl<std::is_convertible_v<From,To>, From, To>::value;
 
 
-    template<class From, class To, class = void>
+    template<class, class, class = void>
     constexpr inline auto is_nothrow_static_cast_v = false;
     template<class From, class To>
     constexpr inline auto is_nothrow_static_cast_v<From, To, std::void_t<
@@ -257,7 +257,8 @@ namespace bxlx::detail2 {
     constexpr inline bool has_std_iterator_traits_v<It, std::void_t<typename std::iterator_traits<It>::value_type>> = true;
 
 
-    template<class It, class Sentinel, bool = has_std_iterator_traits_v<It> && std::is_same_v<It, Sentinel>, class = void>
+    template<class It, class Sentinel, bool = has_std_iterator_traits_v<It> &&
+                                              std::is_same_v<It, Sentinel>, class = void>
     constexpr inline bool is_iterator_pair_v = false;
     template<class It, class Sentinel>
     constexpr inline bool is_iterator_pair_v<It, Sentinel, true> = true;
@@ -358,44 +359,69 @@ namespace bxlx::detail2 {
     constexpr inline bool is_random_access_range_v<T, true> = range_traits<T>::random_access;
 
 
-    template<class T, bool tup = std::is_class_v<T> &&
-        is_tuple_like_v<typename range_traits<std::remove_const_t<T>>::value_type> &&
-        !range_traits<std::remove_const_t<T>>::predeclared_array, class = void>
-    struct map_find_function_traits {};
+    template<class Impl, std::size_t = std::tuple_size_v<typename range_traits<Impl>::value_type>>
+    struct has_map_like_properties_impl : std::false_type {};
+    template<class Impl>
+    struct has_map_like_properties_impl<Impl, 2> {
+        template<class T, class = void>
+        constexpr static inline bool has_map_find_function_v = false;
+        template<class T>
+        constexpr static inline bool has_map_find_function_v<T, std::void_t<
+            decltype(member_function_invoke_result_v<get_begin_iterator_t<const T>, const T, copy_cvref_t<
+                typename range_traits<const T>::reference,
+                std::tuple_element_t<0, typename range_traits<T>::value_type>
+            >>(&T::find))
+        >> = true;
 
-    template<class T>
-    struct map_find_function_traits<T, true, std::void_t<
-        decltype(member_function_invoke_result_v<get_begin_iterator_t<T>, T, copy_cvref_t<
-            typename range_traits<T>::reference,
-            std::tuple_element_t<0, typename range_traits<T>::value_type>
-        >>(&T::find))
-    >> {
-        using type [[maybe_unused]] = decltype(member_function_invoke_result_v<get_begin_iterator_t<T>, T, copy_cvref_t<
-            typename range_traits<T>::reference,
-            std::tuple_element_t<0, typename range_traits<T>::value_type>
-        >>(&T::find));
+        template<class T, class = void>
+        constexpr static inline bool has_set_with_tuple_find_function_v = false;
+        template<class T>
+        constexpr static inline bool has_set_with_tuple_find_function_v<T, std::void_t<
+            decltype(member_function_invoke_result_v<get_begin_iterator_t<const T>, const T, typename range_traits<const T>::reference>(&T::find))
+        >> = true;
 
-        using map_like_type [[maybe_unused]] = void;
+        template<class T, class = void>
+        constexpr static inline bool has_map_at_function_v = false;
+        template<class T>
+        constexpr static inline bool has_map_at_function_v<T, std::enable_if_t<
+            std::is_same_v<
+                copy_cvref_t<
+                    typename range_traits<const T>::reference,
+                    std::tuple_element_t<1, typename range_traits<T>::value_type>
+                >,
+                decltype(member_function_invoke_result_v<copy_cvref_t<
+                    typename range_traits<const T>::reference,
+                    std::tuple_element_t<1, typename range_traits<T>::value_type>
+                >, const T, copy_cvref_t<
+                    typename range_traits<const T>::reference,
+                    std::tuple_element_t<0, typename range_traits<T>::value_type>
+                >>(&T::at))
+            >
+        >> = true;
+
+        template<class T, class = void>
+        constexpr static inline bool has_map_key_type_v = false;
+        template<class T>
+        constexpr static inline bool has_map_key_type_v<T, std::enable_if_t<
+            std::is_same_v<typename T::key_type, remove_cvref_t<std::tuple_element_t<0, typename range_traits<T>::value_type>>>
+        >> = true;
+
+        constexpr static inline bool value = has_map_find_function_v<Impl> &&
+            (!has_set_with_tuple_find_function_v<Impl> || has_map_at_function_v<Impl> || has_map_key_type_v<Impl>);
     };
 
-    template<class T, bool = std::is_class_v<T> && !range_traits<std::remove_const_t<T>>::predeclared_array, class = void>
-    struct find_function_traits : map_find_function_traits<T> {};
 
+    template<class T, bool tup =
+        is_tuple_like_v<typename range_traits<T>::value_type> &&
+        !range_traits<T>::predeclared_array>
+    constexpr inline bool has_map_like_properties_v = false;
     template<class T>
-    struct find_function_traits<T, true, std::void_t<
-        decltype(member_function_invoke_result_v<get_begin_iterator_t<T>, T, typename range_traits<T>::reference>(&T::find))
-    >> {
-        using type [[maybe_unused]] = decltype(member_function_invoke_result_v<get_begin_iterator_t<T>, T,
-            typename range_traits<T>::reference>(&T::find));
-        using set_like_type [[maybe_unused]] = void;
-    };
+    constexpr inline bool has_map_like_properties_v<T, true> = has_map_like_properties_impl<T>::value;
 
-    template<class T, bool = is_sized_range_v<T>, class = void>
+    template<class T, bool = is_sized_range_v<T> && std::is_class_v<T>>
     constexpr inline bool is_map_like_container_v = false;
     template<class T>
-    constexpr inline bool is_map_like_container_v<T, true, std::void_t<
-        typename find_function_traits<const T>::map_like_type
-    >> = true;
+    constexpr inline bool is_map_like_container_v<T, true> = has_map_like_properties_v<T>;
 
 
     enum class type_classification {
