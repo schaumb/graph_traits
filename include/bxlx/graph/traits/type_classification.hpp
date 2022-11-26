@@ -22,7 +22,7 @@ namespace bxlx::detail2 {
     template<class, class = void>
     constexpr inline bool is_tuple_like_v = false;
     template<class T>
-    constexpr inline bool is_tuple_like_v<T, std::enable_if_t<sizeof(std::tuple_size<T>)>> = std::tuple_size_v<T>;
+    constexpr inline bool is_tuple_like_v<T, std::void_t<decltype(std::tuple_size<T>::value)>> = std::tuple_size_v<T>;
 
     template<class T, std::size_t ...Ix>
     constexpr bool tuple_has_same_values(std::index_sequence<Ix...>) {
@@ -127,14 +127,6 @@ namespace bxlx::detail2 {
         = is_nothrow_convertible_impl<std::is_convertible_v<From,To>, From, To>::value;
 
 
-    template<class, class, class = void>
-    constexpr inline auto is_nothrow_static_cast_v = false;
-    template<class From, class To>
-    constexpr inline auto is_nothrow_static_cast_v<From, To, std::void_t<
-        decltype(static_cast<To>(std::declval<From>()))
-    >> = noexcept(static_cast<To>(std::declval<From>()));
-
-
     template<class T, bool = is_defined_v<T>>
     constexpr inline bool is_bool_ref_v = false;
     template<class T>
@@ -153,7 +145,7 @@ namespace bxlx::detail2 {
     constexpr inline bool is_size_t_wrapper<T, true> =  // type must be defined
         (std::is_class_v<T> || std::is_enum_v<T>) &&    // size_t wrapper can be only classes, whose
         is_nothrow_convertible_v<T, std::size_t> &&     // can convert to size_t
-        is_nothrow_static_cast_v<std::size_t, T>;       // can convert from size_t
+        is_nothrow_convertible_v<std::size_t, T>;       // can convert from size_t
 
     template<class T>
     constexpr inline bool is_index_v = !std::is_same_v<bool, T> && !is_char_v<T> &&
@@ -210,8 +202,8 @@ namespace bxlx::detail2 {
     constexpr inline bool is_bitset_like_v = false;
     template<class T>
     constexpr inline bool is_bitset_like_v<T, true, std::enable_if_t<   // bitset has size && it is a class
-        has_subscript_operator<T>                                       // and you can index it, to get a bool_ref
-    >> = is_bool_ref_v<typename subscript_operator_traits<T>::type>;
+        has_subscript_operator<std::remove_const_t<T>>                  // and you can index it, to get a bool_ref
+    >> = is_bool_ref_v<remove_cvref_t<typename subscript_operator_traits<std::remove_const_t<T>>::type>>;
 
 
     template<auto* Lambda, int=((*Lambda)(), 0)>
@@ -288,13 +280,19 @@ namespace bxlx::detail2 {
     struct range_traits_impl<T, true, std::enable_if_t<
         !has_std_iterator_traits_v<get_begin_iterator_t<T>>
     >> {
+        template<class U, bool>
+        struct ssize_type : std::common_type<std::ptrdiff_t> {};
+        template<class U>
+        struct ssize_type<U, true> : std::make_signed<remove_cvref_t<decltype(std::size(std::declval<U>()))>> {};
+
         using reference = decltype(*std::begin(std::declval<T&>()));
         using value_type [[maybe_unused]] = remove_cvref_t<reference>;
-        [[maybe_unused]] constexpr static bool is_sized = has_size_v<T> || compile_time_size_v<T>;
+
+        constexpr static bool is_sized = has_size_v<T> || compile_time_size_v<T>;
         [[maybe_unused]] constexpr static bool random_access =
             has_subscript_operator<const T> ||
-            std::is_invocable_r_v<get_begin_iterator_t<T>, std::plus<>, get_begin_iterator_t<T>, std::ptrdiff_t>;
-        [[maybe_unused]]constexpr static bool predeclared_array = false;
+            std::is_invocable_r_v<get_begin_iterator_t<T>, std::plus<>, get_begin_iterator_t<T>, typename ssize_type<T, is_sized>::type>;
+        [[maybe_unused]] constexpr static bool predeclared_array = false;
     };
 
     template<class T>
@@ -347,10 +345,12 @@ namespace bxlx::detail2 {
     constexpr inline bool is_sized_range_v<T, std::enable_if_t<is_range_v<T>>> = range_traits<T>::is_sized;
 
 
-    template<class T, bool = is_range_v<T>>
+    template<class T, bool = is_range_v<T> && std::is_class_v<T> && is_defined_v<T>, class = void>
     constexpr inline bool is_string_like_v = false;
     template<class T>
-    constexpr inline bool is_string_like_v<T, true> = is_char_v<typename range_traits<T>::value_type>;
+    constexpr inline bool is_string_like_v<T, true, std::void_t<
+        decltype(member_function_invoke_result_v<void, const T>(&T::length))
+    >> = true;
 
 
     template<class T, bool = is_range_v<T>, class = void>
@@ -363,6 +363,33 @@ namespace bxlx::detail2 {
     struct has_map_like_properties_impl : std::false_type {};
     template<class Impl>
     struct has_map_like_properties_impl<Impl, 2> {
+        template<class, class = void>
+        constexpr static inline bool is_transparent_v = false;
+        template<class T>
+        constexpr static inline bool is_transparent_v<T, std::void_t<typename T::is_transparent>> = true;
+
+        template<class, class = void>
+        constexpr static inline bool has_no_transparent_key_comp_v = false;
+        template<class T>
+        constexpr static inline bool has_no_transparent_key_comp_v<T, std::void_t<
+            decltype(member_function_invoke_result_v<void, const T>(&T::key_comp))
+        >> = !is_transparent_v<decltype(member_function_invoke_result_v<void, const T>(&T::key_comp))>;
+
+        template<class, class = void>
+        constexpr static inline bool has_no_transparent_key_eq_v = false;
+        template<class T>
+        constexpr static inline bool has_no_transparent_key_eq_v<T, std::void_t<
+            decltype(member_function_invoke_result_v<void, const T>(&T::key_eq))
+        >> = !is_transparent_v<decltype(member_function_invoke_result_v<void, const T>(&T::key_eq))>;
+
+        template<class, class = void>
+        constexpr static inline bool has_no_transparent_hash_function_v = false;
+        template<class T>
+        constexpr static inline bool has_no_transparent_hash_function_v<T, std::void_t<
+            decltype(member_function_invoke_result_v<void, const T>(&T::hash_function))
+        >> = !is_transparent_v<decltype(member_function_invoke_result_v<void, const T>(&T::hash_function))>;
+
+
         template<class T, class = void>
         constexpr static inline bool has_map_find_function_v = false;
         template<class T>
@@ -407,7 +434,12 @@ namespace bxlx::detail2 {
         >> = true;
 
         constexpr static inline bool value = has_map_find_function_v<Impl> &&
-            (!has_set_with_tuple_find_function_v<Impl> || has_map_at_function_v<Impl> || has_map_key_type_v<Impl>);
+            (!has_set_with_tuple_find_function_v<Impl> ||
+             has_map_at_function_v<Impl> ||
+             has_map_key_type_v<Impl> ||
+             has_no_transparent_key_comp_v<Impl> ||
+             has_no_transparent_key_eq_v<Impl> ||
+             has_no_transparent_hash_function_v<Impl>);
     };
 
 
@@ -462,7 +494,7 @@ namespace bxlx::detail2 {
 
     template<class T>
     constexpr inline type_classification classify<T, std::enable_if_t<is_sized_range_v<T> && !is_map_like_container_v<T>
-        && !is_random_access_range_v<T> && !is_bitset_like_v<T>>>
+        && !is_random_access_range_v<T> && !is_string_like_v<T>>>
         = type_classification::sized_range;
 
     template<class T>

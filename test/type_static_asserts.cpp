@@ -27,10 +27,14 @@ static_assert(!std::is_void_v<typename range_traits<std::array<int, 10>>::value_
 static_assert(classify<std::array<int, 10>> == type_classification::random_access_range);
 static_assert(classify<int[10]> == type_classification::random_access_range);
 static_assert(classify<std::bitset<10>> == type_classification::bitset_like_container);
+static_assert(classify<const std::bitset<10>> == type_classification::bitset_like_container);
 static_assert(classify<std::vector<bool>> == type_classification::bitset_like_container);
 static_assert(classify<std::string> == type_classification::indeterminate);
 static_assert(classify<std::wstring> == type_classification::indeterminate);
 static_assert(classify<std::basic_string<decltype(u8'\0')>> == type_classification::indeterminate);
+static_assert(classify<std::string_view> == type_classification::indeterminate);
+static_assert(classify<std::wstring_view> == type_classification::indeterminate);
+static_assert(classify<std::basic_string_view<decltype(u8'\0')>> == type_classification::indeterminate);
 
 static_assert(classify<std::vector<int>> == type_classification::random_access_range);
 static_assert(classify<std::deque<bool>> == type_classification::random_access_range);
@@ -99,16 +103,11 @@ struct ArrayLike {};
 static_assert(classify<ArrayLike<int, 1>> == type_classification::indeterminate);
 
 struct my_index {
-    explicit my_index(std::size_t) noexcept {}
+    my_index(std::size_t) noexcept {}
     operator std::size_t() noexcept { return 0; }
 };
 
 static_assert(classify<my_index> == type_classification::index);
-
-enum EN : std::size_t {};
-
-static_assert(std::is_nothrow_constructible_v<std::size_t, EN>);
-static_assert(classify<EN> == type_classification::index);
 
 
 template<class T, std::size_t C>
@@ -170,6 +169,7 @@ struct MyString {
     };
     [[nodiscard]] my_iterator begin() const { return {}; }
     [[nodiscard]] my_iterator end() const { return {}; }
+    std::size_t length() const { return {}; }
 };
 static_assert(classify<MyString> == type_classification::indeterminate);
 
