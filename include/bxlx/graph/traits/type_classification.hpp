@@ -193,6 +193,9 @@ namespace bxlx::detail2 {
         using type [[maybe_unused]] = decltype(member_function_invoke_result_v<void, T, With>(&T::operator[]));
     };
 
+    template<class T, class With = void>
+    using subscript_operator_return = remove_cvref_t<typename subscript_operator_traits<std::remove_const_t<T>>::type>;
+
     template<class, class = void, class = void>
     constexpr inline bool has_subscript_operator = false;
     template<class T, class With>
@@ -206,7 +209,7 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr inline bool is_bitset_like_v<T, true, std::enable_if_t<   // bitset has size && it is a class
         has_subscript_operator<std::remove_const_t<T>>                  // and you can index it, to get a bool_ref
-    >> = is_bool_ref_v<remove_cvref_t<typename subscript_operator_traits<std::remove_const_t<T>>::type>>;
+    >> = is_bool_ref_v<subscript_operator_return<T>>;
 
 
     template<auto* Lambda, int=((*Lambda)(), 0)>
@@ -227,8 +230,8 @@ namespace bxlx::detail2 {
     constexpr inline std::size_t constexpr_std_size_v = 0;
     template<class T>
     constexpr inline std::size_t constexpr_std_size_v<T, true, std::enable_if_t<
-        is_constexpr<&constexpr_std_size<T>>(0)>
-    > = constexpr_std_size<T>();
+        is_constexpr<&constexpr_std_size<remove_cvref_t<T>>>(0)>
+    > = constexpr_std_size<remove_cvref_t<T>>();
 
     template<class, class = void>
     constexpr inline std::size_t compile_time_size_v = 0;

@@ -9,14 +9,14 @@
 #define BXLX_GRAPH_TRAITS_GRAPH_TRAITS_HPP
 
 #include <cstddef>
-#include "traits/traits_impl.hpp"
+#include "traits/graph_traits.hpp"
 
 namespace bxlx {
-    using detail::graph_representation;
+    using traits::graph_representation;
 
     template<class graph_t>
-    struct graph_traits : detail::graph_traits<graph_t> {
-        using impl = detail::graph_traits<graph_t>;
+    struct graph_traits : traits::graph_traits<graph_t> {
+        using impl = traits::graph_traits<graph_t>;
 
         constexpr static graph_representation representation = impl::representation;
 
@@ -24,15 +24,14 @@ namespace bxlx {
         constexpr static bool has_edge_property = impl::has_edge_property;
         constexpr static bool has_node_property = impl::has_node_property;
 
-        // void if not exists
-        using graph_property_type = typename impl::graph_property_type;
-        using edge_property_type = typename impl::edge_property_type;
-        using node_property_type = typename impl::node_property_type;
-
         // void* if not exists
-        using graph_repr_type = typename impl::graph_repr_type;
         using node_repr_type = typename impl::node_repr_type;
         using edge_repr_type = typename impl::edge_repr_type;
+
+        // void if not exists
+        using graph_property_type = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_graph_property), graph_t>>;
+        using edge_property_type = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_edge_property), edge_repr_type>>;
+        using node_property_type = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_node_property), node_repr_type>>;
 
         // 0 if it cannot be calculated
         constexpr static std::size_t max_node_compile_time = impl::max_node_compile_time;

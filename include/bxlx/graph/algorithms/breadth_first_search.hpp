@@ -10,6 +10,7 @@
 
 #include "../traits.hpp"
 #include "../iterable_alg.hpp"
+#include "../storage.hpp"
 
 #include <utility>
 #include <vector>
@@ -106,15 +107,16 @@ namespace bxlx::graph {
                     res = the_res;
                 }
             };
-            using storage_type = typename GraphTraits::template storage_t<storage>;
+            using storage_manager = typename bxlx::storage<Graph, GraphTraits>::template of<storage>;
+            using storage_type = typename storage_manager::type;
 
             Graph graph;
-            storage_type vec = GraphTraits::template storage_init<storage>(graph);
+            storage_type vec = storage_manager::init(graph);
             typename storage_type::iterator curr, write;
         };
 
         template<class Graph, class GraphTraits, class ... ExecutionPolicy>
-        struct bfs_impl<Graph, GraphTraits, std::enable_if_t<GraphTraits::representation == graph_representation::adjacency_array>, ExecutionPolicy...>
+        struct bfs_impl<Graph, GraphTraits, std::enable_if_t<GraphTraits::representation == graph_representation::edge_list>, ExecutionPolicy...>
             : utils::lazy_iterable<bfs_impl<Graph, GraphTraits, void, ExecutionPolicy...>, breadth_first_search_result<Graph, GraphTraits>>,
                 member_from_base<ExecutionPolicy> ... {
             constexpr bfs_impl(Graph&& g, typename GraphTraits::node_index_t start_index, ExecutionPolicy&&... policy)
@@ -163,10 +165,11 @@ namespace bxlx::graph {
                 ++curr;
             }
 
-            using storage_type = typename GraphTraits::template storage_t<breadth_first_search_result<Graph, GraphTraits>, std::plus<>, 1>;
+            using storage_manager = typename bxlx::storage<Graph, GraphTraits>::template of<breadth_first_search_result<Graph, GraphTraits>, 1>;
+            using storage_type = typename storage_manager::type;
 
             Graph graph;
-            storage_type storage = GraphTraits::template storage_init<breadth_first_search_result<Graph, GraphTraits>, std::plus<>, 1>(graph);
+            storage_type storage = storage_manager::init(graph);
 
             typename storage_type::iterator curr, no_info, discarded;
         };
@@ -177,7 +180,7 @@ namespace bxlx::graph {
     struct graph_traits_traits;
 
     template<class graph_t>
-    struct graph_traits_traits<graph_t, std::enable_if_t<!std::is_execution_policy_v<bxlx::detail::remove_cvref_t<graph_t>>>> {
+    struct graph_traits_traits<graph_t, std::enable_if_t<!std::is_execution_policy_v<bxlx::detail2::remove_cvref_t<graph_t>>>> {
         using type = bxlx::graph_traits<graph_t>;
     };
 
@@ -187,13 +190,13 @@ namespace bxlx::graph {
     }
 
     template<class ExecutionPolicy, class Graph, class GraphTraits =
-        typename std::enable_if_t<std::is_execution_policy_v<bxlx::detail::remove_cvref_t<ExecutionPolicy>>, graph_traits_traits<Graph>>::type>
+        typename std::enable_if_t<std::is_execution_policy_v<bxlx::detail2::remove_cvref_t<ExecutionPolicy>>, graph_traits_traits<Graph>>::type>
     constexpr detail::bfs_impl<Graph, GraphTraits, void, ExecutionPolicy> breadth_first_search(
         ExecutionPolicy&& policy, Graph&& graph, typename GraphTraits::node_index_t start_index) {
         return {std::forward<Graph>(graph), start_index, std::forward<ExecutionPolicy>(policy)};
     }
 
-    template<class Graph, class GraphTraits = typename graph_traits_traits<Graph>::type, class OutputIterator>
+    template<class Graph, class GraphTraits = typename graph_traits_traits<detail2::remove_cvref_t<Graph>>::type, class OutputIterator>
     constexpr OutputIterator breadth_first_search(Graph&& graph, typename GraphTraits::node_index_t start_index, OutputIterator out) {
         for (auto elem : breadth_first_search<Graph, GraphTraits>(std::forward<Graph>(graph), start_index))
             *out++ = elem;
@@ -201,7 +204,7 @@ namespace bxlx::graph {
     }
 
     template<class ExecutionPolicy, class Graph, class GraphTraits =
-        typename std::enable_if_t<std::is_execution_policy_v<bxlx::detail::remove_cvref_t<ExecutionPolicy>>, graph_traits_traits<Graph>>::type, class OutputIterator>
+        typename std::enable_if_t<std::is_execution_policy_v<bxlx::detail2::remove_cvref_t<ExecutionPolicy>>, graph_traits_traits<Graph>>::type, class OutputIterator>
     constexpr OutputIterator breadth_first_search(ExecutionPolicy&& policy, Graph&& graph, typename GraphTraits::node_index_t start_index, OutputIterator out) {
         auto&& cont = breadth_first_search<ExecutionPolicy&, Graph, GraphTraits>(policy, std::forward<Graph>(graph), start_index);
         return std::copy(std::forward<ExecutionPolicy>(policy), begin(cont), end(cont), out);
