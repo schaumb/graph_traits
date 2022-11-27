@@ -18,6 +18,7 @@ set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
 add_library(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/storage.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/bitset_helper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/iterable_alg.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/algorithms/breadth_first_search.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/execution.hpp

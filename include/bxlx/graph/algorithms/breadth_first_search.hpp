@@ -11,6 +11,7 @@
 #include "../traits.hpp"
 #include "../iterable_alg.hpp"
 #include "../storage.hpp"
+#include "../bitset_helper.hpp"
 
 #include <utility>
 #include <vector>
@@ -59,7 +60,7 @@ namespace bxlx::graph {
             constexpr void next() {
                 typename GraphTraits::node_index_t neigh{};
                 auto&& node = GraphTraits::get_data(graph)[curr->res.index];
-                for (auto &&edge: GraphTraits::out_edges(node)) {
+                for (auto &&edge: bitset_iterator<decltype(GraphTraits::out_edges(node))>{GraphTraits::out_edges(node)}) {
                     if constexpr(GraphTraits::representation == bxlx::graph_representation::adjacency_list) {
                         neigh = GraphTraits::edge_target(edge);
                     }
