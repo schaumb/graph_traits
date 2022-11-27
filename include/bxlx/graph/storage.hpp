@@ -14,18 +14,39 @@ namespace bxlx {
     template<class Graph, class Traits = graph_traits<Graph>>
     struct storage {
         template<class Type, auto addition = 0, class Operation = std::plus<>>
-        struct of {
+        struct node {
             using type = std::conditional_t<
-                (Traits::container_size > 0),
-                std::array<Type, Operation{}(Traits::container_size, addition)>,
+                (Traits::max_node_compile_time > 0),
+                std::array<Type, Operation{}(Traits::max_node_compile_time, addition)>,
                 std::vector<Type>
             >;
 
             constexpr static type init(const Graph& g) {
                 if constexpr (Traits::max_node_compile_time > 0) {
                     return {};
+                } else if constexpr (!std::is_void_v<std::invoke_result_t<decltype(Traits::get_nodes), Graph>>) {
+                    return type(Operation{}(std::size(Traits::get_nodes(g)), addition));
                 } else {
-                    return type(Operation{}(std::size(Traits::get_data(g)), addition));
+                    return type(Operation{}(std::size(Traits::get_edges(g)) * 2, addition));
+                }
+            }
+        };
+        template<class Type, auto addition = 0, class Operation = std::plus<>>
+        struct edge {
+            using type = std::conditional_t<
+                (Traits::max_edge_compile_time > 0),
+                std::array<Type, Operation{}(Traits::max_edge_compile_time, addition)>,
+                std::vector<Type>
+            >;
+
+            constexpr static type init(const Graph& g) {
+                if constexpr (Traits::max_edge_compile_time > 0) {
+                    return {};
+                } else if constexpr (!std::is_void_v<std::invoke_result_t<decltype(Traits::get_edges), Graph>>) {
+                    return type(Operation{}(std::size(Traits::get_edges(g)), addition));
+                } else {
+                    auto&& node_size = std::size(Traits::get_nodes(g));
+                    return type(Operation{}(node_size * (Traits::in_container_size ? Traits::in_container_size : node_size), addition));
                 }
             }
         };

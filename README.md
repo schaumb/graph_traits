@@ -167,10 +167,10 @@ void run_bfs_2() {
 
 ### `adjacency_list`
 
-- `random_access_range<range<integer>>`
-- `random_access_range<range<pair<integer, edge_prop>>>`
-- `random_access_range<pair<range<integer>, node_prop>>`
-- `pair<random_access_range<range<integer>>, graph_prop>`
+- `node_indexed_range<range<integer>>`
+- `node_indexed_range<range<pair<integer, edge_prop>>>`
+- `node_indexed_range<pair<range<integer>, node_prop>>`
+- `pair<node_indexed_range<range<integer>>, graph_prop>`
 - node/edge/graph properties any combination
 
 
@@ -186,38 +186,40 @@ void run_bfs_2() {
 - `pair<map<node_index, map<node_index, edge_prop>>, graph_prop>`
 - node/graph properties any combination
 
-
-### `edge_list`
-
-- `sized_range<pair<node_index, node_index>>`
-- `sized_range<tuple<node_index, node_index, edge_prop>>`
-- `pair<sized_range<tuple<node_index, node_index>>, graph_prop>`
-- edge/graph properties combination
-
 ### `adjacency_matrix`
 
 *bitset_like: std::bitset<>, std::vector&lt;bool&gt;*
 
-- `random_access_range<bitset_like>`
-- `random_access_range<pair<bitset_like, node_prop>>`
-- `pair<random_access_range<bitset_like>, graph_prop>`
+- `node_indexed_range<bitset_like>`
+- `node_indexed_range<pair<bitset_like, node_prop>>`
+- `pair<node_indexed_range<bitset_like>, graph_prop>`
 - node/graph properties combination
 
 
-- `random_access_range<random_access_range<bool>>`
-- `random_access_range<random_access_range<optional<edge_prop>>>`
-- `random_access_range<pair<random_access_range<bool>, node_prop>>`
-- `pair<random_access_range<random_access_range<bool>>, graph_prop>`
+- `node_indexed_range<node_indexed_range<bool>>`
+- `node_indexed_range<node_indexed_range<optional<edge_prop>>>`
+- `node_indexed_range<pair<node_indexed_range<bool>, node_prop>>`
+- `pair<node_indexed_range<node_indexed_range<bool>>, graph_prop>`
 - node/edge/graph properties any combination
-
----
-
-## coming (?)
-
 
 ### `edge_list`
 
-- `pair<random_access_range<node_prop>, forward_range<pair<integer, integer>>>`
-- `pair<random_access_range<node_prop>, forward_range<tuple<integer, integer, edge_prop>>>`
+- `edge_range<pair<node_index, node_index>>`
+- `edge_range<tuple<node_index, node_index, edge_prop>>`
+- `pair<edge_range<tuple<node_index, node_index>>, graph_prop>`
+- edge/graph properties combination
 
+
+- `pair<node_indexed_range<node_prop>, edge_range<pair<integer, integer>>>`
+- `pair<node_indexed_range<node_prop>, edge_range<tuple<integer, integer, edge_prop>>>`
+- `tuple<node_indexed_range<node_prop>, edge_range<pair<integer, integer>>, graph_prop>`
+- edge/graph properties any combination
+
+
+- `pair<map<node_index, node_prop>, edge_range<pair<node_index, node_index>>>`
+- `pair<map<node_index, node_prop>, edge_range<tuple<node_index, node_index, edge_prop>>>`
+- `tuple<map<node_index, node_prop>, edge_range<pair<node_index, node_index>>, graph_prop>`
+- edge/graph properties any combination
+
+---
 

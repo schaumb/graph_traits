@@ -99,9 +99,9 @@ namespace bxlx::traits {
     struct user_node_index;
     struct node_repr_type;
     struct edge_repr_type;
-    struct index_container_size;
+    struct node_container_size;
+    struct edge_container_size;
     struct inside_container_size;
-    struct has_dynamic_container_size;
 
     struct no_prop {
         template<class>
@@ -143,8 +143,8 @@ namespace bxlx::traits {
         template<class T>
         using properties [[maybe_unused]] = merge_properties<
             std::conditional_t<(bxlx::detail2::compile_time_size_v<T> > 0),
-                property<index_container_size, constant_t<bxlx::detail2::compile_time_size_v<T>>>,
-                property<has_dynamic_container_size, constant_t<0>>
+                property<node_container_size, constant_t<bxlx::detail2::compile_time_size_v<T>>>,
+                empty_properties
             >,
             property<edge_repr_type, detail2::subscript_operator_return<T>>
         >;
@@ -223,7 +223,7 @@ namespace bxlx::traits {
         using properties = merge_properties<get_properties<Cond, detail2::range_traits_type<T>>,
             std::conditional_t<(bxlx::detail2::compile_time_size_v<T> > 0),
                 property<container_size_prop, constant_t<bxlx::detail2::compile_time_size_v<T>>>,
-                property<has_dynamic_container_size, constant_t<0>>
+                empty_properties
             >
         >;
     };
@@ -235,20 +235,20 @@ namespace bxlx::traits {
         detail2::type_classification::random_access_range>, range_impl<inside_container_size, T> {};
 
     template<class T>
-    struct sized_range : accept_recursively<range_impl<index_container_size, T>,
+    struct edge_range : accept_recursively<range_impl<edge_container_size, T>,
         detail2::type_classification::sized_range,
-        detail2::type_classification::random_access_range>, range_impl<index_container_size, T> {};
+        detail2::type_classification::random_access_range>, range_impl<edge_container_size, T> {};
 
     template<class T>
-    struct indexed_range : accept_recursively<indexed_range<T>,
+    struct node_indexed_range : accept_recursively<node_indexed_range<T>,
         detail2::type_classification::random_access_range> {
 
         template<class U>
-        using properties = merge_properties<get_properties<range_impl<index_container_size, T>, U>, property<user_node_index, std::false_type>>;
+        using properties = merge_properties<get_properties<range_impl<node_container_size, T>, U>, property<user_node_index, std::false_type>>;
 
         template<class U>
         constexpr static bool is_valid_nested() {
-            if constexpr (range_impl<index_container_size, T>::template is_valid_nested<U>()) {
+            if constexpr (range_impl<node_container_size, T>::template is_valid_nested<U>()) {
                 return properties<U>::is_valid;
             }
             return false;
@@ -259,8 +259,8 @@ namespace bxlx::traits {
     using with_property = any_of<tuple_like<T, Ts..., Property>,
         std::conditional_t<sizeof...(Ts) == 0, T, tuple_like<T, Ts...>>>;
 
-    template<class T>
-    using with_graph_property = with_property<graph_property, T>;
+    template<class T, class ...Ts>
+    using with_graph_property = with_property<graph_property, T, Ts...>;
     template<class T>
     struct with_node_property : with_property<node_property, T> {
         template<class U>
@@ -277,6 +277,9 @@ namespace bxlx::traits {
     template<class Property, class SizeProperty, class T, class U>
     struct map_save : accept_recursively<range_impl<SizeProperty, save_type<Property, tuple_like<T, U>>>,
         detail2::type_classification::map_like_container>, range_impl<SizeProperty, save_type<Property, tuple_like<T, U>>> {};
+
+    template<class U>
+    using node_map_save = map_save<node_repr_type, node_container_size, node_index, U>;
 
     struct noop_t {
         template<class ...Ts>
@@ -321,19 +324,19 @@ namespace bxlx::traits {
         constexpr static bool has_node_property = has_property<Props, node_property>;
 
         constexpr static auto get_graph_property = std::conditional_t<has_graph_property, getter_t<1>, noop_t>{};
-        constexpr static auto get_data = std::conditional_t<has_graph_property, getter_t<0>, identity_t>{};
 
         using node_index_t [[maybe_unused]] = has_property_or_t<Props, node_index, std::size_t>;
 
         using edge_repr_type = get_property<Props, edge_repr_type>;
 
-        constexpr static auto container_size = has_property_or_t<Props, index_container_size, constant_t<0>>::value;
+        constexpr static auto node_container_size = has_property_or_t<Props, traits::node_container_size, constant_t<0>>::value;
+        constexpr static auto edge_container_size = has_property_or_t<Props, traits::edge_container_size, constant_t<0>>::value;
         constexpr static auto in_container_size = has_property_or_t<Props, inside_container_size, constant_t<0>>::value;
     };
 
     struct adjacency_list : with_graph_property<any_of<
-        indexed_range<with_node_property<range<with_edge_property<index>>>>,
-        map_save<node_repr_type, index_container_size, node_index, with_property<node_property, any_of<
+        node_indexed_range<with_node_property<range<with_edge_property<index>>>>,
+        node_map_save<with_property<node_property, any_of<
             range<with_edge_property<node_index>>,
             map_save<edge_repr_type, inside_container_size, node_index, edge_property>
         >>>
@@ -343,10 +346,9 @@ namespace bxlx::traits {
             constexpr static inline auto representation = graph_representation::adjacency_list;
             using node_repr_type = get_property<Props, node_repr_type>;
 
-            constexpr static inline auto max_node_compile_time = graph_traits::container_size;
+            constexpr static inline auto max_node_compile_time = graph_traits::node_container_size;
             constexpr static inline auto max_edge_compile_time = max_node_compile_time
-                * (graph_traits::in_container_size == 0 ? max_node_compile_time :
-                   std::min<decltype(max_node_compile_time)>(graph_traits::in_container_size, max_node_compile_time));
+                * (graph_traits::in_container_size ? graph_traits::in_container_size : max_node_compile_time);
 
             template<class P, bool C, class = void>
             struct get_node_property_getter : std::common_type<
@@ -363,12 +365,17 @@ namespace bxlx::traits {
 
             constexpr static inline auto edge_target = std::conditional_t<graph_traits::has_edge_property, getter_t<0>, identity_t>{};
             constexpr static inline auto out_edges = std::conditional_t<graph_traits::has_node_property, getter_t<0>, identity_t>{};
+
+            constexpr static inline auto get_edges = noop_t{};
+            constexpr static inline auto get_nodes = std::conditional_t<graph_traits::has_graph_property, getter_t<0>, identity_t>{};
+
+
         };
     };
 
     struct adjacency_matrix : with_graph_property<
-        indexed_range<with_node_property<any_of<
-            indexed_range<save_type<edge_repr_type, any_of<
+        node_indexed_range<with_node_property<any_of<
+            node_indexed_range<save_type<edge_repr_type, any_of<
                 bool_t,
                 optional<edge_property>
             >>>,
@@ -379,31 +386,54 @@ namespace bxlx::traits {
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
             constexpr static inline auto representation = graph_representation::adjacency_matrix;
             using node_repr_type = get_property<Props, node_repr_type>;
-            constexpr static inline auto max_node_compile_time = graph_traits::container_size;
+            constexpr static inline auto max_node_compile_time = graph_traits::node_container_size;
             constexpr static inline auto max_edge_compile_time = max_node_compile_time * max_node_compile_time;
 
             constexpr static auto get_edge_property = std::conditional_t<graph_traits::has_edge_property, indirect_t, noop_t>{};
             constexpr static auto get_node_property = std::conditional_t<graph_traits::has_node_property, getter_t<1>, noop_t>{};
 
             constexpr static inline auto out_edges = std::conditional_t<graph_traits::has_node_property, getter_t<0>, identity_t>{};
+
+            constexpr static inline auto get_edges = noop_t{};
+            constexpr static inline auto get_nodes = std::conditional_t<graph_traits::has_graph_property, getter_t<0>, identity_t>{};
         };
     };
 
-    struct edge_list : with_graph_property<sized_range<
-        with_edge_property<node_index, node_index>
-    >> {
+    struct edge_list : any_of<
+        with_graph_property<edge_range<with_edge_property<node_index, node_index>>>,
+        with_graph_property<node_map_save<node_property>, edge_range<with_edge_property<node_index, node_index>>>,
+        with_graph_property<node_indexed_range<save_type<node_repr_type, node_property>>, edge_range<with_edge_property<index, index>>>
+    > {
         template<class T, class Props = get_properties<edge_list, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
             constexpr static inline auto representation = graph_representation::edge_list;
-            using node_repr_type [[maybe_unused]] = void*;
-            constexpr static inline auto max_edge_compile_time = graph_traits::container_size;
-            constexpr static inline auto max_node_compile_time = max_edge_compile_time * 2;
+            constexpr static inline auto max_edge_compile_time = graph_traits::edge_container_size;
+            constexpr static inline auto max_node_compile_time = graph_traits::node_container_size ?
+                                                                 graph_traits::node_container_size :
+                                                                 max_edge_compile_time * 2;
+
+            template<class P, bool C, class = void>
+            struct get_node_property_getter : std::common_type<
+                std::conditional_t<C, getter_t<1>, noop_t>> {};
+
+            template<class P>
+            struct get_node_property_getter<P, true, std::enable_if_t<
+                std::is_same_v<get_property<P, node_property>,
+                    get_property<P, traits::node_repr_type>
+                >>> : std::common_type<identity_t> {};
 
             constexpr static auto get_edge_property = std::conditional_t<graph_traits::has_edge_property, getter_t<2>, noop_t>{};
-            constexpr static auto get_node_property = noop_t{};
+            constexpr static auto get_node_property = typename get_node_property_getter<Props, graph_traits::has_node_property>::type{};
+
+            using node_repr_type [[maybe_unused]] = has_property_or_t<Props, traits::node_repr_type, void*>;
 
             constexpr static inline auto edge_source = getter_t<0>{};
             constexpr static inline auto edge_target = getter_t<1>{};
+
+
+            constexpr static inline auto get_edges = std::conditional_t<graph_traits::has_node_property, getter_t<1>,
+                std::conditional_t<graph_traits::has_graph_property, getter_t<0>, identity_t>>{};
+            constexpr static inline auto get_nodes = std::conditional_t<graph_traits::has_node_property, getter_t<0>, noop_t>{};
         };
     };
 

@@ -48,7 +48,7 @@ namespace bxlx::graph {
                 , write(size(vec) ? std::next(curr) : curr)
             {
                 if (size(vec) > start_index) {
-                    curr->set_node({start_index, start_index, 0, nullptr, std::addressof(GraphTraits::get_data(graph)[start_index])});
+                    curr->set_node({start_index, start_index, 0, nullptr, std::addressof(GraphTraits::get_nodes(graph)[start_index])});
                     vec[start_index].visited = true;
                 } else if (start_index != std::numeric_limits<typename GraphTraits::node_index_t>::max() && size(vec)) {
                     throw std::overflow_error("Start node " + std::to_string(start_index) + " is bigger than size: " + std::to_string(size(vec)) + ". For an invalid element, use numeric_limits<>::max().");
@@ -59,7 +59,7 @@ namespace bxlx::graph {
         private:
             constexpr void next() {
                 typename GraphTraits::node_index_t neigh{};
-                auto&& node = GraphTraits::get_data(graph)[curr->res.index];
+                auto&& node = GraphTraits::get_nodes(graph)[curr->res.index];
                 for (auto &&edge: bitset_iterator<decltype(GraphTraits::out_edges(node))>{GraphTraits::out_edges(node)}) {
                     if constexpr(GraphTraits::representation == bxlx::graph_representation::adjacency_list) {
                         neigh = GraphTraits::edge_target(edge);
@@ -80,7 +80,7 @@ namespace bxlx::graph {
                         }
 
                     if (auto &n = vec[neigh]; !n.visited) {
-                        write++->set_node({curr->res.index, neigh, curr->res.distance + 1, &edge, &GraphTraits::get_data(graph)[neigh]});
+                        write++->set_node({curr->res.index, neigh, curr->res.distance + 1, &edge, &GraphTraits::get_nodes(graph)[neigh]});
                         n.visited = true;
                     }
 
@@ -108,7 +108,7 @@ namespace bxlx::graph {
                     res = the_res;
                 }
             };
-            using storage_manager = typename bxlx::storage<Graph, GraphTraits>::template of<storage>;
+            using storage_manager = typename bxlx::storage<Graph, GraphTraits>::template node<storage>;
             using storage_type = typename storage_manager::type;
 
             Graph graph;
@@ -126,7 +126,7 @@ namespace bxlx::graph {
                 , curr(std::begin(storage))
                 , no_info(std::size(storage) ? std::next(curr) : curr)
                 , discarded([this] {
-                    auto&& data = GraphTraits::get_data(graph);
+                    auto&& data = GraphTraits::get_edges(graph);
                     return std::transform(this->member_from_base<ExecutionPolicy>::policy..., begin(data), end(data), no_info, [] (auto&& edge) {
                         return breadth_first_search_result<Graph, GraphTraits>{
                             GraphTraits::edge_source(edge),
@@ -166,7 +166,7 @@ namespace bxlx::graph {
                 ++curr;
             }
 
-            using storage_manager = typename bxlx::storage<Graph, GraphTraits>::template of<breadth_first_search_result<Graph, GraphTraits>, 1>;
+            using storage_manager = typename bxlx::storage<Graph, GraphTraits>::template edge<breadth_first_search_result<Graph, GraphTraits>, 1>;
             using storage_type = typename storage_manager::type;
 
             Graph graph;
