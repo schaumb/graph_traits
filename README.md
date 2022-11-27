@@ -5,13 +5,12 @@ C++17 Graph traits and algorithms
 
 ## Quick overview
 
-This `graph_traits` library recognizes 4 graph representation type automatically from c++ classes:
+This `graph_traits` library recognizes 3 graph representation type automatically from c++ classes:
 ```cpp
 enum class graph_representation {
     adjacency_list, // range of range node
-    adjacency_set // range of set/bitset 
-    adjacency_array, // pair of node in a list
     adjacency_matrix, // range of range bool
+    edge_list, // pair of node in a list
 };
 ```
 
@@ -23,7 +22,7 @@ static_assert(graph_traits<vector<vector<int>>>::representation == adjacency_lis
 static_assert(graph_traits<bool[10][10]>::representation == adjacency_matrix);
 
 static_assert(graph_traits<list<tuple<int, int, int>>>::representation == 
-                    adjacency_array); // with bounded edge property
+                    edge_list); // with bounded edge property
 
 static_assert(graph_traits<
     tuple<vector<pair<list<optional<edge_prop>>, node_prop>>, graph_prop>
@@ -82,7 +81,7 @@ OutputIterator breadth_first_search(ExPcy&& policy, Graph&& graph,
 
 ---
 
-#### Example for `adjacency_array`
+#### Example for `edge_list`
 
 *current implementation is O(n\*e) where e is the edges count and n is the connected graph nodes count from start. This can be O((n + e)\*log(e)) later*
 
@@ -168,29 +167,42 @@ void run_bfs_2() {
 
 ### `adjacency_list`
 
-- `random_access_range<sequence_range<integer>>`
-- `random_access_range<sequence_range<pair<integer, edge_prop>>>`
-- `random_access_range<pair<sequence_range<integer>, node_prop>>`
-- `pair<random_access_range<sequence_range<integer>>, graph_prop>`
+- `random_access_range<range<integer>>`
+- `random_access_range<range<pair<integer, edge_prop>>>`
+- `random_access_range<pair<range<integer>, node_prop>>`
+- `pair<random_access_range<range<integer>>, graph_prop>`
 - node/edge/graph properties any combination
 
-### `adjacency_set`
+
+- `map<node_index, range<node_index>`
+- `map<node_index, range<pair<node_index, edge_prop>>`
+- `map<node_index, pair<range<node_index>, node_prop>>`
+- `pair<map<node_index, range<node_index>, graph_prop>`
+- node/edge/graph properties any combination
+
+
+- `map<node_index, map<node_index, edge_prop>>`
+- `map<node_index, pair<map<node_index, edge_prop>, node_prop>>`
+- `pair<map<node_index, map<node_index, edge_prop>>, graph_prop>`
+- node/graph properties any combination
+
+
+### `edge_list`
+
+- `sized_range<pair<node_index, node_index>>`
+- `sized_range<tuple<node_index, node_index, edge_prop>>`
+- `pair<sized_range<tuple<node_index, node_index>>, graph_prop>`
+- edge/graph properties combination
+
+### `adjacency_matrix`
+
+*bitset_like: std::bitset<>, std::vector&lt;bool&gt;*
+
 - `random_access_range<bitset_like>`
 - `random_access_range<pair<bitset_like, node_prop>>`
 - `pair<random_access_range<bitset_like>, graph_prop>`
 - node/graph properties combination
 
-*bitset_like: std::bitset<>, std::vector&lt;bool&gt;*
-
-### `adjacency_array`
-
-- `map<node_index, node_index>` // deprecated, probably it will be deleted
-- `sequence_range<pair<node_index, node_index>>`
-- `sequence_range<tuple<node_index, node_index, edge_prop>>`
-- `pair<sequence_range<tuple<node_index, node_index>>, graph_prop>`
-- edge/graph properties combination
-
-### `adjacency_matrix`
 
 - `random_access_range<random_access_range<bool>>`
 - `random_access_range<random_access_range<optional<edge_prop>>>`
@@ -200,22 +212,10 @@ void run_bfs_2() {
 
 ---
 
-## coming
+## coming (?)
 
-### `adjacency_list`
 
-- `map<node_index, sequence_range<node_index>`
-- `map<node_index, sequence_range<pair<node_index, edge_prop>>`
-- `map<node_index, pair<sequence_range<node_index>, node_prop>>`
-
-### `adjacency_set`
-
-- `random_access_range<set<integer>>` // current impl handles as adj_list.
-- `random_access_range<map<integer, edge_prop>>` // current impl handles as adj_list.
-- `map<node_index, set<node_index>>`
-- `map<node_index, map<node_index, edge_prop>>`
-
-### `adjacency_array`
+### `edge_list`
 
 - `pair<random_access_range<node_prop>, forward_range<pair<integer, integer>>>`
 - `pair<random_access_range<node_prop>, forward_range<tuple<integer, integer, edge_prop>>>`
