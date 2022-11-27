@@ -11,7 +11,7 @@
 #include <execution>
 
 namespace bxlx::graph::execution {
-    class lazy_policy {
+    [[maybe_unused]] class lazy_policy {
     } constexpr lazy{};
 
     template <class>
@@ -26,7 +26,7 @@ namespace bxlx::graph::execution {
     };
 
     template <class T>
-    constexpr bool is_graph_execution_policy_v = is_graph_execution_policy<T>::value;
+    [[maybe_unused]] constexpr bool is_graph_execution_policy_v = is_graph_execution_policy<T>::value;
 }
 
 #endif //BXLX_GRAPH_TRAITS_GRAPH_TRAITS_IMPL_HPP

@@ -35,11 +35,11 @@ struct bitset_like_iterator_helper {
 
     template<class U = T, class V = decltype(std::declval<const U&>()._Find_first())>
     static constexpr std::integral_constant<V (U::*) () const, &U::_Find_first> get_first_impl(std::nullptr_t);
-    template<class U = T> static constexpr std::nullptr_t get_first_impl(...);
+    template<class = T> static constexpr std::nullptr_t get_first_impl(...);
 
     template<class U = T, class V = decltype(std::declval<const U&>()._Find_next(std::size_t{}))>
     static constexpr std::integral_constant<V (U::*) (std::size_t) const, &U::_Find_next> get_next_impl(std::nullptr_t);
-    template<class U = T> static constexpr std::nullptr_t get_next_impl(...);
+    template<class = T> static constexpr std::nullptr_t get_next_impl(...);
 
     template<class U = std::uint64_t, class = decltype(__builtin_ctzll(std::declval<U>()))>
     static constexpr auto get_builtin_countr_zero(std::nullptr_t) {

@@ -194,7 +194,7 @@ namespace bxlx::detail2 {
     };
 
     template<class T, class With = void>
-    using subscript_operator_return = remove_cvref_t<typename subscript_operator_traits<std::remove_const_t<T>>::type>;
+    using subscript_operator_return = remove_cvref_t<typename subscript_operator_traits<std::remove_const_t<T>, With>::type>;
 
     template<class, class = void, class = void>
     constexpr inline bool has_subscript_operator = false;
@@ -320,7 +320,7 @@ namespace bxlx::detail2 {
     template<class T, std::size_t Ix, bool any>
     struct range_traits<T[Ix], any> {
         using reference [[maybe_unused]] = T&;
-        using value_type = T;
+        using value_type [[maybe_unused]] = T;
         [[maybe_unused]] constexpr static bool is_sized = true;
         [[maybe_unused]] constexpr static bool random_access = true;
         [[maybe_unused]] constexpr static bool predeclared_array = !is_defined_v<T>;
@@ -331,7 +331,7 @@ namespace bxlx::detail2 {
         std::is_same_v<void*, typename range_traits_impl<container<void*, Ix>>::value_type>
     >> {
         using reference [[maybe_unused]] = copy_cvref_t<typename range_traits_impl<container<void*, Ix>>::reference, real_value_type>;
-        using value_type = real_value_type;
+        using value_type [[maybe_unused]] = real_value_type;
         [[maybe_unused]] constexpr static bool is_sized = range_traits_impl<container<void*, Ix>>::is_sized;
         [[maybe_unused]] constexpr static bool random_access = range_traits_impl<container<void*, Ix>>::random_access;
         [[maybe_unused]] constexpr static bool predeclared_array = !is_defined_v<real_value_type>;
@@ -399,7 +399,7 @@ namespace bxlx::detail2 {
         >> = !is_transparent_v<decltype(member_function_invoke_result_v<void, const T>(&T::hash_function))>;
 
 
-        template<class T, class = void>
+        template<class, class = void>
         constexpr static inline bool has_map_find_function_v = false;
         template<class T>
         constexpr static inline bool has_map_find_function_v<T, std::void_t<
@@ -409,14 +409,14 @@ namespace bxlx::detail2 {
             >>(&T::find))
         >> = true;
 
-        template<class T, class = void>
+        template<class, class = void>
         constexpr static inline bool has_set_with_tuple_find_function_v = false;
         template<class T>
         constexpr static inline bool has_set_with_tuple_find_function_v<T, std::void_t<
             decltype(member_function_invoke_result_v<get_begin_iterator_t<const T>, const T, typename range_traits<const T>::reference>(&T::find))
         >> = true;
 
-        template<class T, class = void>
+        template<class, class = void>
         constexpr static inline bool has_map_at_function_v = false;
         template<class T>
         constexpr static inline bool has_map_at_function_v<T, std::enable_if_t<
@@ -435,14 +435,14 @@ namespace bxlx::detail2 {
             >
         >> = true;
 
-        template<class T, class = void>
+        template<class, class = void>
         constexpr static inline bool has_map_key_type_v = false;
         template<class T>
         constexpr static inline bool has_map_key_type_v<T, std::enable_if_t<
             std::is_same_v<typename T::key_type, remove_cvref_t<std::tuple_element_t<0, typename range_traits<T>::value_type>>>
         >> = true;
 
-        constexpr static inline bool value = has_map_find_function_v<Impl> &&
+        [[maybe_unused]] constexpr static inline bool value = has_map_find_function_v<Impl> &&
             (!has_set_with_tuple_find_function_v<Impl> ||
              has_map_at_function_v<Impl> ||
              has_map_key_type_v<Impl> ||
@@ -452,7 +452,7 @@ namespace bxlx::detail2 {
     };
 
 
-    template<class T, bool tup =
+    template<class T, bool =
         is_tuple_like_v<typename range_traits<T>::value_type> &&
         !range_traits<T>::predeclared_array>
     constexpr inline bool has_map_like_properties_v = false;

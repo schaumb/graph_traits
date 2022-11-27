@@ -20,16 +20,16 @@ namespace bxlx {
 
         constexpr static graph_representation representation = impl::representation;
 
-        constexpr static bool has_graph_property = impl::has_graph_property;
-        constexpr static bool has_edge_property = impl::has_edge_property;
-        constexpr static bool has_node_property = impl::has_node_property;
+        [[maybe_unused]] constexpr static bool has_graph_property = impl::has_graph_property;
+        [[maybe_unused]] constexpr static bool has_edge_property = impl::has_edge_property;
+        [[maybe_unused]] constexpr static bool has_node_property = impl::has_node_property;
 
         // void* if not exists
         using node_repr_type = typename impl::node_repr_type;
         using edge_repr_type = typename impl::edge_repr_type;
 
         // void if not exists
-        using graph_property_type = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_graph_property), graph_t>>;
+        using graph_property_type [[maybe_unused]] = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_graph_property), graph_t>>;
         using edge_property_type = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_edge_property), edge_repr_type>>;
         using node_property_type = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_node_property), node_repr_type>>;
 
