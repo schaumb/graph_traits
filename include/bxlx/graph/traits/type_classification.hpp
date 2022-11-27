@@ -78,11 +78,14 @@ namespace bxlx::detail2 {
         using value_type [[maybe_unused]] = real_value_type;
     };
 
+    template<class T>
+    using optional_traits_type = typename optional_traits<T>::value_type;
+
     template<class, class = void>
     constexpr inline bool is_optional_v = false;
     template<class T>
-    constexpr inline bool is_optional_v<T, std::void_t<typename optional_traits<T>::value_type>>
-        = !std::is_void_v<typename optional_traits<T>::value_type>;
+    constexpr inline bool is_optional_v<T, std::void_t<optional_traits_type<T>>>
+        = !std::is_void_v<optional_traits_type<T>>;
 
 
     template<class T, std::size_t = sizeof(T)>
@@ -108,7 +111,7 @@ namespace bxlx::detail2 {
     };
 
     template<class T>
-    struct is_defined<T, std::enable_if_t<is_optional_v<T>>> : is_defined<typename optional_traits<T>::value_type> {};
+    struct is_defined<T, std::enable_if_t<is_optional_v<T>>> : is_defined<optional_traits_type<T>> {};
 
     template<class T>
     constexpr inline bool is_defined_v = is_defined<T>::value;
@@ -330,6 +333,9 @@ namespace bxlx::detail2 {
         [[maybe_unused]] constexpr static bool random_access = range_traits_impl<container<void*, Ix>>::random_access;
         [[maybe_unused]] constexpr static bool predeclared_array = !is_defined_v<real_value_type>;
     };
+
+    template<class T>
+    using range_traits_type = typename range_traits<T>::value_type;
 
     template<class, class = void>
     constexpr inline bool is_range_v = false;

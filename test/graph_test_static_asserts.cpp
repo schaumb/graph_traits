@@ -37,6 +37,8 @@ template <class T>
 using fx_range = std::array<T, 5>;
 
 using bxlx::traits::is_graph_v;
+using bxlx::traits::graph_traits;
+using bxlx::traits::graph_representation;
 
 static_assert(!is_graph_v<void>);
 static_assert(!is_graph_v<void*>);
@@ -49,6 +51,12 @@ static_assert(is_graph_v<ra_range<set<int>>>);
 static_assert(is_graph_v<set<tup<int, int>>>);
 static_assert(is_graph_v<set<tup<int, int, float>>>);
 
+template<class T>
+constexpr static inline auto repr = graph_traits<T>::representation;
+
+static_assert(repr<ra_range<set<int>>> == graph_representation::adjacency_list);
+static_assert(repr<ra_range<ra_range<bool>>> == graph_representation::adjacency_matrix);
+static_assert(repr<set<tup<int, int>>> == graph_representation::edge_list);
 
 static_assert(is_graph_v< ra_range<   range<integral>>>);
 static_assert(is_graph_v< ra_range<ra_range<  bool_t>>>);
