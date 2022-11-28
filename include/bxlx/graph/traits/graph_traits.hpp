@@ -11,6 +11,17 @@
 #include "type_classification.hpp"
 #include <algorithm>
 
+namespace bxlx {
+    // simplified errors
+    struct not_matching_types {};
+    template<class, class, class>
+    struct multiple_property_for {};
+    struct graph_multiple_recognize {};
+
+    template<class Why>
+    constexpr static inline bool why_not_graph = false;
+}
+
 namespace bxlx::traits {
     template<class T, class V = std::make_index_sequence<std::tuple_size_v<T>>>
     struct properties;
@@ -36,6 +47,13 @@ namespace bxlx::traits {
 
         template<class ... Others>
         using merged_type [[maybe_unused]] = properties<decltype(std::tuple_cat(std::declval<T>(), std::declval<typename Others::type>()...))>;
+
+        constexpr static inline std::size_t get_first_invalid_prop_index =
+            std::min({(!is_valid_prop<std::tuple_element_t<ix, T>> ? ix : ~std::size_t{})...});
+
+        template<class U>
+        constexpr static inline std::size_t get_last_property_index =
+            std::max({(has_property_any<U, std::tuple_element_t<ix, T>> ? ix : std::size_t{})...});
     };
 
     using empty_properties = properties<std::tuple<>>;
@@ -51,6 +69,10 @@ namespace bxlx::traits {
     using constant_t = std::integral_constant<decltype(p), p>;
     template<class Type, class U>
     using get_property = std::tuple_element_t<1, std::tuple_element_t<Type::template get_property_index<U>, typename Type::type>>;
+    template<class Type,
+        class U = std::tuple_element_t<0, std::tuple_element_t<Type::get_first_invalid_prop_index, typename Type::type>>>
+    using get_property_error = bxlx::multiple_property_for<U, get_property<Type, U>,
+        std::tuple_element_t<1, std::tuple_element_t<Type::template get_last_property_index<U>, typename Type::type>>>;
 
     template<class P, class Prop, class Or, class = void>
     struct has_property_or : std::common_type<Or> {};
@@ -61,6 +83,51 @@ namespace bxlx::traits {
     template<class P, class Prop, class Or>
     using has_property_or_t = typename has_property_or<P, Prop, Or>::type;
 
+
+    namespace error_handling {
+        template<class T, class...>
+        struct reduce_errors {
+            using type = T;
+        };
+
+        template<class T, class U, class... Oth>
+        struct reduce_errors<T, U, Oth...> :
+            reduce_errors<std::conditional_t<std::is_void_v<T> || std::is_same_v<T, not_matching_types> ||
+                                             std::is_same_v<U, graph_multiple_recognize>, U, T>, Oth...> {};
+        template<class ...Ts>
+        using reduce_errors_t = typename reduce_errors<void, Ts...>::type;
+
+        // detailed errors
+        template<class>
+        struct type_classification_mismatch {
+            using simplified = not_matching_types;
+        };
+        template<class, class Properties>
+        struct property_mismatch {
+            using simplified = get_property_error<Properties>;
+        };
+        template<class, class...>
+        struct multiple_graph_representation {
+            using simplified = graph_multiple_recognize;
+        };
+        template<class>
+        struct tuple_size_mismatch {
+            using simplified = not_matching_types;
+        };
+
+        template<class ... All>
+        struct any_nested_mismatched {
+            using simplified = reduce_errors_t<typename All::simplified...>;
+        };
+        template<class ... All>
+        struct tuple_nested_mismatched {
+            using simplified = reduce_errors_t<typename All::simplified...>;
+        };
+        template<class, class Err>
+        struct condition_and_error {
+            using simplified = typename Err::simplified;
+        };
+    }
 
     enum class graph_representation {
         adjacency_list,
@@ -74,6 +141,13 @@ namespace bxlx::traits {
         constexpr static bool is_valid() {
             return ((detail2::classify<T> == types) || ...);
         }
+
+        template<class T>
+        constexpr static auto why_not() {
+            if (!is_valid<T>()) {
+                return error_handling::type_classification_mismatch<T>{};
+            }
+        }
     };
 
     template<class nested, detail2::type_classification ... types>
@@ -86,6 +160,17 @@ namespace bxlx::traits {
                 return false;
             }
         }
+
+        template<class T, class U = nested>
+        constexpr static auto why_not() {
+            if constexpr (!is_valid<T>()) {
+                if constexpr (accept_only<types...>::template is_valid<T>()) {
+                    return U::template why_not_nested<T>();
+                } else {
+                    return accept_only<types...>::template why_not<T>();
+                }
+            }
+        }
     };
 
     struct always_valid {
@@ -93,6 +178,9 @@ namespace bxlx::traits {
         constexpr static bool is_valid() {
             return true;
         }
+
+        template<class>
+        constexpr static void why_not() {}
     };
 
     // properties
@@ -128,9 +216,10 @@ namespace bxlx::traits {
         using properties [[maybe_unused]] = property<graph_property, T>;
     };
 
-    struct node_index : always_valid {
+    struct node_index : accept_only<detail2::type_classification::indeterminate,
+            detail2::type_classification::index, detail2::type_classification::optional> {
         template<class T>
-        using properties [[maybe_unused]] = merge_properties<property<user_node_index, std::true_type>, property<node_index, T>>;
+        using properties [[maybe_unused]] = merge_properties<property<user_node_index, std::true_type>, property<node_index, std::remove_cv_t<T>>>;
     };
 
     struct index : accept_only<detail2::type_classification::index> {
@@ -159,6 +248,11 @@ namespace bxlx::traits {
 
         template<class T>
         using properties [[maybe_unused]] = get_properties<Cond, detail2::optional_traits_type<T>>;
+
+        template<class T>
+        constexpr static auto why_not_nested() {
+            return Cond::template why_not<detail2::optional_traits_type<T>>();
+        }
     };
 
 
@@ -167,6 +261,19 @@ namespace bxlx::traits {
         template<class T>
         constexpr static bool is_valid() {
             return (Conditions::template is_valid<T>() + ...) == 1;
+        }
+
+
+        template<class T>
+        constexpr static auto why_not() {
+            if constexpr (!is_valid<T>()) {
+                if constexpr (((Conditions::template is_valid<T>() + ...) > 1)) {
+                    return error_handling::multiple_graph_representation<T,
+                        error_handling::condition_and_error<Conditions, constant_t<Conditions::template is_valid<T>()>>...>{};
+                } else {
+                    return error_handling::any_nested_mismatched<error_handling::condition_and_error<Conditions, decltype(Conditions::template why_not<T>())>...>{};
+                }
+            }
         }
 
         template<class T>
@@ -207,6 +314,25 @@ namespace bxlx::traits {
             }
             return false;
         }
+
+
+        template<class T, std::size_t ...Ix>
+        constexpr static auto why_not_nested(std::index_sequence<Ix...>) {
+            return error_handling::tuple_nested_mismatched<error_handling::condition_and_error<Conditions, decltype(Conditions::template why_not<std::tuple_element_t<Ix, T>>())>...>{};
+        }
+
+        template<class T>
+        constexpr static auto why_not_nested() {
+            if constexpr (sizeof...(Conditions) == std::tuple_size_v<T>) {
+                if constexpr (is_valid_nested<T>(std::make_index_sequence<std::tuple_size_v<T>>{})) {
+                    return error_handling::property_mismatch<T, get_properties<tuple_like, T>>{};
+                } else {
+                    return why_not_nested<T>(std::make_index_sequence<std::tuple_size_v<T>>{});
+                }
+            } else {
+                return error_handling::tuple_size_mismatch<T>{};
+            }
+        }
     };
 
     template<class container_size_prop, class Cond>
@@ -217,6 +343,15 @@ namespace bxlx::traits {
                 return properties<T>::is_valid;
             }
             return false;
+        }
+
+        template<class T>
+        constexpr static auto why_not_nested() {
+            if constexpr (Cond::template is_valid<detail2::range_traits_type<T>>()) {
+                return error_handling::property_mismatch<T, get_properties<range_impl, T>>{};
+            } else {
+                return Cond::template why_not<detail2::range_traits_type<T>>();
+            }
         }
 
         template<class T>
@@ -252,6 +387,15 @@ namespace bxlx::traits {
                 return properties<U>::is_valid;
             }
             return false;
+        }
+
+        template<class U>
+        constexpr static auto why_not_nested() {
+            if constexpr (range_impl<node_container_size, T>::template is_valid_nested<U>()) {
+                return error_handling::property_mismatch<T, get_properties<node_indexed_range, T>>{};
+            } else {
+                return range_impl<node_container_size, T>::template why_not_nested<U>();
+            }
         }
     };
 
@@ -372,8 +516,6 @@ namespace bxlx::traits {
 
             constexpr static inline auto get_edges = noop_t{};
             constexpr static inline auto get_nodes = std::conditional_t<graph_traits::has_graph_property, getter_t<0>, identity_t>{};
-
-
         };
     };
 
@@ -448,6 +590,23 @@ namespace bxlx::traits {
 
     template<class T>
     using graph_traits = typename graph::template graph_traits<T>;
+
+    template<class T, class Why = decltype(graph::why_not<T>())>
+    constexpr static bool is_it_a_graph = [] {
+        if constexpr (std::is_void_v<Why>) {
+            return true;
+        } else {
+            using simplified = typename Why::simplified;
+            if constexpr (std::is_same_v<simplified, bxlx::not_matching_types>) {
+                static_assert(why_not_graph<simplified>, "The type not matching any schema.");
+            } else if constexpr (std::is_same_v<simplified, bxlx::graph_multiple_recognize>) {
+                static_assert(why_not_graph<simplified>, "The type match more than one schema.");
+            } else {
+                static_assert(why_not_graph<simplified>, "On the schema, some property not matched.");
+            }
+            return false;
+        }
+    } ();
 }
 
 #endif //GRAPH_GRAPH_TRAITS_HPP
