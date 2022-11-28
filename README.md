@@ -165,6 +165,8 @@ void run_bfs_2() {
 
 ## More examples to graph mapping
 
+in the schema, the node_index/index must be the same
+
 ### `adjacency_list`
 
 - `node_indexed_range<range<integer>>`

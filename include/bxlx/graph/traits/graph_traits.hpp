@@ -127,6 +127,10 @@ namespace bxlx::traits {
         struct condition_and_error {
             using simplified = typename Err::simplified;
         };
+        template<class C>
+        struct condition_and_error<C, void> {
+            using simplified = void;
+        };
     }
 
     enum class graph_representation {
