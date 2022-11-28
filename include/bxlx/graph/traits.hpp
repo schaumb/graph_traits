@@ -29,9 +29,9 @@ namespace bxlx {
         using edge_repr_type = typename impl::edge_repr_type;
 
         // void if not exists
-        using graph_property_type [[maybe_unused]] = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_graph_property), graph_t>>;
-        using edge_property_type = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_edge_property), edge_repr_type>>;
-        using node_property_type = detail2::remove_cvref_t<std::invoke_result_t<decltype(impl::get_node_property), node_repr_type>>;
+        using graph_property_type [[maybe_unused]] = typename impl::graph_property_type;
+        using edge_property_type  [[maybe_unused]] = typename impl::edge_property_type;
+        using node_property_type  [[maybe_unused]] = typename impl::node_property_type;
 
         // 0 if it cannot be calculated
         constexpr static std::size_t max_node_compile_time = impl::max_node_compile_time;

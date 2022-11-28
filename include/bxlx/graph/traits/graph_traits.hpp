@@ -290,7 +290,7 @@ namespace bxlx::traits {
     template<std::size_t I>
     struct getter_t {
         template<class T, class ...Ts>
-        [[nodiscard]] constexpr auto operator()(T&& val, Ts&&...) const noexcept -> decltype(std::get<I>(val)) {
+        [[nodiscard]] constexpr auto operator()(T&& val, Ts&&...) const noexcept -> std::tuple_element_t<I, T> {
             return std::get<I>(val);
         }
     };
@@ -332,6 +332,10 @@ namespace bxlx::traits {
         constexpr static auto node_container_size = has_property_or_t<Props, traits::node_container_size, constant_t<0>>::value;
         constexpr static auto edge_container_size = has_property_or_t<Props, traits::edge_container_size, constant_t<0>>::value;
         constexpr static auto in_container_size = has_property_or_t<Props, inside_container_size, constant_t<0>>::value;
+
+        using graph_property_type [[maybe_unused]] = has_property_or_t<Props, graph_property, void>;
+        using node_property_type [[maybe_unused]] = has_property_or_t<Props, node_property, void>;
+        using edge_property_type [[maybe_unused]] = has_property_or_t<Props, edge_property, void>;
     };
 
     struct adjacency_list : with_graph_property<any_of<

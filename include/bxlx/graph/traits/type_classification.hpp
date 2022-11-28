@@ -69,12 +69,13 @@ namespace bxlx::detail2 {
     template<class T, class = void>
     struct optional_traits : optional_traits_impl<T> {};
 
+    struct dummy_type {};
     // reflect on optional to work std::optional with predeclared classes
     template<template <class> class optional_like_t, class real_value_type>
-    struct optional_traits<optional_like_t<real_value_type>, std::enable_if_t<std::is_same_v<void *,
-        typename optional_traits_impl<optional_like_t<void *>>::value_type
+    struct optional_traits<optional_like_t<real_value_type>, std::enable_if_t<std::is_same_v<dummy_type,
+        typename optional_traits_impl<optional_like_t<dummy_type>>::value_type
     >>> {
-        using reference [[maybe_unused]] = copy_cvref_t<typename optional_traits_impl<optional_like_t<void *>>::reference, real_value_type>;
+        using reference [[maybe_unused]] = copy_cvref_t<typename optional_traits_impl<optional_like_t<dummy_type>>::reference, real_value_type>;
         using value_type [[maybe_unused]] = real_value_type;
     };
 
@@ -130,39 +131,6 @@ namespace bxlx::detail2 {
         = is_nothrow_convertible_impl<std::is_convertible_v<From,To>, From, To>::value;
 
 
-    template<class T, bool = is_defined_v<T>>
-    constexpr inline bool is_bool_ref_v = false;
-    template<class T>
-    constexpr inline bool is_bool_ref_v<T, true> =  // type must be defined
-        std::is_class_v<T> &&                       // bool ref can be only classes, whose
-        is_nothrow_convertible_v<T, bool> &&        // can convert to bool
-        !std::is_constructible_v<T, bool>;          // cannot construct from bool
-
-    template<class T>
-    constexpr inline bool is_bool_v = std::is_same_v<T, bool> || is_bool_ref_v<T>;
-
-
-    template<class T, bool = is_defined_v<T>>
-    constexpr inline bool is_size_t_wrapper = false;
-    template<class T>
-    constexpr inline bool is_size_t_wrapper<T, true> =  // type must be defined
-        (std::is_class_v<T> || std::is_enum_v<T>) &&    // size_t wrapper can be only classes, whose
-        is_nothrow_convertible_v<T, std::size_t> &&     // can convert to size_t
-        is_nothrow_convertible_v<std::size_t, T>;       // can convert from size_t
-
-    template<class T>
-    constexpr inline bool is_index_v = !std::is_same_v<bool, T> && !is_char_v<T> &&
-        (std::is_integral_v<T> || is_size_t_wrapper<T>);
-
-
-    template<class T, bool = is_defined_v<T>, class = void>
-    constexpr inline bool has_size_v = false;
-    template<class T>
-    constexpr inline bool has_size_v<T, true, std::enable_if_t<
-        is_index_v<decltype(std::size(std::declval<T&>()))>
-    >> = true;
-
-
     template<class Helper, class T, bool is_const_v, class ...Args>
     struct member_function_invoke_result {
         template<class Res = Helper>
@@ -177,6 +145,53 @@ namespace bxlx::detail2 {
     template<class Helper, class T, class ...Args>
     constexpr inline auto member_function_invoke_result_v
         = member_function_invoke_result<Helper, std::remove_const_t<T>, std::is_const_v<T>, Args...>{};
+
+    template<class T, class U, bool = std::is_class_v<T> && is_defined_v<T>, class = void>
+    constexpr static auto has_conversion_operator = false;
+    template<class T, class U>
+    constexpr static auto has_conversion_operator<T, U, true, std::void_t<
+        decltype(member_function_invoke_result_v<U, T>(&T::operator U))
+    >> = true;
+
+    template<class T, class U>
+    constexpr static inline bool has_any_conversion_operator =
+        has_conversion_operator<T, U> || has_conversion_operator<T, U&> || has_conversion_operator<T, const U&> ||
+        has_conversion_operator<const T, U> || has_conversion_operator<const T, U&> || has_conversion_operator<const T, const U&>;
+
+
+    template<class T, bool = is_defined_v<T>>
+    constexpr inline bool is_bool_ref_v = false;
+    template<class T>
+    constexpr inline bool is_bool_ref_v<T, true> =  // type must be defined
+        std::is_class_v<T> &&                       // bool ref can be only classes, whose
+        is_nothrow_convertible_v<T, bool> &&        // can convert to bool
+        has_any_conversion_operator<T, bool> &&     // with bool conversion operator
+        !std::is_constructible_v<T, bool&>;         // cannot construct from bool&
+
+    template<class T>
+    constexpr inline bool is_bool_v = std::is_same_v<T, bool> || is_bool_ref_v<T>;
+
+
+    template<class T, bool = is_defined_v<T>>
+    constexpr inline bool is_size_t_wrapper = false;
+    template<class T>
+    constexpr inline bool is_size_t_wrapper<T, true> =  // type must be defined
+        std::is_class_v<T> &&                           // size_t wrapper can be only classes, whose
+        is_nothrow_convertible_v<T, std::size_t> &&     // can convert to size_t
+        !has_any_conversion_operator<T, bool> &&        // but not with operator bool. accept char-s
+        is_nothrow_convertible_v<std::size_t, T>;       // can convert from size_t
+
+    template<class T>
+    constexpr inline bool is_index_v = !std::is_same_v<bool, T> && !is_char_v<T> &&
+        (std::is_integral_v<T> || is_size_t_wrapper<T>);
+
+
+    template<class T, bool = is_defined_v<T>, class = void>
+    constexpr inline bool has_size_v = false;
+    template<class T>
+    constexpr inline bool has_size_v<T, true, std::enable_if_t<
+        is_index_v<decltype(std::size(std::declval<T&>()))>
+    >> = true;
 
 
     template<class T, class With = void, bool = has_size_v<T>, class = void>
@@ -328,12 +343,12 @@ namespace bxlx::detail2 {
 
     template<template <class, std::size_t> class container, class real_value_type, std::size_t Ix>
     struct range_traits<container<real_value_type, Ix>, true, std::enable_if_t<
-        std::is_same_v<void*, typename range_traits_impl<container<void*, Ix>>::value_type>
+        std::is_same_v<dummy_type, typename range_traits_impl<container<dummy_type, Ix>>::value_type>
     >> {
-        using reference [[maybe_unused]] = copy_cvref_t<typename range_traits_impl<container<void*, Ix>>::reference, real_value_type>;
+        using reference [[maybe_unused]] = copy_cvref_t<typename range_traits_impl<container<dummy_type, Ix>>::reference, real_value_type>;
         using value_type [[maybe_unused]] = real_value_type;
-        [[maybe_unused]] constexpr static bool is_sized = range_traits_impl<container<void*, Ix>>::is_sized;
-        [[maybe_unused]] constexpr static bool random_access = range_traits_impl<container<void*, Ix>>::random_access;
+        [[maybe_unused]] constexpr static bool is_sized = range_traits_impl<container<dummy_type, Ix>>::is_sized;
+        [[maybe_unused]] constexpr static bool random_access = range_traits_impl<container<dummy_type, Ix>>::random_access;
         [[maybe_unused]] constexpr static bool predeclared_array = !is_defined_v<real_value_type>;
     };
 

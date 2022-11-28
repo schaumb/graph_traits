@@ -20,6 +20,8 @@
 #include <bitset>
 #include <string>
 #include <optional>
+#include <functional>
+#include <atomic>
 
 using namespace bxlx::detail2;
 
@@ -35,6 +37,7 @@ static_assert(classify<std::basic_string<decltype(u8'\0')>> == type_classificati
 static_assert(classify<std::string_view> == type_classification::indeterminate);
 static_assert(classify<std::wstring_view> == type_classification::indeterminate);
 static_assert(classify<std::basic_string_view<decltype(u8'\0')>> == type_classification::indeterminate);
+static_assert(classify<char> == type_classification::indeterminate);
 
 static_assert(classify<std::vector<int>> == type_classification::random_access_range);
 static_assert(classify<std::deque<bool>> == type_classification::random_access_range);
@@ -61,6 +64,25 @@ static_assert(classify<int> == type_classification::index);
 static_assert(classify<std::ptrdiff_t> == type_classification::index);
 static_assert(classify<std::size_t> == type_classification::index);
 static_assert(classify<unsigned char> == type_classification::index);
+
+static_assert(classify<std::atomic<std::size_t>> == type_classification::index);
+static_assert(classify<std::atomic<int>> == type_classification::index);
+static_assert(classify<std::atomic<char>> == type_classification::index);
+
+static_assert(classify<std::atomic_flag> == type_classification::indeterminate);
+static_assert(classify<std::atomic<bool>> == type_classification::indeterminate);
+
+static_assert(classify<std::reference_wrapper<std::size_t>> == type_classification::indeterminate);
+static_assert(classify<std::reference_wrapper<const std::size_t>> == type_classification::indeterminate);
+static_assert(classify<std::reference_wrapper<int>> == type_classification::indeterminate);
+static_assert(classify<std::reference_wrapper<bool>> == type_classification::indeterminate);
+static_assert(classify<std::reference_wrapper<char>> == type_classification::indeterminate);
+
+#if defined(__cpp_lib_atomic_ref)
+static_assert(classify<std::atomic_ref<bool>> == type_classification::indeterminate);
+static_assert(classify<std::atomic_ref<int>> == type_classification::indeterminate);
+static_assert(classify<std::atomic_ref<std::size_t>> == type_classification::indeterminate);
+#endif
 
 // predeclared classes
 class A;
