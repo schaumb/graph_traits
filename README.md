@@ -58,12 +58,12 @@ using node_prop_t = typename Traits::node_property_type;
 
 
 template<class Graph, class GraphTraits = graph_traits<Graph>>
-constexpr bool has_node(const Graph&, const node_t<GraphTraits>&)
+constexpr bool has_node(const Graph&, const node_t<GraphTraits>&);
 
 // for edge_list-s where no node property stored
 template<class Graph, class GraphTraits = graph_traits<Graph>, 
          class Eq = std::equal_to<node_t<GraphTraits>>>
-constexpr bool has_node(const Graph&, const node_t<GraphTraits>&, Eq&& = {})
+constexpr bool has_node(const Graph&, const node_t<GraphTraits>&, Eq&& = {});
 
 
 template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
@@ -81,7 +81,7 @@ constexpr auto get_node_property(Graph [const|&|*] g, const node_t<GraphTraits>&
 template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>> [, class ...Args]>
 // parameters:                only if node index is user defined | only if it has node_property
 constexpr auto add_node(Graph&[, const node_t<GraphTraits>&]       [, Args&& ...]              )
-    -> std::pair<node_t<GraphTraits>, bool> // index + was new
+    -> std::pair<node_t<GraphTraits>, bool>; // index + was new
 
 
 template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
@@ -134,14 +134,14 @@ constexpr auto get_edge_property(Graph [const|&|*] g, const node_t<GraphTraits>&
 template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>> [, class ...Args]>
 // parameters:                                                                         only if it has_edge_property
 constexpr auto add_edge(Graph&, const node_t<GraphTraits>&, const node_t<GraphTraits>& [, Args&& ...]              )
-    -> std::pair<edge_repr_t<GraphTraits>&, bool> // edge_repr + was new
+    -> std::pair<edge_repr_t<GraphTraits>&, bool>; // edge_repr + was new
 
 // bidirectional
 template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>, class Tup1, class Tup2>
 // parameters:                                                                         only if it has_edge_property
 constexpr auto add_edge(Graph&, const node_t<GraphTraits>&, const node_t<GraphTraits>& [, Tup1&&, Tup2&&]          )
     -> std::pair<std::pair<edge_repr_t<GraphTraits>&,
-                           edge_repr_t<GraphTraits>&>, bool> // edge_reprs + was new
+                           edge_repr_t<GraphTraits>&>, bool>; // edge_reprs + was new
 
 
 template<class Graph, class GraphTraits = graph_traits<Graph>>
