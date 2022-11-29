@@ -50,11 +50,11 @@ The main concepts:
 
 ```cpp
 template<class Traits>
-using node_t = typename GraphTraits::node_index_t;
+using node_t = typename Traits::node_index_t;
 template<class Traits>
-using node_repr_t = typename GraphTraits::node_repr_type;
+using node_repr_t = typename Traits::node_repr_type;
 template<class Traits>
-using node_prop_t = typename GraphTraits::node_property_type;
+using node_prop_t = typename Traits::node_property_type;
 
 
 template<class Graph, class GraphTraits = graph_traits<Graph>>
@@ -101,9 +101,9 @@ namespace bxlx::graph::bidirectional; // from<->to (different edge properties)
 namespace bxlx::graph::undirected; // from - to (expects edge property sharing)
 
 template<class Traits>
-using edge_repr_t = typename GraphTraits::edge_repr_type;
+using edge_repr_t = typename Traits::edge_repr_type;
 template<class Traits>
-using edge_prop_t = typename GraphTraits::edge_property_type;
+using edge_prop_t = typename Traits::edge_property_type;
 
 
 template<class Graph, class GraphTraits = graph_traits<Graph>>
