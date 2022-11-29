@@ -44,6 +44,112 @@ The main concepts:
 
 ---
 
+### Graph node functions
+
+`has_node`, `get_node`, `get_node_property`, `add_node`, `remove_node`
+
+```cpp
+template<class Traits>
+using node_t = typename GraphTraits::node_index_t;
+template<class Traits>
+using node_repr_t = typename GraphTraits::node_repr_type;
+template<class Traits>
+using node_prop_t = typename GraphTraits::node_property_type;
+
+
+template<class Graph, class GraphTraits = graph_traits<Graph>>
+constexpr bool has_node(const Graph&, const node_t<GraphTraits>&)
+
+// for edge_list-s where no node property stored
+template<class Graph, class GraphTraits = graph_traits<Graph>, 
+         class Eq = std::equal_to<node_t<GraphTraits>>>
+constexpr bool has_node(const Graph&, const node_t<GraphTraits>&, Eq&& = {})
+
+
+template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
+constexpr auto get_node(Graph [const|&|*] g, const node_t<GraphTraits>&)
+    -> node_repr_t<GraphTraits> [const|&|*];
+
+
+template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
+constexpr auto get_node_property(Graph [const|&|*] g, const node_t<GraphTraits>&)
+    -> node_prop_t<GraphTraits> [const|&|*];
+
+
+// only for modifiable structures:
+
+template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>> [, class ...Args]>
+// parameters:                only if node index is user defined | only if it has node_property
+constexpr auto add_node(Graph&[, const node_t<GraphTraits>&]       [, Args&& ...]              )
+    -> std::pair<node_t<GraphTraits>, bool> // index + was new
+
+
+template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
+constexpr bool remove_node(Graph&, const node_t<GraphTraits>&);
+```
+
+---
+
+### Graph edge functions
+
+`has_edge`, `get_edge`, `get_edge_property`, `add_edge`, `remove_edge` 
+
+```cpp
+// it has 3 separated namespace
+namespace bxlx::graph::directed; // form->to
+namespace bxlx::graph::bidirectional; // from<->to (different edge properties)
+namespace bxlx::graph::undirected; // from - to (expects edge property sharing)
+
+template<class Traits>
+using edge_repr_t = typename GraphTraits::edge_repr_type;
+template<class Traits>
+using edge_prop_t = typename GraphTraits::edge_property_type;
+
+
+template<class Graph, class GraphTraits = graph_traits<Graph>>
+constexpr bool has_edge(const Graph&, const node_t<GraphTraits>&, const node_t<GraphTraits>&);
+    // bidirectional checks both direction
+
+template<class Graph, class GraphTraits = graph_traits<Graph>>
+constexpr auto get_edge(Graph [const|&|*] g, const node_t<GraphTraits>&, const node_t<GraphTraits>&)
+    // directed/undirected
+    -> edge_repr_t<GraphTraits> [const|&|*];
+    // bidirectional
+    -> std::pair<edge_repr_t<GraphTraits> [const|&|*], 
+                 edge_repr_t<GraphTraits> [const|&|*]>;
+
+
+template<class Graph, class GraphTraits = graph_traits<Graph>>
+constexpr auto get_edge_property(Graph [const|&|*] g, const node_t<GraphTraits>&, const node_t<GraphTraits>&)
+    // directed/undirected
+    -> edge_repr_t<GraphTraits> [const|&|*];
+    // bidirectional
+    -> std::pair<edge_prop_t<GraphTraits> [const|&|*], 
+                 edge_prop_t<GraphTraits> [const|&|*]>;
+
+
+// only for modifiable structures:
+
+// directed/undirected
+template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>> [, class ...Args]>
+// parameters:                                                                         only if it has_edge_property
+constexpr auto add_edge(Graph&, const node_t<GraphTraits>&, const node_t<GraphTraits>& [, Args&& ...]              )
+    -> std::pair<edge_repr_t<GraphTraits>&, bool> // edge_repr + was new
+
+// bidirectional
+template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>, class Tup1, class Tup2>
+// parameters:                                                                         only if it has_edge_property
+constexpr auto add_edge(Graph&, const node_t<GraphTraits>&, const node_t<GraphTraits>& [, Tup1&&, Tup2&&]          )
+    -> std::pair<std::pair<edge_repr_t<GraphTraits>&,
+                           edge_repr_t<GraphTraits>&>, bool> // edge_reprs + was new
+
+
+template<class Graph, class GraphTraits = graph_traits<Graph>>
+constexpr bool remove_edge(Graph&, const node_t<GraphTraits>&, const node_t<GraphTraits>&);
+```
+
+---
+
 
 ### Breadth first search
 

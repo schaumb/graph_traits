@@ -280,9 +280,9 @@ static_assert(check_all_adj_list_2<true, false, true>());
 static_assert(check_all_adj_list_2<false, true, true>());
 static_assert(check_all_adj_list_2<true, true, true>());
 
-static_assert(assert_on<set<tup<int, int>>, graph_representation::edge_list, int, void*, tup<int, int>, 0, 0>());
-static_assert(assert_on<set<tup<int, int, int>>, graph_representation::edge_list, int, void*, tup<int, int, int>, 0, 0, void, void, int>());
-static_assert(assert_on<tup<fx_range<tup<int, int, struct XX>>, struct A>, graph_representation::edge_list, int, void*, tup<int, int, struct XX>, 10, 5, struct A, void, struct XX>());
+static_assert(assert_on<set<tup<int, int>>, graph_representation::edge_list, int, void, tup<int, int>, 0, 0>());
+static_assert(assert_on<set<tup<int, int, int>>, graph_representation::edge_list, int, void, tup<int, int, int>, 0, 0, void, void, int>());
+static_assert(assert_on<tup<fx_range<tup<int, int, struct XX>>, struct A>, graph_representation::edge_list, int, void, tup<int, int, struct XX>, 10, 5, struct A, void, struct XX>());
 static_assert(assert_on<tup<ra_range<tup<fx_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>,
     graph_representation::adjacency_matrix, std::size_t, tup<fx_range<opt<struct edge_prop>>, struct node_prop>,
     opt<struct edge_prop>, 5, 25, struct graph_prop, struct node_prop, struct edge_prop>());

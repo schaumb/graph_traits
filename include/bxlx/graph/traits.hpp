@@ -27,7 +27,7 @@ namespace bxlx {
         [[maybe_unused]] constexpr static bool has_edge_property = impl::has_edge_property;
         [[maybe_unused]] constexpr static bool has_node_property = impl::has_node_property;
 
-        // void* if not exists
+        // void if not exists
         using node_repr_type = typename impl::node_repr_type;
         using edge_repr_type = typename impl::edge_repr_type;
 
