@@ -26,7 +26,7 @@ static_assert(graph_traits<list<tuple<int, int, int>>>::representation ==
 
 static_assert(graph_traits<
     tuple<vector<pair<list<optional<edge_prop>>, node_prop>>, graph_prop>
-> == adjacency_matrix); // it has bounded edge, node and graph properties
+>::representation == adjacency_matrix); // it has bounded edge, node and graph properties
 ```
 
 ---
@@ -300,19 +300,14 @@ in the schema, the node_index/index must be the same
 
 - `edge_range<pair<node_index, node_index>>`
 - `edge_range<tuple<node_index, node_index, edge_prop>>`
-- `pair<edge_range<tuple<node_index, node_index>>, graph_prop>`
-- edge/graph properties combination
+- `tuple<map<node_index, node_prop>, edge_range<pair<node_index, node_index>>>`
+- `tuple<edge_range<tuple<node_index, node_index>>, graph_prop>`
+- edge/node/graph properties combination
 
 
 - `pair<node_indexed_range<node_prop>, edge_range<pair<integer, integer>>>`
 - `pair<node_indexed_range<node_prop>, edge_range<tuple<integer, integer, edge_prop>>>`
 - `tuple<node_indexed_range<node_prop>, edge_range<pair<integer, integer>>, graph_prop>`
-- edge/graph properties any combination
-
-
-- `pair<map<node_index, node_prop>, edge_range<pair<node_index, node_index>>>`
-- `pair<map<node_index, node_prop>, edge_range<tuple<node_index, node_index, edge_prop>>>`
-- `tuple<map<node_index, node_prop>, edge_range<pair<node_index, node_index>>, graph_prop>`
 - edge/graph properties any combination
 
 ---

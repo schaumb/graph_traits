@@ -119,15 +119,19 @@ struct type_holders {
     }
 };
 
-using map_with_node_index = map_it<map>;
+template <class T, class U>
+using other_map = std::unordered_map<T, U>;
+
+using map_with_node_index = map_it<map, other_map>;
 using node_indexed_ranges = range_it<fx_range, ra_range>;
 using edge_ranges = range_it<fx_range, ra_range, set, si_range>;
 using any_ranges = range_it<fx_range, range>;
 using optionals = range_it<opt, std::add_pointer_t>;
+using bools = type_holders<bool>;
 using bitsets = type_holders<std::bitset<5>, std::vector<bool>>;
 using node_indices = type_holders<std::string_view, int>;
 using indices = type_holders<int>;
-using props = type_holders<map<int, int>>;
+using props = type_holders<int>;
 
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_adj_list_1() {
@@ -262,23 +266,365 @@ constexpr bool check_all_adj_list_2() {
     return true;
 }
 
-static_assert(check_all_adj_list_1<false, false, false>());
-static_assert(check_all_adj_list_1<false, false, true>());
-static_assert(check_all_adj_list_1<false, true, false>());
-static_assert(check_all_adj_list_1<true, false, false>());
-static_assert(check_all_adj_list_1<true, true, false>());
-static_assert(check_all_adj_list_1<true, false, true>());
-static_assert(check_all_adj_list_1<false, true, true>());
-static_assert(check_all_adj_list_1<true, true, true>());
 
-static_assert(check_all_adj_list_2<false, false, false>());
-static_assert(check_all_adj_list_2<false, false, true>());
-static_assert(check_all_adj_list_2<false, true, false>());
-static_assert(check_all_adj_list_2<true, false, false>());
-static_assert(check_all_adj_list_2<true, true, false>());
-static_assert(check_all_adj_list_2<true, false, true>());
-static_assert(check_all_adj_list_2<false, true, true>());
-static_assert(check_all_adj_list_2<true, true, true>());
+template<bool node_p, bool edge_p, bool graph_p>
+constexpr bool check_all_adj_list_3() {
+    auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
+        assert_on<
+            typename decltype(graph)::type,
+            graph_representation::adjacency_list,
+            typename decltype(index)::type,
+            typename decltype(node_repr)::type,
+            typename decltype(edge_repr)::type,
+            nodes,
+            nodes * (inside ? inside : nodes),
+            typename decltype(graph_prop)::type,
+            typename decltype(node_prop)::type,
+            typename decltype(edge_prop)::type
+        >();
+    };
+
+    auto for_each_graph_prop = [&] (auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+        using NodeRange = typename decltype(node_range)::type;
+        using GraphProp = typename decltype(graph_prop)::type;
+        checker(std::common_type<std::pair<NodeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
+    };
+    auto for_each_indexed_range = [&] (auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+        if constexpr (graph_p) {
+            props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
+        } else {
+            checker(node_range, std::common_type<void>{}, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
+        }
+    };
+
+    auto for_each_node_prop = [&] (auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+        using NodeIndex = typename decltype(index)::type;
+        using Range = typename decltype(range)::type;
+        using NodeProp = typename decltype(node_prop)::type;
+        map_with_node_index::for_each<NodeIndex, std::pair<Range, NodeProp>>(for_each_indexed_range, std::common_type<
+            std::pair<const NodeIndex, std::pair<Range, NodeProp>>>{}, node_prop, range, edge_repr, edge_prop, index);
+    };
+    auto for_each_any_range = [&] (auto range, auto edge_repr, auto edge_prop, auto index) {
+        using NodeIndex = typename decltype(index)::type;
+        using Range = typename decltype(range)::type;
+        if constexpr (node_p) {
+            props::for_each(for_each_node_prop, range, edge_repr, edge_prop, index);
+        } else {
+            map_with_node_index::for_each<NodeIndex, Range>(for_each_indexed_range, std::common_type<std::pair<const NodeIndex, Range>>{}, std::common_type<void>{}, range, edge_repr, edge_prop, index);
+        }
+    };
+
+    auto for_each_edge_prop = [&] (auto edge_prop, auto index) {
+        using Index = typename decltype(index)::type;
+        using EdgeProp = typename decltype(edge_prop)::type;
+        map_with_node_index::for_each<Index, EdgeProp>(for_each_any_range, std::common_type<std::pair<const Index, EdgeProp>>{}, edge_prop, index);
+    };
+
+    auto for_each_indices = [&] (auto index) {
+        if constexpr (edge_p) {
+            props::for_each(for_each_edge_prop, index);
+        }
+    };
+
+    node_indices::for_each(for_each_indices);
+    return true;
+}
+
+
+template<bool node_p, bool edge_p, bool graph_p>
+constexpr bool check_all_adj_matrix_1() {
+    auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto bitset) {
+        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto bit_node = bxlx::detail2::compile_time_size_v<typename decltype(bitset)::type>;
+        static_assert(!nodes || !bit_node || nodes == bit_node);
+        constexpr auto node_size = std::max(nodes, bit_node);
+        assert_on<
+            typename decltype(graph)::type,
+            graph_representation::adjacency_matrix,
+            std::size_t,
+            typename decltype(node_repr)::type,
+            bxlx::detail2::subscript_operator_return<typename decltype(bitset)::type>,
+            node_size,
+            node_size * node_size,
+            typename decltype(graph_prop)::type,
+            typename decltype(node_prop)::type,
+            void
+        >();
+    };
+
+    auto for_each_graph_prop = [&] (auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto bitset) {
+        using NodeRange = typename decltype(node_range)::type;
+        using GraphProp = typename decltype(graph_prop)::type;
+        checker(std::common_type<std::pair<NodeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, bitset);
+    };
+    auto for_each_indexed_range = [&] (auto node_range, auto node_repr, auto node_prop, auto bitset) {
+        if constexpr (graph_p) {
+            props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, bitset);
+        } else {
+            checker(node_range, std::common_type<void>{}, node_range, node_repr, node_prop, bitset);
+        }
+    };
+
+    auto for_each_node_prop = [&] (auto node_prop, auto bitset) {
+        using Bitset = typename decltype(bitset)::type;
+        using NodeProp = typename decltype(node_prop)::type;
+        node_indexed_ranges::for_each<std::pair<Bitset, NodeProp>>(
+            for_each_indexed_range, std::common_type<std::pair<Bitset, NodeProp>>{}, node_prop, bitset);
+    };
+
+    auto for_each_bitset = [&] (auto bitset) {
+        using Bitset = typename decltype(bitset)::type;
+        if constexpr (node_p) {
+            props::for_each(for_each_node_prop, bitset);
+        } else {
+            node_indexed_ranges::for_each<Bitset>(for_each_indexed_range, bitset, std::common_type<void>{}, bitset);
+        }
+    };
+
+    if constexpr (!edge_p) {
+        bitsets::for_each(for_each_bitset);
+    }
+    return true;
+}
+
+
+template<bool node_p, bool edge_p, bool graph_p>
+constexpr bool check_all_adj_matrix_2() {
+    auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto inside_range, auto edge_repr, auto edge_prop) {
+        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto range_size = bxlx::detail2::compile_time_size_v<typename decltype(inside_range)::type>;
+        constexpr auto node_size = std::max(nodes, range_size);
+        assert_on<
+            typename decltype(graph)::type,
+            graph_representation::adjacency_matrix,
+            std::size_t,
+            typename decltype(node_repr)::type,
+            typename decltype(edge_repr)::type,
+            node_size,
+            node_size * node_size,
+            typename decltype(graph_prop)::type,
+            typename decltype(node_prop)::type,
+            typename decltype(edge_prop)::type
+        >();
+    };
+
+    auto for_each_graph_prop = [&] (auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto inside_range, auto edge_repr, auto edge_prop) {
+        using NodeRange = typename decltype(node_range)::type;
+        using GraphProp = typename decltype(graph_prop)::type;
+        checker(std::common_type<std::pair<NodeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, inside_range, edge_repr, edge_prop);
+    };
+    auto for_each_indexed_range = [&] (auto node_range, auto node_repr, auto node_prop, auto inside_range, auto edge_repr, auto edge_prop) {
+        if constexpr (graph_p) {
+            props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, inside_range, edge_repr, edge_prop);
+        } else {
+            checker(node_range, std::common_type<void>{}, node_range, node_repr, node_prop, inside_range, edge_repr, edge_prop);
+        }
+    };
+
+    auto for_each_node_prop = [&] (auto node_prop, auto inside_range, auto edge_repr, auto edge_prop) {
+        using InsideRange = typename decltype(inside_range)::type;
+        using NodeProp = typename decltype(node_prop)::type;
+        node_indexed_ranges::for_each<std::pair<InsideRange, NodeProp>>(
+            for_each_indexed_range, std::common_type<std::pair<InsideRange, NodeProp>>{}, node_prop, inside_range, edge_repr, edge_prop);
+    };
+
+    auto for_each_inside_indexed_range = [&] (auto inside_range, auto edge_repr, auto edge_prop) {
+        using InsideRange = typename decltype(inside_range)::type;
+        if constexpr (bxlx::detail2::classify<InsideRange> != bxlx::detail2::type_classification::bitset_like_container) {
+            if constexpr (node_p) {
+                props::for_each(for_each_node_prop, inside_range, edge_repr, edge_prop);
+            } else {
+                node_indexed_ranges::for_each<InsideRange>(for_each_indexed_range, inside_range, std::common_type<void>{}, inside_range, edge_repr, edge_prop);
+            }
+        }
+    };
+
+    if constexpr (edge_p) {
+        auto for_each_optional = [&] (auto edge_repr, auto edge_prop) {
+            using EdgeRepr = typename decltype(edge_repr)::type;
+            node_indexed_ranges::for_each<EdgeRepr>(for_each_inside_indexed_range, edge_repr, edge_prop);
+        };
+
+        props::for_each([&] (auto edge_prop) {
+            using EdgeProp = typename decltype(edge_prop)::type;
+            optionals::for_each<EdgeProp>(for_each_optional, edge_prop);
+        });
+    } else {
+        bools::for_each([&] (auto bool_prop) {
+            using BoolProp = typename decltype(bool_prop)::type;
+            node_indexed_ranges::for_each<BoolProp>(for_each_inside_indexed_range, bool_prop, std::common_type<void>{});
+        });
+    }
+    return true;
+}
+
+template<bool node_p, bool edge_p, bool graph_p>
+constexpr bool check_all_edge_list_1() {
+    auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        constexpr auto node_size = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto edges_size = bxlx::detail2::compile_time_size_v<typename decltype(edge_range)::type>;
+        assert_on<
+            typename decltype(graph)::type,
+            graph_representation::edge_list,
+            typename decltype(node_index)::type,
+            typename decltype(node_repr)::type,
+            typename decltype(edge_repr)::type,
+            node_size ? node_size : 2 * edges_size,
+            edges_size,
+            typename decltype(graph_prop)::type,
+            typename decltype(node_prop)::type,
+            typename decltype(edge_prop)::type
+        >();
+    };
+
+    auto for_each_graph_prop = [&] (auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        using NodeRange = typename decltype(node_range)::type;
+        using EdgeRange = typename decltype(edge_range)::type;
+        using GraphProp = typename decltype(graph_prop)::type;
+        if constexpr (std::is_void_v<NodeRange>) {
+            checker(std::common_type<std::pair<EdgeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+        } else {
+            checker(std::common_type<std::tuple<NodeRange, EdgeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+        }
+    };
+
+    auto for_each_node_map = [&] (auto node_range, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        using NodeRange = typename decltype(node_range)::type;
+        using EdgeRange = typename decltype(edge_range)::type;
+        constexpr auto node_repr = std::common_type<bxlx::detail2::range_traits_type<NodeRange>>{};
+        if constexpr (graph_p) {
+            props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+        } else {
+            checker(std::common_type<std::pair<NodeRange, EdgeRange>>{}, std::common_type<void>{},
+                    node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+        }
+    };
+
+    auto for_each_node_prop = [&] (auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        using NodeProp = typename decltype(node_prop)::type;
+        using NodeIndex = typename decltype(node_index)::type;
+        map_with_node_index::for_each<NodeIndex, NodeProp>(for_each_node_map, node_prop, edge_range, edge_repr, edge_prop, node_index);
+    };
+
+    auto for_each_edge_range = [&] (auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        if constexpr (node_p) {
+            props::for_each(for_each_node_prop, edge_range, edge_repr, edge_prop, node_index);
+        } else if constexpr (graph_p) {
+            props::for_each(for_each_graph_prop, std::common_type<void>{}, std::common_type<void>{}, std::common_type<void>{}, edge_range, edge_repr, edge_prop, node_index);
+        } else {
+            checker(edge_range, std::common_type<void>{}, std::common_type<void>{}, std::common_type<void>{}, std::common_type<void>{}, edge_range, edge_repr, edge_prop, node_index);
+        }
+    };
+
+    auto for_each_edge_prop = [&] (auto edge_prop, auto node_index) {
+        using EdgeProp = typename decltype(edge_prop)::type;
+        using NodeIndex = typename decltype(node_index)::type;
+        edge_ranges::for_each<std::tuple<NodeIndex, NodeIndex, EdgeProp>>(for_each_edge_range,
+            std::common_type<std::tuple<NodeIndex, NodeIndex, EdgeProp>>{}, edge_prop, node_index);
+    };
+
+    node_indices::for_each([&] (auto node_index) {
+        if constexpr (edge_p) {
+            props::for_each(for_each_edge_prop, node_index);
+        } else {
+            using NodeIndex = typename decltype(node_index)::type;
+            edge_ranges::for_each<std::pair<NodeIndex, NodeIndex>>(for_each_edge_range,
+                std::common_type<std::pair<NodeIndex, NodeIndex>>{}, std::common_type<void>{}, node_index);
+        }
+    });
+    return true;
+}
+
+
+template<bool node_p, bool edge_p, bool graph_p>
+constexpr bool check_all_edge_list_2() {
+    auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        constexpr auto node_size = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto edges_size = bxlx::detail2::compile_time_size_v<typename decltype(edge_range)::type>;
+        assert_on<
+            typename decltype(graph)::type,
+            graph_representation::edge_list,
+            typename decltype(node_index)::type,
+            typename decltype(node_repr)::type,
+            typename decltype(edge_repr)::type,
+            node_size ? node_size : 2 * edges_size,
+            edges_size,
+            typename decltype(graph_prop)::type,
+            typename decltype(node_prop)::type,
+            typename decltype(edge_prop)::type
+        >();
+    };
+
+    auto for_each_graph_prop = [&] (auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        using NodeRange = typename decltype(node_range)::type;
+        using EdgeRange = typename decltype(edge_range)::type;
+        using GraphProp = typename decltype(graph_prop)::type;
+        if constexpr (std::is_void_v<NodeRange>) {
+            checker(std::common_type<std::pair<EdgeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+        } else {
+            checker(std::common_type<std::tuple<NodeRange, EdgeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+        }
+    };
+
+    auto for_each_node_map = [&] (auto node_range, auto node_repr, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        using NodeRange = typename decltype(node_range)::type;
+        using EdgeRange = typename decltype(edge_range)::type;
+        if constexpr (graph_p) {
+            props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+        } else {
+            checker(std::common_type<std::pair<NodeRange, EdgeRange>>{}, std::common_type<void>{},
+                    node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+        }
+    };
+
+    auto for_each_node_prop = [&] (auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        using NodeProp = typename decltype(node_prop)::type;
+        node_indexed_ranges::for_each<NodeProp>(for_each_node_map, node_prop, node_prop, edge_range, edge_repr, edge_prop, node_index);
+    };
+
+    auto for_each_edge_range = [&] (auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
+        if constexpr (node_p) {
+            props::for_each(for_each_node_prop, edge_range, edge_repr, edge_prop, node_index);
+        }
+    };
+
+    auto for_each_edge_prop = [&] (auto edge_prop, auto node_index) {
+        using EdgeProp = typename decltype(edge_prop)::type;
+        using NodeIndex = typename decltype(node_index)::type;
+        edge_ranges::for_each<std::tuple<NodeIndex, NodeIndex, EdgeProp>>(for_each_edge_range,
+                                                                          std::common_type<std::tuple<NodeIndex, NodeIndex, EdgeProp>>{}, edge_prop, node_index);
+    };
+
+    indices::for_each([&] (auto node_index) {
+        if constexpr (edge_p) {
+            props::for_each(for_each_edge_prop, node_index);
+        } else {
+            using NodeIndex = typename decltype(node_index)::type;
+            edge_ranges::for_each<std::pair<NodeIndex, NodeIndex>>(for_each_edge_range,
+                                                                   std::common_type<std::pair<NodeIndex, NodeIndex>>{}, std::common_type<void>{}, node_index);
+        }
+    });
+    return true;
+}
+
+using check_nodes = type_holders<
+    bxlx::traits::constant_t<0>, bxlx::traits::constant_t<1>, bxlx::traits::constant_t<2>, bxlx::traits::constant_t<3>,
+    bxlx::traits::constant_t<4>, bxlx::traits::constant_t<5>, bxlx::traits::constant_t<6>, bxlx::traits::constant_t<7>
+>;
+
+[[maybe_unused]]
+constexpr auto ignore = (check_nodes::for_each([] (auto v) {
+    constexpr auto Val = decltype(v)::type::value;
+    static_assert(check_all_adj_list_1<!(Val & 1), !(Val & 2), !(Val & 4)>());
+    static_assert(check_all_adj_list_2<!(Val & 1), !(Val & 2), !(Val & 4)>());
+    static_assert(check_all_adj_list_3<!(Val & 1), !(Val & 2), !(Val & 4)>());
+    static_assert(check_all_adj_matrix_1<!(Val & 1), !(Val & 2), !(Val & 4)>());
+    static_assert(check_all_adj_matrix_2<!(Val & 1), !(Val & 2), !(Val & 4)>());
+    static_assert(check_all_edge_list_1<!(Val & 1), !(Val & 2), !(Val & 4)>());
+    static_assert(check_all_edge_list_2<!(Val & 1), !(Val & 2), !(Val & 4)>());
+}), 0);
 
 static_assert(assert_on<set<tup<int, int>>, graph_representation::edge_list, int, void, tup<int, int>, 0, 0>());
 static_assert(assert_on<set<tup<int, int, int>>, graph_representation::edge_list, int, void, tup<int, int, int>, 0, 0, void, void, int>());
