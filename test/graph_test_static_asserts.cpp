@@ -74,13 +74,14 @@ static_assert(std::is_same_v<simplified_why_not_a_graph<std::pair<std::vector<st
 static_assert(bxlx::is_it_a_graph<std::vector<std::vector<int>>>);
 
 template<class T, graph_representation repr, class node_index_t, class node_repr_type, class edge_repr_type, std::size_t nodes, std::size_t edges,
-    class graph_prop = void, class node_prop = void, class edge_prop = void>
+    class graph_prop, class node_prop, class edge_prop, bool user_defined>
 constexpr static bool assert_on() {
     static_assert(bxlx::traits::is_it_a_graph<T>);
     static_assert(is_graph_v<T>);
 
     using traits = graph_traits<T>;
     static_assert(traits::representation == repr);
+    static_assert(user_defined == traits::user_node_index);
     static_assert(std::is_same_v<typename traits::node_index_t, node_index_t>);
     static_assert(traits::has_graph_property == !std::is_void_v<graph_prop>);
     static_assert(traits::has_node_property == !std::is_void_v<node_prop>);
@@ -133,6 +134,8 @@ using node_indices = type_holders<std::string_view, int>;
 using indices = type_holders<int>;
 using props = type_holders<int>;
 
+static_assert(std::is_same_v<graph_traits<std::initializer_list<std::pair<int, int>>>::node_index_t, int>);
+
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_adj_list_1() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
@@ -148,7 +151,8 @@ constexpr bool check_all_adj_list_1() {
             nodes * (inside ? inside : nodes),
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
-            typename decltype(edge_prop)::type
+            typename decltype(edge_prop)::type,
+            false
         >();
     };
 
@@ -213,7 +217,8 @@ constexpr bool check_all_adj_list_2() {
             nodes * (inside ? inside : nodes),
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
-            typename decltype(edge_prop)::type
+            typename decltype(edge_prop)::type,
+            true
         >();
     };
 
@@ -282,7 +287,8 @@ constexpr bool check_all_adj_list_3() {
             nodes * (inside ? inside : nodes),
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
-            typename decltype(edge_prop)::type
+            typename decltype(edge_prop)::type,
+            true
         >();
     };
 
@@ -350,7 +356,8 @@ constexpr bool check_all_adj_matrix_1() {
             node_size * node_size,
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
-            void
+            void,
+            false
         >();
     };
 
@@ -406,7 +413,8 @@ constexpr bool check_all_adj_matrix_2() {
             node_size * node_size,
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
-            typename decltype(edge_prop)::type
+            typename decltype(edge_prop)::type,
+            false
         >();
     };
 
@@ -475,7 +483,8 @@ constexpr bool check_all_edge_list_1() {
             edges_size,
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
-            typename decltype(edge_prop)::type
+            typename decltype(edge_prop)::type,
+            true
         >();
     };
 
@@ -553,7 +562,8 @@ constexpr bool check_all_edge_list_2() {
             edges_size,
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
-            typename decltype(edge_prop)::type
+            typename decltype(edge_prop)::type,
+            false
         >();
     };
 
@@ -626,12 +636,12 @@ constexpr auto ignore = (check_nodes::for_each([] (auto v) {
     static_assert(check_all_edge_list_2<!(Val & 1), !(Val & 2), !(Val & 4)>());
 }), 0);
 
-static_assert(assert_on<set<tup<int, int>>, graph_representation::edge_list, int, void, tup<int, int>, 0, 0>());
-static_assert(assert_on<set<tup<int, int, int>>, graph_representation::edge_list, int, void, tup<int, int, int>, 0, 0, void, void, int>());
-static_assert(assert_on<tup<fx_range<tup<int, int, struct XX>>, struct A>, graph_representation::edge_list, int, void, tup<int, int, struct XX>, 10, 5, struct A, void, struct XX>());
+static_assert(assert_on<set<tup<int, int>>, graph_representation::edge_list, int, void, tup<int, int>, 0, 0, void, void, void, true>());
+static_assert(assert_on<set<tup<int, int, int>>, graph_representation::edge_list, int, void, tup<int, int, int>, 0, 0, void, void, int, true>());
+static_assert(assert_on<tup<fx_range<tup<int, int, struct XX>>, struct A>, graph_representation::edge_list, int, void, tup<int, int, struct XX>, 10, 5, struct A, void, struct XX, true>());
 static_assert(assert_on<tup<ra_range<tup<fx_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>,
     graph_representation::adjacency_matrix, std::size_t, tup<fx_range<opt<struct edge_prop>>, struct node_prop>,
-    opt<struct edge_prop>, 5, 25, struct graph_prop, struct node_prop, struct edge_prop>());
+    opt<struct edge_prop>, 5, 25, struct graph_prop, struct node_prop, struct edge_prop, false>());
 
 
 static_assert(is_graph_v< ra_range<   range<integral>>>);

@@ -474,6 +474,7 @@ namespace bxlx::traits {
         constexpr static auto get_graph_property = std::conditional_t<has_graph_property, getter_t<1>, noop_t>{};
 
         using node_index_t [[maybe_unused]] = has_property_or_t<Props, node_index, std::size_t>;
+        constexpr static bool user_node_index = get_property<Props, traits::user_node_index>::value;
 
         using node_repr_type [[maybe_unused]] = has_property_or_t<Props, traits::node_repr_type, void>;
         using edge_repr_type [[maybe_unused]] = get_property<Props, edge_repr_type>;
@@ -591,6 +592,14 @@ namespace bxlx::traits {
 
     template<class T>
     using graph_traits = typename graph::template graph_traits<T>;
+
+    template<class T, bool = is_graph_v<T>>
+    struct graph_sfinae_impl {};
+
+    template<class T>
+    struct graph_sfinae_impl<T, true> {
+        using type = graph_traits<T>;
+    };
 
     template<class T, class Why = decltype(graph::why_not<T>())>
     constexpr static bool is_it_a_graph = [] {

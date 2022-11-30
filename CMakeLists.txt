@@ -24,6 +24,7 @@ add_library(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/execution.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits/type_classification.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits/graph_traits.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits/node.hpp
 )
 
 add_library(bxlx::graph ALIAS ${PROJECT_NAME})

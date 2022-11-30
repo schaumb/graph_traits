@@ -40,6 +40,9 @@ namespace bxlx {
         constexpr static std::size_t max_node_compile_time = impl::max_node_compile_time;
         constexpr static std::size_t max_edge_compile_time = impl::max_edge_compile_time;
     };
+
+    template<class T>
+    using graph_traits_t = typename traits::graph_sfinae_impl<T>::type;
 }
 
 #endif //BXLX_GRAPH_TRAITS_GRAPH_TRAITS_HPP
