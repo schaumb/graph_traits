@@ -315,4 +315,20 @@ static_assert(classify<std::map<int, int, std::less<>>> == type_classification::
 static_assert(classify<std::set<std::pair<int, int>, std::less<>>> == type_classification::sized_range);
 static_assert(classify<std::set<std::tuple<int>, std::less<>>> == type_classification::sized_range);
 
+
+static_assert(std::is_same_v<get_begin_iterator_t<const std::vector<int>>, std::vector<int>::const_iterator>);
+static_assert(std::is_same_v<range_traits_type<const std::vector<int>>, const int>);
+
+static_assert(std::is_same_v<range_traits_type<const std::array<struct Dimy, 5>>, const struct Dimy>);
+
+static_assert(std::is_same_v<range_traits_type<const std::array<int, 5>>, const int>);
+static_assert(std::is_same_v<range_traits_type<std::initializer_list<int>>, const int>);
+static_assert(std::is_same_v<range_traits_type<const std::initializer_list<int>>, const int>);
+static_assert(std::is_same_v<range_traits_type<const int[6]>, const int>);
+static_assert(std::is_same_v<optional_traits_type<const std::optional<int>>, const int>);
+static_assert(std::is_same_v<optional_traits_type<const std::optional<struct Dimy>>, const struct Dimy>);
+static_assert(std::is_same_v<optional_traits_type<const struct Dimy*>, const struct Dimy>);
+
+static_assert(classify<const bool> == type_classification::bool_t);
+
 int main() {}

@@ -13,7 +13,7 @@
 #include <tuple>
 
 namespace bxlx::detail2 {
-    template<class T>
+    template<class CVT, class T = std::remove_cv_t<CVT>>
     constexpr inline bool is_char_v = std::is_same_v<T, char> || std::is_same_v<T, char16_t> ||
         std::is_same_v<T, char32_t> || std::is_same_v<T, wchar_t> || std::is_same_v<T, decltype(u8'\0')>;
         // C++17 -> u8'\0' is same type as char, but C++20 it is char8_t, which is different from char
@@ -63,7 +63,7 @@ namespace bxlx::detail2 {
         decltype(*std::declval<T&>())                           // has operator*()
     >> {
         using reference = decltype(*std::declval<T&>());
-        using value_type [[maybe_unused]] = remove_cvref_t<reference>;
+        using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
     };
 
     template<class T, class = void>
@@ -76,7 +76,15 @@ namespace bxlx::detail2 {
         typename optional_traits_impl<optional_like_t<dummy_type>>::value_type
     >>> {
         using reference [[maybe_unused]] = copy_cvref_t<typename optional_traits_impl<optional_like_t<dummy_type>>::reference, real_value_type>;
-        using value_type [[maybe_unused]] = real_value_type;
+        using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+    };
+
+    template<template <class> class optional_like_t, class real_value_type>
+    struct optional_traits<const optional_like_t<real_value_type>, std::enable_if_t<std::is_same_v<const dummy_type,
+        typename optional_traits_impl<const optional_like_t<dummy_type>>::value_type
+    >>> {
+        using reference [[maybe_unused]] = copy_cvref_t<typename optional_traits_impl<const optional_like_t<dummy_type>>::reference, real_value_type>;
+        using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
     };
 
     template<class T>
@@ -169,7 +177,7 @@ namespace bxlx::detail2 {
         !std::is_constructible_v<T, bool&>;         // cannot construct from bool&
 
     template<class T>
-    constexpr inline bool is_bool_v = std::is_same_v<T, bool> || is_bool_ref_v<T>;
+    constexpr inline bool is_bool_v = std::is_same_v<std::remove_cv_t<T>, bool> || is_bool_ref_v<T>;
 
 
     template<class T, bool = is_defined_v<T>>
@@ -182,7 +190,7 @@ namespace bxlx::detail2 {
         is_nothrow_convertible_v<std::size_t, T>;       // can convert from size_t
 
     template<class T>
-    constexpr inline bool is_index_v = !std::is_same_v<bool, T> && !is_char_v<T> &&
+    constexpr inline bool is_index_v = !std::is_same_v<bool, std::remove_cv_t<T>> && !is_char_v<T> &&
         (std::is_integral_v<T> || is_size_t_wrapper<T>);
 
 
@@ -307,7 +315,7 @@ namespace bxlx::detail2 {
         struct ssize_type<U, true> : std::make_signed<remove_cvref_t<decltype(std::size(std::declval<U>()))>> {};
 
         using reference = decltype(*std::begin(std::declval<T&>()));
-        using value_type [[maybe_unused]] = remove_cvref_t<reference>;
+        using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
 
         constexpr static bool is_sized = has_size_v<T> || compile_time_size_v<T>;
         [[maybe_unused]] constexpr static bool random_access =
@@ -321,7 +329,7 @@ namespace bxlx::detail2 {
         has_std_iterator_traits_v<get_begin_iterator_t<T>>
     >> {
         using reference = typename std::iterator_traits<get_begin_iterator_t<T>>::reference;
-        using value_type [[maybe_unused]] = typename std::iterator_traits<get_begin_iterator_t<T>>::value_type;
+        using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
         [[maybe_unused]] constexpr static bool is_sized = has_size_v<T> || compile_time_size_v<T>;
         [[maybe_unused]] constexpr static bool random_access =
             std::is_base_of_v<std::random_access_iterator_tag,
@@ -346,9 +354,21 @@ namespace bxlx::detail2 {
         std::is_same_v<dummy_type, typename range_traits_impl<container<dummy_type, Ix>>::value_type>
     >> {
         using reference [[maybe_unused]] = copy_cvref_t<typename range_traits_impl<container<dummy_type, Ix>>::reference, real_value_type>;
-        using value_type [[maybe_unused]] = real_value_type;
+        using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
         [[maybe_unused]] constexpr static bool is_sized = range_traits_impl<container<dummy_type, Ix>>::is_sized;
         [[maybe_unused]] constexpr static bool random_access = range_traits_impl<container<dummy_type, Ix>>::random_access;
+        [[maybe_unused]] constexpr static bool predeclared_array = !is_defined_v<real_value_type>;
+    };
+
+
+    template<template <class, std::size_t> class container, class real_value_type, std::size_t Ix>
+    struct range_traits<const container<real_value_type, Ix>, true, std::enable_if_t<
+        std::is_same_v<const dummy_type, typename range_traits_impl<const container<dummy_type, Ix>>::value_type>
+    >> {
+        using reference [[maybe_unused]] = copy_cvref_t<typename range_traits_impl<const container<dummy_type, Ix>>::reference, real_value_type>;
+        using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+        [[maybe_unused]] constexpr static bool is_sized = range_traits_impl<const container<dummy_type, Ix>>::is_sized;
+        [[maybe_unused]] constexpr static bool random_access = range_traits_impl<const container<dummy_type, Ix>>::random_access;
         [[maybe_unused]] constexpr static bool predeclared_array = !is_defined_v<real_value_type>;
     };
 
