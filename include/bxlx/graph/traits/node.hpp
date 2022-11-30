@@ -66,17 +66,66 @@ namespace bxlx::traits::node {
         }
     }
 
-/*
-    template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
-    constexpr auto get_node(Graph [const|&|*] g, const node_t<GraphTraits>&)
-    -> node_repr_t<GraphTraits> [const|&|*];
+
+    template<class not_a_graph, class ... Args>
+    constexpr std::enable_if_t<!is_graph_v<detail2::remove_cvref_t<std::remove_pointer_t<detail2::remove_cvref_t<not_a_graph>>>>, bool> get_node(not_a_graph&&, Args&&...) = delete;
+
+    template<class Graph, class GraphTraits = graph_traits_t<Graph>>
+    constexpr decltype(auto) get_node_impl(Graph& g, const node_t<GraphTraits>& n)
+    {
+        auto&& nodes = GraphTraits::get_nodes(g);
+        if constexpr (GraphTraits::user_node_index) {
+            if (auto it = nodes.find(n); it != std::end(nodes))
+                return std::addressof(*it);
+        } else if (has_node(g, n)) {
+            if constexpr (detail2::has_subscript_operator<detail2::remove_cvref_t<decltype(nodes)>>) {
+                return std::addressof(nodes[n]);
+            } else {
+                return std::addressof(*(std::begin(nodes) + n));
+            }
+        }
+
+        return static_cast<node_repr_t<GraphTraits>*>(nullptr);
+    }
+
+    template<class Graph, class GraphTraits = graph_traits_t<std::remove_reference_t<Graph>>>
+    constexpr auto get_node(Graph&& g, const node_t<GraphTraits>& n)
+        -> bxlx::detail2::copy_reference_t<Graph, node_repr_t<GraphTraits>>
+    {
+        if (auto it = get_node_impl(g, n))
+            return *it;
+
+        throw std::out_of_range("Node not exists");
+    }
+
+    template<class Graph, class GraphTraits = graph_traits_t<Graph>>
+    constexpr auto get_node(Graph* g, const node_t<GraphTraits>& n)
+        -> node_repr_t<GraphTraits>*
+    {
+        return get_node_impl(*g, n);
+    }
 
 
-    template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
-    constexpr auto get_node_property(Graph [const|&|*] g, const node_t<GraphTraits>&)
-    -> node_prop_t<GraphTraits> [const|&|*];
+    template<class not_a_graph, class ... Args>
+    constexpr std::enable_if_t<!is_graph_v<detail2::remove_cvref_t<std::remove_pointer_t<detail2::remove_cvref_t<not_a_graph>>>>, bool>
+            get_node_property(not_a_graph&&, Args&&...) = delete;
 
+    template<class Graph, class GraphTraits = graph_traits_t<std::remove_reference_t<Graph>>>
+    constexpr auto get_node_property(Graph&& g, const node_t<GraphTraits>& n)
+        -> bxlx::detail2::copy_reference_t<Graph, node_prop_t<GraphTraits>>
+    {
+        return GraphTraits::get_node_property(get_node(std::forward<Graph>(g), n));
+    }
 
+    template<class Graph, class GraphTraits = graph_traits_t<std::remove_reference_t<Graph>>>
+    constexpr auto get_node_property(Graph* g, const node_t<GraphTraits>& n)
+        -> node_prop_t<GraphTraits>*
+    {
+        if (auto it = get_node_impl(*g, n))
+            return std::addressof(GraphTraits::get_node_property(*it));
+        return nullptr;
+    }
+    /*
 // only for modifiable structures:
 
     template<class Graph, class GraphTraits = graph_traits<Graph>      [, class ...Args           ]>

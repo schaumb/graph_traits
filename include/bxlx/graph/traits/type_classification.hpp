@@ -37,16 +37,19 @@ namespace bxlx::detail2 {
     using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
     template<class T, class U>
+    using copy_reference_t = std::conditional_t<std::is_lvalue_reference_v<T>,
+            std::add_lvalue_reference_t<U>,
+            std::conditional_t<std::is_rvalue_reference_v<T>,
+                std::add_rvalue_reference_t<U>,
+                U>>;
+
+    template<class T, class U>
     struct copy_cvref {
         using t_without_ref = std::remove_reference_t<T>;
         using copied_const = std::conditional_t<std::is_const_v<t_without_ref>, std::add_const_t<U>, U>;
         using copied_cv = std::conditional_t<std::is_volatile_v<t_without_ref>,
                                              std::add_volatile_t<copied_const>, copied_const>;
-        using type = std::conditional_t<std::is_lvalue_reference_v<T>,
-            std::add_lvalue_reference_t<copied_cv>,
-            std::conditional_t<std::is_rvalue_reference_v<T>,
-                std::add_rvalue_reference_t<copied_cv>,
-                copied_cv>>;
+        using type = copy_reference_t<T, copied_cv>;
     };
 
     template<class T, class U>
