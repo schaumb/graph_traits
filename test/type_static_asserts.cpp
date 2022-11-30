@@ -330,5 +330,7 @@ static_assert(std::is_same_v<optional_traits_type<const std::optional<struct Dim
 static_assert(std::is_same_v<optional_traits_type<const struct Dimy*>, const struct Dimy>);
 
 static_assert(classify<const bool> == type_classification::bool_t);
+static_assert(classify<const std::map<int, int>> == type_classification::map_like_container);
+static_assert(classify<const std::unordered_map<int, int>> == type_classification::map_like_container);
 
 int main() {}

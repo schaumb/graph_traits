@@ -23,6 +23,15 @@ namespace bxlx {
 }
 
 namespace bxlx::traits {
+    template<class T>
+    struct type_identity { using type = T; };
+    template<std::size_t I, class T>
+    struct tuple_element_cvref {
+        using type = detail2::copy_cvref_t<T, std::tuple_element_t<I, detail2::remove_cvref_t<T>>>;
+    };
+    template<std::size_t I, class T>
+    using tuple_element_cvref_t = typename tuple_element_cvref<I, T>::type;
+
     template<class T, class V = std::make_index_sequence<std::tuple_size_v<T>>>
     struct properties;
     template<class T, std::size_t ...ix>
@@ -75,11 +84,11 @@ namespace bxlx::traits {
         std::tuple_element_t<1, std::tuple_element_t<Type::template get_last_property_index<U>, typename Type::type>>>;
 
     template<class P, class Prop, class Or, class = void>
-    struct has_property_or : std::common_type<Or> {};
+    struct has_property_or : type_identity<Or> {};
     template<class P, class Prop, class Or>
     struct has_property_or<P, Prop, Or, std::enable_if_t<
         has_property<P, Prop>
-    >> : std::common_type<get_property<P, Prop>> {};
+    >> : type_identity<get_property<P, Prop>> {};
     template<class P, class Prop, class Or>
     using has_property_or_t = typename has_property_or<P, Prop, Or>::type;
 
@@ -228,7 +237,7 @@ namespace bxlx::traits {
 
     struct index : accept_only<detail2::type_classification::index> {
         template<class T>
-        using properties [[maybe_unused]] = merge_properties<property<user_node_index, std::false_type>, property<node_index, T>>;
+        using properties [[maybe_unused]] = merge_properties<property<user_node_index, std::false_type>, property<node_index, std::remove_cv_t<T>>>;
     };
 
     struct bool_t : accept_only<detail2::type_classification::bool_t>, no_prop {};
@@ -298,7 +307,7 @@ namespace bxlx::traits {
     template<class ...Conditions>
     struct tuple_like : accept_recursively<tuple_like<Conditions...>, detail2::type_classification::tuple_like> {
         template<class T, std::size_t...Ix>
-        static merge_properties<empty_properties, get_properties<Conditions, std::tuple_element_t<Ix, T>>...>
+        static merge_properties<empty_properties, get_properties<Conditions, tuple_element_cvref_t<Ix, T>>...>
         merge_properties_helper(std::index_sequence<Ix...>) { return {}; }
 
         template<class T>
@@ -306,7 +315,7 @@ namespace bxlx::traits {
 
         template<class T, std::size_t ...Ix>
         constexpr static bool is_valid_nested(std::index_sequence<Ix...>) {
-            return (Conditions::template is_valid<std::tuple_element_t<Ix, T>>() && ...);
+            return (Conditions::template is_valid<tuple_element_cvref_t<Ix, T>>() && ...);
         }
 
         template<class T>
@@ -322,7 +331,7 @@ namespace bxlx::traits {
 
         template<class T, std::size_t ...Ix>
         constexpr static auto why_not_nested(std::index_sequence<Ix...>) {
-            return error_handling::tuple_nested_mismatched<error_handling::condition_and_error<Conditions, decltype(Conditions::template why_not<std::tuple_element_t<Ix, T>>())>...>{};
+            return error_handling::tuple_nested_mismatched<error_handling::condition_and_error<Conditions, decltype(Conditions::template why_not<tuple_element_cvref_t<Ix, T>>())>...>{};
         }
 
         template<class T>
@@ -438,7 +447,7 @@ namespace bxlx::traits {
     template<std::size_t I>
     struct getter_t {
         template<class T, class ...Ts>
-        [[nodiscard]] constexpr auto operator()(T&& val, Ts&&...) const noexcept -> detail2::copy_cvref_t<T, std::tuple_element_t<I, detail2::remove_cvref_t<T>>> {
+        [[nodiscard]] constexpr auto operator()(T&& val, Ts&&...) const noexcept -> tuple_element_cvref_t<I, T> {
             return std::get<I>(val);
         }
     };
@@ -504,14 +513,14 @@ namespace bxlx::traits {
                 * (graph_traits::in_container_size ? graph_traits::in_container_size : max_node_compile_time);
 
             template<class P, bool C, class = void>
-            struct get_node_property_getter : std::common_type<
+            struct get_node_property_getter : type_identity<
                 std::conditional_t<C, composition_t<getter_t<1>, getter_t<1>>, noop_t>> {};
 
             template<class P>
             struct get_node_property_getter<P, true, std::enable_if_t<
                 std::is_same_v<get_property<P, node_property>,
-                    std::tuple_element_t<1, get_property<P, traits::node_repr_type>>
-            >>> : std::common_type<getter_t<1>> {};
+                    tuple_element_cvref_t<1, get_property<P, traits::node_repr_type>>
+            >>> : type_identity<getter_t<1>> {};
 
             constexpr static auto get_edge_property = std::conditional_t<graph_traits::has_edge_property, getter_t<1>, noop_t>{};
             constexpr static auto get_node_property = typename get_node_property_getter<Props, graph_traits::has_node_property>::type{};
@@ -563,14 +572,14 @@ namespace bxlx::traits {
                                                                  max_edge_compile_time * 2;
 
             template<class P, bool C, class = void>
-            struct get_node_property_getter : std::common_type<
+            struct get_node_property_getter : type_identity<
                 std::conditional_t<C, getter_t<1>, noop_t>> {};
 
             template<class P>
             struct get_node_property_getter<P, true, std::enable_if_t<
                 std::is_same_v<get_property<P, node_property>,
                     typename graph_traits::node_repr_type
-                >>> : std::common_type<identity_t> {};
+                >>> : type_identity<identity_t> {};
 
             constexpr static auto get_edge_property = std::conditional_t<graph_traits::has_edge_property, getter_t<2>, noop_t>{};
             constexpr static auto get_node_property = typename get_node_property_getter<Props, graph_traits::has_node_property>::type{};

@@ -521,13 +521,20 @@ constexpr bool check_all_edge_list_1() {
     };
 
     auto for_each_edge_range = [&] (auto edge_range, auto edge_prop, auto node_index) {
-        constexpr auto edge_repr = type_identity<bxlx::detail2::range_traits_type<typename decltype(edge_range)::type>>{};
+        using EdgeRepr = bxlx::detail2::range_traits_type<typename decltype(edge_range)::type>;
+        constexpr auto edge_repr = type_identity<EdgeRepr>{};
+        constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
+            std::is_void_v<typename decltype(edge_prop)::type>,
+            type_identity<void>,
+            bxlx::traits::tuple_element_cvref<2, EdgeRepr>
+        >::type>{};
+
         if constexpr (node_p) {
-            props::for_each(for_each_node_prop, edge_range, edge_repr, edge_prop, node_index);
+            props::for_each(for_each_node_prop, edge_range, edge_repr, modified_edge_prop, node_index);
         } else if constexpr (graph_p) {
-            props::for_each(for_each_graph_prop, type_identity<void>{}, type_identity<void>{}, type_identity<void>{}, edge_range, edge_repr, edge_prop, node_index);
+            props::for_each(for_each_graph_prop, type_identity<void>{}, type_identity<void>{}, type_identity<void>{}, edge_range, edge_repr, modified_edge_prop, node_index);
         } else {
-            checker(edge_range, type_identity<void>{}, type_identity<void>{}, type_identity<void>{}, type_identity<void>{}, edge_range, edge_repr, edge_prop, node_index);
+            checker(edge_range, type_identity<void>{}, type_identity<void>{}, type_identity<void>{}, type_identity<void>{}, edge_range, edge_repr, modified_edge_prop, node_index);
         }
     };
 
@@ -598,8 +605,14 @@ constexpr bool check_all_edge_list_2() {
 
     auto for_each_edge_range = [&] (auto edge_range, auto edge_prop, auto node_index) {
         if constexpr (node_p) {
-            constexpr auto edge_repr = type_identity<bxlx::detail2::range_traits_type<typename decltype(edge_range)::type>>{};
-            props::for_each(for_each_node_prop, edge_range, edge_repr, edge_prop, node_index);
+            using EdgeRepr = bxlx::detail2::range_traits_type<typename decltype(edge_range)::type>;
+            constexpr auto edge_repr = type_identity<EdgeRepr>{};
+            constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
+                std::is_void_v<typename decltype(edge_prop)::type>,
+                type_identity<void>,
+                bxlx::traits::tuple_element_cvref<2, EdgeRepr>
+            >::type>{};
+            props::for_each(for_each_node_prop, edge_range, edge_repr, modified_edge_prop, node_index);
         }
     };
 
@@ -638,7 +651,7 @@ constexpr auto ignore = (check_nodes::for_each([] (auto v) {
 }), 0);
 
 static_assert(assert_on<set<tup<int, int>>, graph_representation::edge_list, int, void, const tup<int, int>, 0, 0, void, void, void, true>());
-static_assert(assert_on<set<tup<int, int, int>>, graph_representation::edge_list, int, void, const tup<int, int, int>, 0, 0, void, void, int, true>());
+static_assert(assert_on<set<tup<int, int, int>>, graph_representation::edge_list, int, void, const tup<int, int, int>, 0, 0, void, void, const int, true>());
 static_assert(assert_on<tup<fx_range<tup<int, int, struct XX>>, struct A>, graph_representation::edge_list, int, void, tup<int, int, struct XX>, 10, 5, struct A, void, struct XX, true>());
 static_assert(assert_on<tup<ra_range<tup<fx_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>,
     graph_representation::adjacency_matrix, std::size_t, tup<fx_range<opt<struct edge_prop>>, struct node_prop>,
