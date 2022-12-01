@@ -25,6 +25,5 @@ else()
 endif()
 
 # TODO make work add_dependency
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-backtrace-limit=0")
 get_target_property(graph_include bxlx.graph INTERFACE_INCLUDE_DIRECTORIES)
 target_include_directories(graph_test PRIVATE ${graph_include})
