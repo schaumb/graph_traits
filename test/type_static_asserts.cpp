@@ -22,6 +22,7 @@
 #include <optional>
 #include <functional>
 #include <atomic>
+#include <memory>
 
 using namespace bxlx::detail2;
 
@@ -101,6 +102,10 @@ static_assert(classify<std::pair<A, A>> == type_classification::tuple_like);
 static_assert(classify<A*> == type_classification::optional);
 static_assert(classify<std::array<A, 10>> == type_classification::random_access_range);
 static_assert(classify<std::optional<A>> == type_classification::optional);
+static_assert(classify<std::unique_ptr<A>> == type_classification::optional);
+static_assert(classify<std::unique_ptr<A[]>> == type_classification::indeterminate); // no * operator
+static_assert(classify<std::shared_ptr<A>> == type_classification::optional);
+static_assert(classify<std::shared_ptr<A[]>> == type_classification::optional);
 static_assert(classify<std::optional<std::pair<A, A>>> == type_classification::optional);
 static_assert(classify<std::optional<std::optional<A>>> == type_classification::optional);
 static_assert(classify<std::array<std::optional<A>, 10>> == type_classification::random_access_range);

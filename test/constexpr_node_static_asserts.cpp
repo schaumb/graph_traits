@@ -1,6 +1,7 @@
 
 #include <bxlx/graph/traits/node.hpp>
 #include <bitset>
+#include <cassert>
 
 namespace node = bxlx::traits::node;
 
@@ -84,4 +85,49 @@ static_assert(is_equal(node::get_node(std::initializer_list<std::initializer_lis
 
 static_assert(node::get_node_property(std::pair<std::initializer_list<int>, std::initializer_list<std::pair<int, int>>>{{0, 4, 2}, {}}, 1) == 4);
 
+static_assert(node::get_node_property(std::initializer_list<std::pair<std::initializer_list<int>, std::string_view>>{
+    {}, {}, {{}, "hello"}
+}, 2) == "hello");
+
 static_assert(*node::get_node_property(&c_edge_list, 2) == 5);
+
+template<class T, std::size_t Ix>
+struct constexpr_vector {
+    T arr[Ix]{};
+
+    std::size_t s{};
+
+    [[nodiscard]] constexpr T* begin() { return arr; }
+    [[nodiscard]] constexpr const T* begin() const { return arr; }
+
+    [[nodiscard]] constexpr T* end() { return arr + s; }
+    [[nodiscard]] constexpr const T* end() const { return arr + s; }
+
+    [[nodiscard]] constexpr std::size_t size() const { return s; }
+
+    template<class ...Args>
+    constexpr T& emplace_back(Args&& ...args) {
+        if (s == Ix)
+            throw std::bad_alloc();
+        return arr[s++] = T(std::forward<Args>(args)...);
+    }
+};
+
+
+static_assert(bxlx::detail2::classify<constexpr_vector<int, 20>> == bxlx::detail2::type_classification::random_access_range);
+static_assert(bxlx::detail2::compile_time_size_v<constexpr_vector<int, 20>> == 0);
+static_assert([] () -> bool {
+    using G = constexpr_vector<std::array<int, 10>, 3>;
+    static_assert(bxlx::traits::is_it_a_graph<G>);
+
+    G graph{};
+    assert(node::add_node(graph).first == 0);
+    for (auto && v : node::get_node(graph, 0)) {
+        assert(v == 0); //this is bad
+    }
+
+    assert(node::add_node(graph).first == 1);
+    assert(node::add_node(graph).first == 2);
+
+    return true;
+} ());

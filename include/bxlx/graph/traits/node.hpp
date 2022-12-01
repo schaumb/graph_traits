@@ -78,7 +78,7 @@ namespace bxlx::traits::node {
             if (auto it = nodes.find(n); it != std::end(nodes))
                 return std::addressof(*it);
         } else if (has_node(g, n)) {
-            if constexpr (detail2::has_subscript_operator<detail2::remove_cvref_t<decltype(nodes)>>) {
+            if constexpr (detail2::has_subscript_operator<std::remove_reference_t<decltype(nodes)>>) {
                 return std::addressof(nodes[n]);
             } else {
                 return std::addressof(*(std::begin(nodes) + n));
@@ -124,6 +124,27 @@ namespace bxlx::traits::node {
         if (auto it = get_node_impl(*g, n))
             return std::addressof(GraphTraits::get_node_property(*it));
         return nullptr;
+    }
+
+    template<class not_a_graph, class ... Args>
+    constexpr std::enable_if_t<!is_graph_v<detail2::remove_cvref_t<not_a_graph>>, bool> add_node(not_a_graph&&, Args&&...) = delete;
+
+    template<class Graph, class GraphTraits = graph_traits<Graph>, class ...Args>
+    constexpr auto add_node(Graph& g, Args&& ... args)
+        -> std::enable_if_t<
+            !GraphTraits::user_node_index &&
+            (GraphTraits::has_node_property || sizeof...(Args) == 0) &&
+                            GraphTraits::representation == graph_representation::adjacency_list,
+                            std::pair<node_t<GraphTraits>, node_repr_t<GraphTraits>&>>
+    {
+        auto&& nodes = GraphTraits::get_nodes(g);
+        node_t<GraphTraits> index = std::size(nodes);
+        // TODO if in_container_size != 0 ...
+        if constexpr (GraphTraits::has_node_property) {
+            return {index, nodes.emplace_back(std::piecewise_construct, std::tuple<>{}, std::forward_as_tuple(std::forward<Args>(args)...))};
+        } else {
+            return {index, nodes.emplace_back()};
+        }
     }
     /*
 // only for modifiable structures:
