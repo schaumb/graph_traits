@@ -21,13 +21,33 @@ namespace bxlx {
                 std::vector<Type>
             >;
 
+            constexpr static auto get_size(const Graph& g) {
+                if constexpr (Traits::max_node_compile_time > 0) {
+                    return;
+                } else if constexpr (!std::is_void_v<typename Traits::node_container_type>) {
+                    return Operation{}(std::size(Traits::get_nodes(g)), addition);
+                } else if constexpr (Traits::max_edge_compile_time > 0) {
+                    return Operation{}(Traits::max_edge_compile_time * 2, addition);
+                } else {
+                    return Operation{}(std::size(Traits::get_edges(g)) * 2, addition);
+                }
+            }
+
             constexpr static type init(const Graph& g) {
                 if constexpr (Traits::max_node_compile_time > 0) {
                     return {};
-                } else if constexpr (!std::is_void_v<std::invoke_result_t<decltype(Traits::get_nodes), Graph>>) {
-                    return type(Operation{}(std::size(Traits::get_nodes(g)), addition));
                 } else {
-                    return type(Operation{}(std::size(Traits::get_edges(g)) * 2, addition));
+                    return type(get_size(g));
+                }
+            }
+
+            constexpr static type reserve(const Graph& g) {
+                if constexpr (Traits::max_node_compile_time > 0) {
+                    return {};
+                } else {
+                    type res;
+                    res.reserve(get_size(g));
+                    return res;
                 }
             }
         };
@@ -39,14 +59,40 @@ namespace bxlx {
                 std::vector<Type>
             >;
 
+            constexpr static auto get_size(const Graph& g) {
+                if constexpr (Traits::max_edge_compile_time > 0) {
+                    return;
+                } else if constexpr (!std::is_void_v<typename Traits::edge_container_type>) {
+                    return Operation{}(std::size(Traits::get_edges(g)), addition);
+                } else if constexpr (Traits::out_edge_container_size != 0) {
+                    return Operation{}(std::size(Traits::get_nodes(g)) * Traits::out_edge_container_size, addition);
+                } else if constexpr (Traits::representation == traits::graph_representation::adjacency_matrix) {
+                    auto&& node_size = std::size(Traits::get_nodes(g));
+                    return Operation{}(node_size * node_size, addition);
+                } else {
+                    auto count = std::remove_reference_t<decltype(std::size(Traits::get_nodes(g)))>{};
+                    for (auto&& node : Traits::get_nodes(g)) {
+                        count += std::size(Traits::out_edges(node));
+                    }
+                    return Operation{}(count, addition);
+                }
+            }
+
             constexpr static type init(const Graph& g) {
                 if constexpr (Traits::max_edge_compile_time > 0) {
                     return {};
-                } else if constexpr (!std::is_void_v<std::invoke_result_t<decltype(Traits::get_edges), Graph>>) {
-                    return type(Operation{}(std::size(Traits::get_edges(g)), addition));
                 } else {
-                    auto&& node_size = std::size(Traits::get_nodes(g));
-                    return type(Operation{}(node_size * (Traits::in_container_size ? Traits::in_container_size : node_size), addition));
+                    return type(get_size(g));
+                }
+            }
+
+            constexpr static type reserve(const Graph& g) {
+                if constexpr (Traits::max_edge_compile_time > 0) {
+                    return {};
+                } else {
+                    type res;
+                    res.reserve(get_size(g));
+                    return res;
                 }
             }
         };

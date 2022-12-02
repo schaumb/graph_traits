@@ -151,7 +151,7 @@ constexpr bool check_all_adj_list_1() {
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
             nodes,
-            nodes * (inside ? inside : nodes),
+            nodes * inside,
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
             typename decltype(edge_prop)::type,
@@ -217,7 +217,7 @@ constexpr bool check_all_adj_list_2() {
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
             nodes,
-            nodes * (inside ? inside : nodes),
+            nodes * inside,
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
             typename decltype(edge_prop)::type,
@@ -287,7 +287,7 @@ constexpr bool check_all_adj_list_3() {
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
             nodes,
-            nodes * (inside ? inside : nodes),
+            nodes * inside,
             typename decltype(graph_prop)::type,
             typename decltype(node_prop)::type,
             typename decltype(edge_prop)::type,
@@ -679,3 +679,7 @@ static_assert(is_graph_v< tup<ra_range<tup<range<integral>, struct node_prop>>, 
 static_assert(is_graph_v< tup<ra_range<tup<ra_range<bool_t>, struct node_prop>>, struct graph_prop>>);
 static_assert(is_graph_v< tup<ra_range<tup<range<tup<integral, struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
 static_assert(is_graph_v< tup<ra_range<tup<ra_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
+
+
+static_assert(std::is_same_v<typename bxlx::graph_traits<std::array<std::array<int, 10>, 3>>::out_edge_container_type, std::array<int, 10>>);
+static_assert(std::is_same_v<typename bxlx::graph_traits<std::pair<std::vector<int>, std::set<std::tuple<int, int>>>>::edge_container_type, std::set<std::tuple<int, int>>>);

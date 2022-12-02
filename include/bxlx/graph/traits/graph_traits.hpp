@@ -488,9 +488,7 @@ namespace bxlx::traits {
         using node_repr_type [[maybe_unused]] = has_property_or_t<Props, traits::node_repr_type, void>;
         using edge_repr_type [[maybe_unused]] = get_property<Props, edge_repr_type>;
 
-        constexpr static auto node_container_size = has_property_or_t<Props, traits::node_container_size, constant_t<0>>::value;
         constexpr static auto edge_container_size = has_property_or_t<Props, traits::edge_container_size, constant_t<0>>::value;
-        constexpr static auto in_container_size = has_property_or_t<Props, inside_container_size, constant_t<0>>::value;
 
         using graph_property_type [[maybe_unused]] = has_property_or_t<Props, graph_property, void>;
         using node_property_type [[maybe_unused]] = has_property_or_t<Props, node_property, void>;
@@ -508,9 +506,12 @@ namespace bxlx::traits {
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
             constexpr static inline auto representation = graph_representation::adjacency_list;
 
-            constexpr static inline auto max_node_compile_time = graph_traits::node_container_size;
+            constexpr static auto node_container_size = has_property_or_t<Props, traits::node_container_size, constant_t<0>>::value;
+            constexpr static auto out_edge_container_size = has_property_or_t<Props, inside_container_size, constant_t<0>>::value;
+
+            constexpr static inline auto max_node_compile_time = node_container_size;
             constexpr static inline auto max_edge_compile_time = max_node_compile_time
-                * (graph_traits::in_container_size ? graph_traits::in_container_size : max_node_compile_time);
+                * out_edge_container_size;
 
             template<class P, bool C, class = void>
             struct get_node_property_getter : type_identity<
@@ -530,6 +531,19 @@ namespace bxlx::traits {
 
             constexpr static inline auto get_edges = noop_t{};
             constexpr static inline auto get_nodes = std::conditional_t<graph_traits::has_graph_property, getter_t<0>, identity_t>{};
+
+            template<class, class = void>
+            constexpr static inline std::nullptr_t invalid_v = nullptr;
+            template<class Traits>
+            constexpr static inline typename Traits::node_index_t invalid_v<Traits, std::enable_if_t<
+                !Traits::user_node_index
+            >> = static_cast<typename Traits::node_index_t>(~std::size_t{});
+
+            constexpr static inline auto invalid = invalid_v<graph_traits>;
+
+            using node_container_type = std::remove_reference_t<decltype(get_nodes(std::declval<T>()))>;
+            using edge_container_type = void;
+            using out_edge_container_type = std::remove_reference_t<decltype(out_edges(std::declval<typename graph_traits::node_repr_type>()))>;
         };
     };
 
@@ -545,16 +559,25 @@ namespace bxlx::traits {
         template<class T, class Props = get_properties<adjacency_matrix, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
             constexpr static inline auto representation = graph_representation::adjacency_matrix;
-            constexpr static inline auto max_node_compile_time = graph_traits::node_container_size;
-            constexpr static inline auto max_edge_compile_time = max_node_compile_time * max_node_compile_time;
-
-            constexpr static auto get_edge_property = std::conditional_t<graph_traits::has_edge_property, indirect_t, noop_t>{};
-            constexpr static auto get_node_property = std::conditional_t<graph_traits::has_node_property, getter_t<1>, noop_t>{};
 
             constexpr static inline auto out_edges = std::conditional_t<graph_traits::has_node_property, getter_t<0>, identity_t>{};
 
             constexpr static inline auto get_edges = noop_t{};
             constexpr static inline auto get_nodes = std::conditional_t<graph_traits::has_graph_property, getter_t<0>, identity_t>{};
+
+            using node_container_type = std::remove_reference_t<decltype(get_nodes(std::declval<T>()))>;
+            using edge_container_type = void;
+            using out_edge_container_type = std::remove_reference_t<decltype(out_edges(std::declval<typename graph_traits::node_repr_type>()))>;
+
+            constexpr static auto node_container_size = detail2::compile_time_size_v<node_container_type>;
+            constexpr static auto out_edge_container_size = detail2::compile_time_size_v<out_edge_container_type>;
+
+            constexpr static inline auto max_node_compile_time = std::max(node_container_size, out_edge_container_size);
+            constexpr static inline auto max_edge_compile_time = max_node_compile_time * max_node_compile_time;
+
+            constexpr static auto get_edge_property = std::conditional_t<graph_traits::has_edge_property, indirect_t, noop_t>{};
+            constexpr static auto get_node_property = std::conditional_t<graph_traits::has_node_property, getter_t<1>, noop_t>{};
+
         };
     };
 
@@ -566,9 +589,13 @@ namespace bxlx::traits {
         template<class T, class Props = get_properties<edge_list, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
             constexpr static inline auto representation = graph_representation::edge_list;
+
+            constexpr static auto node_container_size = has_property_or_t<Props, traits::node_container_size, constant_t<0>>::value;
+            constexpr static auto out_edge_container_size = 0;
+
             constexpr static inline auto max_edge_compile_time = graph_traits::edge_container_size;
-            constexpr static inline auto max_node_compile_time = graph_traits::node_container_size ?
-                                                                 graph_traits::node_container_size :
+            constexpr static inline auto max_node_compile_time = node_container_size ?
+                                                                 node_container_size :
                                                                  max_edge_compile_time * 2;
 
             template<class P, bool C, class = void>
@@ -591,6 +618,10 @@ namespace bxlx::traits {
             constexpr static inline auto get_edges = std::conditional_t<graph_traits::has_node_property, getter_t<1>,
                 std::conditional_t<graph_traits::has_graph_property, getter_t<0>, identity_t>>{};
             constexpr static inline auto get_nodes = std::conditional_t<graph_traits::has_node_property, getter_t<0>, noop_t>{};
+
+            using node_container_type = std::remove_reference_t<decltype(get_nodes(std::declval<T>()))>;
+            using edge_container_type = std::remove_reference_t<decltype(get_edges(std::declval<T>()))>;
+            using out_edge_container_type = void;
         };
     };
 
