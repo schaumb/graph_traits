@@ -398,6 +398,50 @@ namespace bxlx::traits::node {
         };
     };
 
+    template<class GraphTraits>
+    struct add_node_traits<GraphTraits, true, true> {
+        using RealTraits = GraphTraits;
+        constexpr static bool adj_list = GraphTraits::representation == traits::graph_representation::adjacency_list;
+        constexpr static bool edge_list = GraphTraits::representation == traits::graph_representation::edge_list;
+        using NodeContainer = typename GraphTraits::node_container_type;
+
+        template<class Traits, class, class ...Args>
+        struct check_emplace_impl : std::false_type {};
+
+        template<class Traits, class ...Args>
+        struct check_emplace_impl<Traits, std::enable_if_t<
+            Traits::edge_list,
+            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>().try_emplace(
+                std::declval<const node_t<typename Traits::RealTraits>&>(),
+                std::declval<Args&&>()...
+            ))>
+        >, Args...> : std::true_type {
+            template<class Graph>
+            constexpr static decltype(auto) do_it(Graph& g, const node_t<typename Traits::RealTraits>& i, Args&&...args) {
+                return std::make_pair(i, Traits::RealTraits::get_nodes(g).try_emplace(i, std::forward<Args>(args)...).second);
+            }
+        };
+
+
+        template<class Traits, class ...Args>
+        struct check_emplace_impl<Traits, std::enable_if_t<
+            Traits::adj_list &&
+            std::is_constructible_v<std::tuple_element_t<1, node_repr_t<typename Traits::RealTraits>>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>>,
+            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>()
+                .try_emplace(
+                    std::declval<node_t<typename Traits::RealTraits>>(),
+                    std::piecewise_construct, std::tuple<>{}, std::declval<std::tuple<Args&&...>>()))>
+        >, Args...> : std::true_type {
+            template<class Graph>
+            constexpr static decltype(auto) do_it(Graph& g, const node_t<typename Traits::RealTraits>& i, Args&&...args) {
+                return std::make_pair(i, Traits::RealTraits::get_nodes(g).try_emplace(i, std::piecewise_construct, std::tuple<>{}, std::forward_as_tuple(std::forward<Args>(args)...)).second);
+            }
+        };
+
+        template<class ...Args>
+        using check_emplace = check_emplace_impl<add_node_traits, void, Args...>;
+    };
+
     // not a graph
     template<class not_a_graph, class ... Args>
     constexpr std::enable_if_t<!is_graph_v<detail2::remove_cvref_t<not_a_graph>>, std::size_t> add_node(not_a_graph&, Args&&...) = delete;
@@ -508,9 +552,6 @@ namespace bxlx::traits::node {
 
 user_node_index (==> !adj_matrix)
 
-    .try_emplace(ix, Args...) // (4)
-     > edge_list && has_node_prop
-    - `map<node_index, node_prop>`
 
     .try_emplace(ix, inplace, tuple{}, tuple{Args...}}) // (4)
      > adj_list && out_edge_size == 0 && has_node_prop

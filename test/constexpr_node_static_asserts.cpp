@@ -309,6 +309,18 @@ static_assert(has_add_node_v<std::map<int, std::map<int, int>>, int>);
 static_assert(has_add_node_v<constexpr_modifiable_map<int, std::map<int, int>, 10>, int>);
 static_assert(!has_add_node_v<constexpr_map<int, std::map<int, int>, 10>, int>);
 
+static_assert(has_add_node_v<std::pair<std::unordered_map<std::string_view, int>, std::vector<std::tuple<std::string_view, std::string_view>>>, std::string_view, int>);
+
+
+static_assert(!has_add_node_v<std::map<std::string_view, std::pair<std::map<std::string_view, int>, std::reference_wrapper<int>>>, int&>);
+static_assert(!has_add_node_v<std::map<std::string_view, std::pair<std::map<std::string_view, int>, std::reference_wrapper<int>>>, std::string_view>);
+
+static_assert(has_add_node_v<std::map<std::string_view, std::pair<std::vector<std::string_view>, std::reference_wrapper<int>>>, const char*, int&>);
+static_assert(has_add_node_v<std::map<std::string_view, std::pair<std::map<std::string_view, int>, std::reference_wrapper<int>>>, std::string, int&>);
+
+constexpr static auto drop_one = [] (auto&&, auto&& ... args) {
+    return std::forward_as_tuple(std::forward<decltype(args)>(args)...);
+};
 
 template<class Graph, class GraphTraits = bxlx::graph_traits_t<Graph>>
 constexpr static auto check = [] (auto&& ...args) {
@@ -352,10 +364,16 @@ constexpr static auto check = [] (auto&& ...args) {
         }
     }
 
-    if constexpr (!GraphTraits::user_node_index && GraphTraits::has_node_property) {
-        typename GraphTraits::node_property_type value{std::forward<decltype(args)>(args)...};
-        if (node::get_node_property(g, i) != value)
-            return false;
+    if constexpr (GraphTraits::has_node_property) {
+        if constexpr (!GraphTraits::user_node_index) {
+            typename GraphTraits::node_property_type value{std::forward<decltype(args)>(args)...};
+            if (node::get_node_property(g, i) != value)
+                return false;
+        } else {
+            auto value = std::make_from_tuple<typename GraphTraits::node_property_type>(drop_one(std::forward<decltype(args)>(args)...));
+            if (node::get_node_property(g, i) != value)
+                return false;
+        }
     }
 
     return true;
@@ -401,3 +419,20 @@ static_assert([] {
 }());
 
 static_assert(check<constexpr_modifiable_map<std::string_view, constexpr_map<std::string_view, int, 1>, 4>>("helo"));
+static_assert(check<constexpr_pair<constexpr_modifiable_map<std::string_view, const int*, 4>, constexpr_vector<constexpr_pair<std::string_view, std::string_view>, 2>>>("helo", &V));
+
+
+static_assert(check<constexpr_modifiable_map<std::string_view, constexpr_pair<constexpr_vector<std::string_view, 1>, const int*>, 3>>("hello", &V));
+static_assert(check<constexpr_modifiable_map<std::string_view, constexpr_pair<constexpr_modifiable_map<std::string_view, bool, 1>, const int*>, 3>>("hello", &V));
+
+static_assert([] {
+    struct {
+        std::size_t ix{};
+        std::string_view arr[2] = {"1", "2"};
+        constexpr operator std::string_view() {
+            return arr[ix++];
+        }
+    } changable_index;
+    return check<constexpr_modifiable_map<std::string_view, constexpr_pair<constexpr_vector<std::string_view, 1>, const int*>, 3>>(changable_index, &V);
+}());
+
