@@ -542,29 +542,10 @@ namespace bxlx::traits::node {
     template<class Graph, class GraphTraits = graph_traits_t<Graph>>
     constexpr auto add_node(Graph& g)
         -> std::enable_if_t<GraphTraits::user_node_index && GraphTraits::has_node_property, std::pair<node_t<GraphTraits>, bool>> = delete;
+
     /*
-     *
-    (1) add_node (Graph&) // !user_node_index && !has_node_prop
-    (2) add_node (Graph&, Args&&...) // !user_node_index && has_node_prop
-    (3) add_node (Graph&, const node_t<GraphTraits>&) // user_node_index && !has_node_prop
-    (4) add_node (Graph&, const node_t<GraphTraits>&, Args&&...) // user_node_index && has_node_prop
-
-
-user_node_index (==> !adj_matrix)
-
-
-    .try_emplace(ix, inplace, tuple{}, tuple{Args...}}) // (4)
-     > adj_list && out_edge_size == 0 && has_node_prop
-    - `map<node_index, pair<range<node_index>, node_prop>>`
-    - `map<node_index, pair<map<node_index, edge_prop>, node_prop>>`
-
-*/
-    /*
-    template<class Graph, class GraphTraits = graph_traits<Graph>      [, class ...Args           ]>
-// parameters:                only if node index is user defined | only if it has node_property
-    constexpr auto add_node(Graph&[, const node_t<GraphTraits>&    ]   [, Args&& ...              ])
-    -> std::pair<node_t<GraphTraits>, bool>; // index + was new
-
+    template<class Graph, class GraphTraits = graph_traits<Graph>>
+    constexpr std::size_t remove_edges_with_node(Graph&, const node_t<GraphTraits>&);
 
     template<class Graph, class GraphTraits = graph_traits<Graph>>
     constexpr bool remove_node(Graph&, const node_t<GraphTraits>&);

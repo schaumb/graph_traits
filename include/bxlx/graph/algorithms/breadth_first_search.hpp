@@ -23,7 +23,7 @@
 #include <execution>
 
 namespace bxlx::graph {
-    template<class Graph, class GraphTraits = graph_traits<Graph>>
+    template<class Graph, class GraphTraits = bxlx::graph_traits_t<std::remove_reference_t<Graph>>>
     struct breadth_first_search_result {
         typename GraphTraits::node_index_t parent;
         typename GraphTraits::node_index_t index;
@@ -185,7 +185,7 @@ namespace bxlx::graph {
         using type = bxlx::graph_traits<graph_t>;
     };
 
-    template<class Graph, class GraphTraits = typename graph_traits_traits<Graph>::type>
+    template<class Graph, class GraphTraits = bxlx::graph_traits_t<std::remove_reference_t<Graph>>>
     constexpr detail::bfs_impl<Graph, GraphTraits> breadth_first_search(Graph&& graph, typename GraphTraits::node_index_t start_index) {
         return {std::forward<Graph>(graph), start_index};
     }

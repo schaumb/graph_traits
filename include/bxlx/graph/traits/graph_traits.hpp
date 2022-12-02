@@ -197,12 +197,12 @@ namespace bxlx::traits {
     };
 
     // properties
-    struct user_node_index;
-    struct node_repr_type;
-    struct edge_repr_type;
-    struct node_container_size;
-    struct edge_container_size;
-    struct inside_container_size;
+    struct user_node_index {};
+    struct node_repr_type {};
+    struct edge_repr_type {};
+    struct node_container_size {};
+    struct edge_container_size {};
+    struct inside_container_size {};
 
     struct no_prop {
         template<class>
