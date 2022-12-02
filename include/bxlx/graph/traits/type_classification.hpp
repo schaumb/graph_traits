@@ -457,9 +457,9 @@ namespace bxlx::detail2 {
         >> = true;
 
         template<class, class = void>
-        constexpr static inline bool has_set_with_tuple_find_function_v = false;
+        constexpr static inline bool has_set_find_function_v = false;
         template<class T>
-        constexpr static inline bool has_set_with_tuple_find_function_v<T, std::void_t<
+        constexpr static inline bool has_set_find_function_v<T, std::void_t<
             decltype(member_function_invoke_result_v<get_begin_iterator_t<const T>, const T, typename range_traits<const T>::reference>(&T::find))
         >> = true;
 
@@ -490,7 +490,7 @@ namespace bxlx::detail2 {
         >> = true;
 
         [[maybe_unused]] constexpr static inline bool value = has_map_find_function_v<Impl> &&
-            (!has_set_with_tuple_find_function_v<Impl> ||
+            (!has_set_find_function_v<Impl> ||
              has_map_at_function_v<Impl> ||
              has_map_key_type_v<Impl> ||
              has_no_transparent_key_comp_v<Impl> ||
@@ -510,6 +510,48 @@ namespace bxlx::detail2 {
     constexpr inline bool is_map_like_container_v = false;
     template<class T>
     constexpr inline bool is_map_like_container_v<T, true> = has_map_like_properties_v<T>;
+
+
+    template<class Comp>
+    struct comparator_to_equality : Comp {
+        using Comp::Comp;
+
+        template<class U>
+        constexpr auto operator()(const U& lhs, const U& rhs) const noexcept -> std::invoke_result_t<Comp, U, U> {
+            return !this->Comp::operator()(lhs, rhs) && !this->Comp::operator()(rhs, lhs);
+        }
+    };
+
+    template<class T, bool = is_defined_v<T>>
+    struct map_set_traits {
+        using equality = void;
+    };
+
+    template<class T>
+    struct map_set_traits<T, true> {
+        template<class U = T, class = void>
+        struct equality_getter : std::common_type<void> {};
+        template<class U>
+        struct equality_getter<U, std::enable_if_t<
+            has_map_like_properties_impl<void, 2>::template has_no_transparent_key_comp_v<U>
+        >> : std::common_type<comparator_to_equality<decltype(member_function_invoke_result_v<void, const T>(&T::key_comp))>> {};
+        template<class U>
+        struct equality_getter<U, std::enable_if_t<
+            has_map_like_properties_impl<void, 2>::template has_no_transparent_key_eq_v<U>
+        >> : std::common_type<decltype(member_function_invoke_result_v<void, const T>(&T::key_eq))> {};
+
+        using equality = typename equality_getter<T>::type;
+    };
+
+    template<class T>
+    using map_set_equality_t = typename map_set_traits<T>::equality;
+    template<class T>
+    constexpr static inline bool has_map_set_equality_v = !std::is_void_v<map_set_equality_t<T>>;
+
+    template<class T, bool = is_defined_v<T>>
+    constexpr static inline bool is_set_like_container = false;
+    template<class T>
+    constexpr static inline bool is_set_like_container<T, true> = !is_map_like_container_v<T> && has_map_like_properties_impl<void, 2>::template has_set_find_function_v<T>;
 
 
     enum class type_classification {

@@ -203,6 +203,7 @@ namespace bxlx::traits {
     struct node_container_size {};
     struct edge_container_size {};
     struct inside_container_size {};
+    struct node_equality_type{};
 
     struct no_prop {
         template<class>
@@ -372,44 +373,23 @@ namespace bxlx::traits {
             std::conditional_t<(bxlx::detail2::compile_time_size_v<T> > 0),
                 property<container_size_prop, constant_t<bxlx::detail2::compile_time_size_v<T>>>,
                 empty_properties
+            >,
+            std::conditional_t<(bxlx::detail2::compile_time_size_v<T> > 0) && std::is_same_v<container_size_prop, inside_container_size>,
+                property<user_node_index, std::false_type>,
+                empty_properties
+            >,
+            std::conditional_t<bxlx::detail2::has_map_set_equality_v<T> && (std::is_same_v<container_size_prop, inside_container_size> || std::is_same_v<container_size_prop, node_container_size>),
+                property<node_equality_type, bxlx::detail2::map_set_equality_t<T>>,
+                empty_properties
             >
         >;
     };
 
     template<class Cond>
-    struct range : accept_recursively<range<Cond>,
+    struct range : accept_recursively<range_impl<inside_container_size, Cond>,
         detail2::type_classification::range,
         detail2::type_classification::sized_range,
-        detail2::type_classification::random_access_range> {
-
-        template<class T>
-        constexpr static bool is_valid_nested() {
-            if constexpr (Cond::template is_valid<detail2::range_traits_type<T>>()) {
-                return properties<T>::is_valid;
-            }
-            return false;
-        }
-
-        template<class T>
-        constexpr static auto why_not_nested() {
-            if constexpr (Cond::template is_valid<detail2::range_traits_type<T>>()) {
-                return error_handling::property_mismatch<T, get_properties<range, T>>{};
-            } else {
-                return Cond::template why_not<detail2::range_traits_type<T>>();
-            }
-        }
-
-        template<class T>
-        using properties = merge_properties<get_properties<Cond, detail2::range_traits_type<T>>,
-            std::conditional_t<(bxlx::detail2::compile_time_size_v<T> > 0),
-                property<inside_container_size, constant_t<bxlx::detail2::compile_time_size_v<T>>>,
-                empty_properties
-            >,
-            std::conditional_t<(bxlx::detail2::compile_time_size_v<T> > 0),
-                property<user_node_index, std::false_type>,
-                empty_properties
-            >
-        >;
+        detail2::type_classification::random_access_range>, range_impl<inside_container_size, Cond> {
     };
 
     template<class T>
@@ -523,6 +503,8 @@ namespace bxlx::traits {
         using graph_property_type [[maybe_unused]] = has_property_or_t<Props, graph_property, void>;
         using node_property_type [[maybe_unused]] = has_property_or_t<Props, node_property, void>;
         using edge_property_type [[maybe_unused]] = has_property_or_t<Props, edge_property, void>;
+
+        using node_equality_type [[maybe_unused]] = has_property_or_t<Props, node_equality_type, void>;
     };
 
     struct adjacency_list : with_graph_property<any_of<

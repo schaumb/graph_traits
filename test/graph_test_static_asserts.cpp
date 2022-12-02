@@ -51,6 +51,7 @@ static_assert(!is_graph_v<set<set<int>>>);
 static_assert(!is_graph_v<ra_range<set<bool>>>);
 static_assert(!is_graph_v<tup<set<bool>>>);
 static_assert(!is_graph_v<set<tup<int, unsigned int>>>);
+static_assert(!is_graph_v<map<int, std::unordered_map<int, int>>>);
 
 static_assert(is_graph_v<ra_range<set<int>>>);
 static_assert(is_graph_v<set<tup<int, int>>>);
@@ -306,7 +307,12 @@ constexpr bool check_all_adj_list_3() {
         checker(type_identity<std::pair<NodeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
     };
     auto for_each_indexed_range = [&] (auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
-        if constexpr (graph_p) {
+        using Comp1 = bxlx::detail2::map_set_equality_t<typename decltype(range)::type>;
+        using Comp2 = bxlx::detail2::map_set_equality_t<typename decltype(node_range)::type>;
+
+        if constexpr (!std::is_void_v<Comp1> && !std::is_void_v<Comp2> && !std::is_same_v<Comp1, Comp2>) {
+            // not matching node equality
+        } else if constexpr (graph_p) {
             props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
         } else {
             checker(node_range, type_identity<void>{}, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
