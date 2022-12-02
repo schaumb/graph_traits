@@ -26,6 +26,7 @@ namespace std {
 #include <cassert>
 #include <deque>
 #include <optional>
+#include <map>
 
 namespace node = bxlx::traits::node;
 
@@ -169,8 +170,86 @@ struct std::tuple_element<I, constexpr_pair<T1, T2>> {
 };
 
 
+template<class K, class V, std::size_t Ix>
+struct constexpr_map {
+    using T = constexpr_pair<K, V>;
+    T arr[Ix]{};
+
+    std::size_t s{};
+
+    [[nodiscard]] constexpr T* begin() { return arr; }
+    [[nodiscard]] constexpr const T* begin() const { return arr; }
+
+    [[nodiscard]] constexpr T* end() { return arr + s; }
+    [[nodiscard]] constexpr const T* end() const { return arr + s; }
+
+    [[nodiscard]] constexpr std::size_t size() const { return s; }
+
+    [[nodiscard]] constexpr const T* find(const K& k) const {
+        for (auto& m : *this)
+            if (m == k)
+                return &m;
+
+        return end();
+    }
+
+    [[nodiscard]] constexpr T* find(const K& k) {
+        for (auto& m : *this)
+            if (m == k)
+                return &m;
+
+        return end();
+    }
+};
+
+template<class K, class V, std::size_t Ix, class Comp = std::equal_to<K>>
+struct constexpr_modifiable_map {
+    using T = constexpr_pair<K, V>;
+    T arr[Ix]{};
+
+    std::size_t s{};
+
+    [[nodiscard]] constexpr T* begin() { return arr; }
+    [[nodiscard]] constexpr const T* begin() const { return arr; }
+
+    [[nodiscard]] constexpr T* end() { return arr + s; }
+    [[nodiscard]] constexpr const T* end() const { return arr + s; }
+
+    [[nodiscard]] constexpr std::size_t size() const { return s; }
+
+    [[nodiscard]] constexpr const T* find(const K& k) const {
+        for (auto& m : *this)
+            if (Comp{}(m.first, k))
+                return &m;
+
+        return end();
+    }
+
+    [[nodiscard]] constexpr T* find(const K& k) {
+        for (auto& m : *this)
+            if (Comp{}(m.first, k))
+                return &m;
+
+        return end();
+    }
+
+    template<class ...Args>
+    [[nodiscard]] constexpr constexpr_pair<T*, bool> try_emplace(const K& k, Args&& ...args) {
+        if (auto p = find(k); p != end())
+            return {p, false};
+
+        if (s == Ix)
+            throw std::bad_alloc();
+
+        return {std::addressof(arr[s++] = T{k, V(std::forward<Args>(args)...)}), true};
+    }
+};
+
+
 static_assert(bxlx::detail2::classify<constexpr_vector<int, 20>> == bxlx::detail2::type_classification::random_access_range);
 static_assert(bxlx::detail2::compile_time_size_v<constexpr_vector<int, 20>> == 0);
+static_assert(bxlx::detail2::classify<constexpr_map<int, int, 20>> == bxlx::detail2::type_classification::map_like_container);
+static_assert(bxlx::detail2::classify<constexpr_modifiable_map<int, int, 20>> == bxlx::detail2::type_classification::map_like_container);
 
 
 template<class, class T, class ...Args>
@@ -223,17 +302,26 @@ static_assert(has_add_node_v<std::vector<std::pair<std::vector<bool>, float>>>);
 static_assert(has_add_node_v<std::vector<std::pair<std::array<int, 3>, float>>>);
 static_assert(has_add_node_v<std::vector<std::pair<std::array<std::pair<int, float>, 3>, float>>>);
 
+static_assert(!has_add_node_v<std::map<int, std::vector<int>>>);
+static_assert(!has_add_node_v<std::map<int, std::vector<int>>, int, int>);
+static_assert(has_add_node_v<std::map<std::string, std::vector<std::string>>, std::string>);
+static_assert(has_add_node_v<std::map<int, std::map<int, int>>, int>);
+static_assert(has_add_node_v<constexpr_modifiable_map<int, std::map<int, int>, 10>, int>);
+static_assert(!has_add_node_v<constexpr_map<int, std::map<int, int>, 10>, int>);
+
 
 template<class Graph, class GraphTraits = bxlx::graph_traits_t<Graph>>
 constexpr static auto check = [] (auto&& ...args) {
     Graph g;
-    auto i = node::add_node(g, std::forward<decltype(args)>(args)...);
-    node::add_node(g, std::forward<decltype(args)>(args)...);
+    constexpr std::conditional_t<GraphTraits::user_node_index, bxlx::traits::getter_t<0>, bxlx::traits::identity_t> get{};
+    auto i = get(node::add_node(g, std::forward<decltype(args)>(args)...));
+    auto oth = get(node::add_node(g, std::forward<decltype(args)>(args)...));
 
+    auto expected_size = i == oth ? 1 : 2;
     if (!node::has_node(g, i))
         return false;
 
-    if (std::size(GraphTraits::get_nodes(g)) != 2)
+    if (std::size(GraphTraits::get_nodes(g)) != expected_size)
         return false;
 
     if constexpr (GraphTraits::representation == bxlx::traits::graph_representation::adjacency_list &&
@@ -258,7 +346,7 @@ constexpr static auto check = [] (auto&& ...args) {
         }
         if constexpr (GraphTraits::out_edge_container_size == 0) {
             for (auto& node : GraphTraits::get_nodes(g)) {
-                if (std::size(GraphTraits::out_edges(node)) != 2)
+                if (std::size(GraphTraits::out_edges(node)) != expected_size)
                     return false;
             }
         }
@@ -300,3 +388,16 @@ static_assert(check<constexpr_vector<constexpr_pair<constexpr_vector<const int*,
 
 static_assert(check<constexpr_vector<constexpr_pair<std::array<int, 2>, std::nullptr_t>, 4>>(nullptr));
 static_assert(check<constexpr_vector<constexpr_pair<std::array<constexpr_pair<int, float>, 2>, std::nullptr_t>, 4>>(nullptr));
+
+static_assert(check<constexpr_modifiable_map<int, constexpr_vector<int, 1>, 2>>(0));
+static_assert([] {
+    struct {
+        std::size_t ix{};
+        constexpr operator int() {
+            return ix++;
+        }
+    } changable_index;
+    return check<constexpr_modifiable_map<int, constexpr_vector<int, 1>, 2>>(changable_index);
+}());
+
+static_assert(check<constexpr_modifiable_map<std::string_view, constexpr_map<std::string_view, int, 1>, 4>>("helo"));

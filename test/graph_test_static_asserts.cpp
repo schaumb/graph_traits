@@ -71,6 +71,9 @@ static_assert(std::is_same_v<simplified_why_not_a_graph<int>,
     bxlx::not_matching_types>);
 static_assert(std::is_same_v<simplified_why_not_a_graph<std::map<int, std::set<unsigned int>>>,
     bxlx::multiple_property_for<bxlx::traits::node_index, int, unsigned int>>);
+
+static_assert(std::is_same_v<simplified_why_not_a_graph<std::map<int, std::array<int, 10>>>,
+    bxlx::multiple_property_for<bxlx::traits::user_node_index, std::true_type, std::false_type>>);
 static_assert(std::is_same_v<simplified_why_not_a_graph<std::pair<std::vector<std::vector<int>>, std::vector<std::pair<int, int>>>>,
     bxlx::graph_multiple_recognize>);
 
@@ -248,7 +251,9 @@ constexpr bool check_all_adj_list_2() {
     auto for_each_any_range = [&] (auto range, auto edge_repr, auto edge_prop, auto index) {
         using NodeIndex = typename decltype(index)::type;
         using Range = typename decltype(range)::type;
-        if constexpr (node_p) {
+        if constexpr (bxlx::detail2::compile_time_size_v<Range> != 0) {
+            // not acceptable.
+        } else if constexpr (node_p) {
             props::for_each(for_each_node_prop, range, edge_repr, edge_prop, index);
         } else {
             map_with_node_index::for_each<NodeIndex, Range>(for_each_indexed_range, type_identity<std::pair<const NodeIndex, Range>>{}, type_identity<void>{}, range, edge_repr, edge_prop, index);

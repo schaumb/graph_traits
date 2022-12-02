@@ -38,7 +38,7 @@ namespace bxlx::traits::node {
     template<class Graph, class GraphTraits = graph_traits_t<Graph>>
     constexpr auto has_node(const Graph& g, const node_t<GraphTraits>& n)
         -> std::enable_if_t<!std::is_void_v<node_repr_t<GraphTraits>> &&
-                            GraphTraits::user_node_index>
+                            GraphTraits::user_node_index, bool>
     {
         auto&& nodes = GraphTraits::get_nodes(g);
         return nodes.find(n) != std::end(nodes);
@@ -374,6 +374,29 @@ namespace bxlx::traits::node {
         using check_emplace = check_emplace_impl<add_node_traits, void, Args...>;
     };
 
+    template<class GraphTraits>
+    struct add_node_traits<GraphTraits, true, false> {
+        using RealTraits = GraphTraits;
+        constexpr static bool adj_list = GraphTraits::representation == traits::graph_representation::adjacency_list;
+        constexpr static bool fix_out_edge = GraphTraits::out_edge_container_size != 0;
+        using NodeContainer = typename GraphTraits::node_container_type;
+
+        template<class Traits = add_node_traits, class = void>
+        struct check_emplace : std::false_type {};
+
+        template<class Traits>
+        struct check_emplace<Traits, std::enable_if_t<
+            Traits::adj_list && !Traits::fix_out_edge,
+            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>().try_emplace(
+                std::declval<node_t<typename Traits::RealTraits>>()
+            ))>
+        >> : std::true_type {
+            template<class Graph>
+            constexpr static decltype(auto) do_it(Graph& g, const typename Traits::RealTraits::node_index_t& i) {
+                return std::make_pair(i, Traits::RealTraits::get_nodes(g).try_emplace(i).second);
+            }
+        };
+    };
 
     // not a graph
     template<class not_a_graph, class ... Args>
@@ -426,6 +449,55 @@ namespace bxlx::traits::node {
         , node_t<GraphTraits>> {
         return add_node_traits<GraphTraits>::template check_emplace<Args&&...>::do_it(g, std::forward<Args>(args)...);
     };
+
+
+    template<class Graph, class GraphTraits = graph_traits_t<Graph>>
+    constexpr auto add_node(Graph& g, const node_t<GraphTraits>& n)
+        -> std::enable_if_t<GraphTraits::user_node_index && !GraphTraits::has_node_property &&
+                        add_node_traits<GraphTraits>::template check_emplace<>::value
+        , std::pair<node_t<GraphTraits>, bool>> {
+        return add_node_traits<GraphTraits>::template check_emplace<>::do_it(g, n);
+    };
+
+    // emplace() is not exist or adj_list edge_property not default constructible
+    template<class Graph, class GraphTraits = graph_traits_t<Graph>>
+    constexpr auto add_node(Graph& g, const node_t<GraphTraits>& n)
+        -> std::enable_if_t<GraphTraits::user_node_index && !GraphTraits::has_node_property &&
+                        !add_node_traits<GraphTraits>::template check_emplace<>::value
+        , std::pair<node_t<GraphTraits>, bool>> = delete;
+
+    // for this graph, must be exactly 1 argument required
+    template<class Graph, class GraphTraits = graph_traits_t<Graph>>
+    constexpr auto add_node(Graph& g)
+        -> std::enable_if_t<GraphTraits::user_node_index && !GraphTraits::has_node_property, std::pair<node_t<GraphTraits>, bool>> = delete;
+
+    // for this graph, must be exactly 1 argument required
+    template<class Graph, class GraphTraits = graph_traits_t<Graph>, class Arg, class ...Args>
+    constexpr auto add_node(Graph& g, const node_t<GraphTraits>& n, Arg&&, Args&&...)
+        -> std::enable_if_t<GraphTraits::user_node_index && !GraphTraits::has_node_property, std::pair<node_t<GraphTraits>, bool>> = delete;
+
+
+
+    template<class Graph, class GraphTraits = graph_traits_t<Graph>, class ...Args>
+    constexpr auto add_node(Graph& g, const node_t<GraphTraits>& n, Args&&... args)
+        -> std::enable_if_t<GraphTraits::user_node_index && GraphTraits::has_node_property &&
+                        add_node_traits<GraphTraits>::template check_emplace<Args&&...>::value &&
+                        std::is_constructible_v<node_prop_t<GraphTraits>, Args&&...>
+        , std::pair<node_t<GraphTraits>, bool>> {
+        return add_node_traits<GraphTraits>::template check_emplace<Args&&...>::do_it(g, n, std::forward<Args>(args)...);
+    };
+
+    // emplace() is not exist or adj_list edge_property not default constructible
+    template<class Graph, class GraphTraits = graph_traits_t<Graph>, class ...Args>
+    constexpr auto add_node(Graph& g, const node_t<GraphTraits>& n, Args&&... args)
+        -> std::enable_if_t<GraphTraits::user_node_index && GraphTraits::has_node_property &&
+                        !add_node_traits<GraphTraits>::template check_emplace<Args&&...>::value
+        , std::pair<node_t<GraphTraits>, bool>> = delete;
+
+    // for this graph, at least 1 argument required
+    template<class Graph, class GraphTraits = graph_traits_t<Graph>>
+    constexpr auto add_node(Graph& g)
+        -> std::enable_if_t<GraphTraits::user_node_index && GraphTraits::has_node_property, std::pair<node_t<GraphTraits>, bool>> = delete;
     /*
      *
     (1) add_node (Graph&) // !user_node_index && !has_node_prop
@@ -436,35 +508,14 @@ namespace bxlx::traits::node {
 
 user_node_index (==> !adj_matrix)
 
-    .emplace(ix, {}) // (3)
-     > adj_list && out_edge_size == 0 && !has_node_prop
-    - `map<node_index, range<node_index>`
-    - `map<node_index, range<pair<node_index, edge_prop>>`
-    - `map<node_index, map<node_index, edge_prop>>`
+    .try_emplace(ix, Args...) // (4)
+     > edge_list && has_node_prop
     - `map<node_index, node_prop>`
 
-    .emplace_back(ix, c_t_range<integer>{{-1}...}) // repeat: out_edge_size // (3)
-     > adj_list && out_edge_size != 0 && !has_node_prop
-    - `map<node_index, c_t_range<node_index>`
-
-
-    .emplace_back(ix, c_t_range<pair<node_index, edge_prop>>{{{-1}, {edge_prop{}}...}) // repeat: out_edge_size // (3)
-    - `map<node_index, c_t_range<pair<node_index, edge_prop>>`
-
-
-    .emplace(inplace, ix, tuple{Args...}) // (4)
-     > edge_list && has_node_prop
-
-    .emplace(inplace, ix, tuple{inplace, {}, tuple{Args...}}) // (4)
+    .try_emplace(ix, inplace, tuple{}, tuple{Args...}}) // (4)
      > adj_list && out_edge_size == 0 && has_node_prop
     - `map<node_index, pair<range<node_index>, node_prop>>`
     - `map<node_index, pair<map<node_index, edge_prop>, node_prop>>`
-
-    .emplace(inplace, ix, tuple{inplace, {c_t_range<integer>{{-1}...}}, tuple{Args...}}) // (4)
-    - `map<node_index, pair<c_t_range<node_index>, node_prop>>`
-
-    .emplace(inplace, ix, tuple{inplace, {c_t_range<integer>{{-1, edge_prop{}}...}}, tuple{Args...}}) // (4)
-    - `map<node_index, pair<c_t_map<node_index, edge_prop>, node_prop>>`
 
 */
     /*

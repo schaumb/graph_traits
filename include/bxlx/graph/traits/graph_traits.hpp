@@ -157,7 +157,7 @@ namespace bxlx::traits {
 
         template<class T>
         constexpr static auto why_not() {
-            if (!is_valid<T>()) {
+            if constexpr (!is_valid<T>()) {
                 return error_handling::type_classification_mismatch<T>{};
             }
         }
@@ -376,11 +376,41 @@ namespace bxlx::traits {
         >;
     };
 
-    template<class T>
-    struct range : accept_recursively<range_impl<inside_container_size, T>,
+    template<class Cond>
+    struct range : accept_recursively<range<Cond>,
         detail2::type_classification::range,
         detail2::type_classification::sized_range,
-        detail2::type_classification::random_access_range>, range_impl<inside_container_size, T> {};
+        detail2::type_classification::random_access_range> {
+
+        template<class T>
+        constexpr static bool is_valid_nested() {
+            if constexpr (Cond::template is_valid<detail2::range_traits_type<T>>()) {
+                return properties<T>::is_valid;
+            }
+            return false;
+        }
+
+        template<class T>
+        constexpr static auto why_not_nested() {
+            if constexpr (Cond::template is_valid<detail2::range_traits_type<T>>()) {
+                return error_handling::property_mismatch<T, get_properties<range, T>>{};
+            } else {
+                return Cond::template why_not<detail2::range_traits_type<T>>();
+            }
+        }
+
+        template<class T>
+        using properties = merge_properties<get_properties<Cond, detail2::range_traits_type<T>>,
+            std::conditional_t<(bxlx::detail2::compile_time_size_v<T> > 0),
+                property<inside_container_size, constant_t<bxlx::detail2::compile_time_size_v<T>>>,
+                empty_properties
+            >,
+            std::conditional_t<(bxlx::detail2::compile_time_size_v<T> > 0),
+                property<user_node_index, std::false_type>,
+                empty_properties
+            >
+        >;
+    };
 
     template<class T>
     struct edge_range : accept_recursively<range_impl<edge_container_size, T>,
@@ -527,7 +557,9 @@ namespace bxlx::traits {
             constexpr static auto get_node_property = typename get_node_property_getter<Props, graph_traits::has_node_property>::type{};
 
             constexpr static inline auto edge_target = std::conditional_t<graph_traits::has_edge_property, getter_t<0>, identity_t>{};
-            constexpr static inline auto out_edges = std::conditional_t<graph_traits::has_node_property, getter_t<0>, identity_t>{};
+            constexpr static inline auto out_edges = composition_t<
+                std::conditional_t<graph_traits::has_node_property, getter_t<0>, identity_t>,
+                std::conditional_t<graph_traits::user_node_index, getter_t<1>, identity_t>>{};
 
             constexpr static inline auto get_edges = noop_t{};
             constexpr static inline auto get_nodes = std::conditional_t<graph_traits::has_graph_property, getter_t<0>, identity_t>{};

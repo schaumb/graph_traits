@@ -268,6 +268,8 @@ in the schema, the node_index/index must be the same
 - node/edge/graph properties any combination
 
 
+these ranges cannot be any compile time fix range:
+
 - `map<node_index, range<node_index>`
 - `map<node_index, range<pair<node_index, edge_prop>>`
 - `map<node_index, pair<range<node_index>, node_prop>>`

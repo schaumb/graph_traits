@@ -244,13 +244,22 @@ namespace bxlx::detail2 {
     constexpr bool is_constexpr(...) { return false; }
 
     template<class, class = void>
-    constexpr inline auto constexpr_std_size = [] { throw; };
+    constexpr inline auto constexpr_initializable = [] { throw; };
     template<class T>
-    constexpr inline auto constexpr_std_size<T, std::enable_if_t<std::is_trivially_destructible_v<T>>>
-        = [] { return std::size(T{}); };
+    constexpr inline auto constexpr_initializable<T, std::enable_if_t<std::is_trivially_destructible_v<T>>>
+        = [] { return T{}; };
     // TODO add constexpr not trivially destructible trait (C++20) if recursively declared all class
     // the main reason why it is disabled currently because if you had a predeclared class inside your container,
     // you cannot instantiate the class compile time without compile error
+
+    template<class T>
+    constexpr inline bool is_constexpr_initializable_v = is_constexpr<&constexpr_initializable<remove_cvref_t<T>>>(0);
+
+    template<class, class = void>
+    constexpr inline auto constexpr_std_size = [] { throw; };
+    template<class T>
+    constexpr inline auto constexpr_std_size<T, std::enable_if_t<is_constexpr_initializable_v<T>>>
+        = [] { return std::size(T{}); };
 
     template<class T, bool = has_size_v<T>, class = void>
     constexpr inline std::size_t constexpr_std_size_v = 0;
@@ -528,7 +537,8 @@ namespace bxlx::detail2 {
 
     template<class T>
     constexpr inline type_classification classify<T, std::enable_if_t<is_random_access_range_v<T> &&
-                                                                      !is_string_like_v<T> && !is_bitset_like_v<T>>>
+                                                                      !is_string_like_v<T> && !is_bitset_like_v<T> &&
+                                                                      !is_map_like_container_v<T>>>
         = type_classification::random_access_range;
 
     template<class T>
