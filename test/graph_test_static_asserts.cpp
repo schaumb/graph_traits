@@ -51,7 +51,8 @@ static_assert(!is_graph_v<set<set<int>>>);
 static_assert(!is_graph_v<ra_range<set<bool>>>);
 static_assert(!is_graph_v<tup<set<bool>>>);
 static_assert(!is_graph_v<set<tup<int, unsigned int>>>);
-static_assert(!is_graph_v<map<int, std::unordered_map<int, int>>>);
+static_assert(!is_graph_v<std::map<int, map<int, int>, std::greater<int>>>);
+static_assert(is_graph_v<map<int, std::unordered_map<int, int>>>);
 
 static_assert(is_graph_v<ra_range<set<int>>>);
 static_assert(is_graph_v<set<tup<int, int>>>);
@@ -307,11 +308,14 @@ constexpr bool check_all_adj_list_3() {
         checker(type_identity<std::pair<NodeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
     };
     auto for_each_indexed_range = [&] (auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
-        using Comp1 = bxlx::detail2::map_set_equality_t<typename decltype(range)::type>;
-        using Comp2 = bxlx::detail2::map_set_equality_t<typename decltype(node_range)::type>;
+        using Comp1 = bxlx::detail2::range_member_traits::key_compare_t<typename decltype(range)::type>;
+        using Comp2 = bxlx::detail2::range_member_traits::key_compare_t<typename decltype(node_range)::type>;
+        using Eq1 = bxlx::detail2::range_member_traits::key_equal_t<typename decltype(range)::type>;
+        using Eq2 = bxlx::detail2::range_member_traits::key_equal_t<typename decltype(node_range)::type>;
 
-        if constexpr (!std::is_void_v<Comp1> && !std::is_void_v<Comp2> && !std::is_same_v<Comp1, Comp2>) {
-            // not matching node equality
+        if constexpr ((!std::is_void_v<Comp1> && !std::is_void_v<Comp2> && !std::is_same_v<Comp1, Comp2>) ||
+                      (!std::is_void_v<Eq1> && !std::is_void_v<Eq2> && !std::is_same_v<Eq1, Eq2>)) {
+            // not matching node comparator/equality
         } else if constexpr (graph_p) {
             props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
         } else {
@@ -537,7 +541,7 @@ constexpr bool check_all_edge_list_1() {
         constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
             std::is_void_v<typename decltype(edge_prop)::type>,
             type_identity<void>,
-            bxlx::traits::tuple_element_cvref<2, EdgeRepr>
+            bxlx::detail2::tuple_element_cvref<2, EdgeRepr>
         >::type>{};
 
         if constexpr (node_p) {
@@ -621,7 +625,7 @@ constexpr bool check_all_edge_list_2() {
             constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
                 std::is_void_v<typename decltype(edge_prop)::type>,
                 type_identity<void>,
-                bxlx::traits::tuple_element_cvref<2, EdgeRepr>
+                bxlx::detail2::tuple_element_cvref<2, EdgeRepr>
             >::type>{};
             props::for_each(for_each_node_prop, edge_range, edge_repr, modified_edge_prop, node_index);
         }

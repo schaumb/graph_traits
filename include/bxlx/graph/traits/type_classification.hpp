@@ -55,6 +55,14 @@ namespace bxlx::detail2 {
     template<class T, class U>
     using copy_cvref_t = typename copy_cvref<T, U>::type;
 
+    template<std::size_t I, class T>
+    struct tuple_element_cvref {
+        using type = copy_cvref_t<T, std::tuple_element_t<I, remove_cvref_t<T>>>;
+    };
+    template<std::size_t I, class T>
+    using tuple_element_cvref_t = typename tuple_element_cvref<I, T>::type;
+
+
     template<class T, bool = !is_tuple_like_v<T> &&
         !std::is_same_v<remove_cvref_t<T>, void*> &&
         !std::is_array_v<T>, class = void>
@@ -401,21 +409,164 @@ namespace bxlx::detail2 {
     constexpr inline bool is_sized_range_v<T, std::enable_if_t<is_range_v<T>>> = range_traits<T>::is_sized;
 
 
-    template<class T, bool = is_range_v<T> && std::is_class_v<T> && is_defined_v<T>, class = void>
-    constexpr inline bool is_string_like_v = false;
-    template<class T>
-    constexpr inline bool is_string_like_v<T, true, std::void_t<
-        decltype(member_function_invoke_result_v<void, const T>(&T::length))
-    >> = true;
-
-
     template<class T, bool = is_range_v<T>, class = void>
     constexpr inline bool is_random_access_range_v = false;
     template<class T>
     constexpr inline bool is_random_access_range_v<T, true> = range_traits<T>::random_access;
 
 
-    template<class Impl, std::size_t = std::tuple_size_v<typename range_traits<Impl>::value_type>>
+    namespace range_member_traits {
+        template<class Range>
+        constexpr inline bool can_inspect_member = is_range_v<Range> && std::is_class_v<Range> && is_defined_v<Range>;
+
+        template<class Range, bool = is_sized_range_v<Range>>
+        struct size { using type = void; };
+        template<class Range>
+        struct size<Range, true> { using type = remove_cvref_t<decltype(std::size(std::declval<Range&>()))>; };
+
+        template<class Range>
+        using size_t = typename size<Range>::type;
+
+        template<class Range, bool, class = void, class ...Args>
+        constexpr inline bool has_emplace_back = false;
+        template<class Range, class ...Args>
+        constexpr inline bool has_emplace_back<Range, true, std::void_t<
+            decltype(member_function_invoke_result_v<void, Range, Args&&...>(&Range::template emplace_back<Args&&...>))
+        >, Args...> = true;
+
+        template<class Range, class ...Args>
+        constexpr inline bool has_emplace_back_v = has_emplace_back<Range, can_inspect_member<Range>, void, Args...>;
+
+
+        template<class Range, bool, class = void, class ...Args>
+        constexpr inline bool has_try_emplace = false;
+        template<class Range, class ...Args>
+        constexpr inline bool has_try_emplace<Range, true, std::void_t<
+            decltype(member_function_invoke_result_v<void, Range, const std::tuple_element_t<0, range_traits_type<Range>>&, Args&&...>(&Range::template try_emplace<Args&&...>))
+        >, Args...> = true;
+
+        template<class Range, class ...Args>
+        constexpr inline bool has_try_emplace_v = has_try_emplace<Range, can_inspect_member<Range>, void, Args...>;
+
+        template<class Range, bool = can_inspect_member<Range>, class = void>
+        constexpr inline bool has_resize_v = false;
+        template<class Range>
+        constexpr inline bool has_resize_v<Range, true, std::void_t<
+            decltype(std::declval<Range&>().resize(std::size_t{}))
+        >> = true;
+
+        template<class Range, bool = can_inspect_member<Range>, class = void>
+        constexpr inline bool has_length_v = false;
+        template<class Range>
+        constexpr inline bool has_length_v<Range, true, std::void_t<
+            decltype(member_function_invoke_result_v<void, const Range>(&Range::length))
+        >> = true;
+
+        template<class Range, bool = can_inspect_member<Range>, class = void>
+        constexpr inline bool has_key_comp_v = false;
+        template<class Range>
+        constexpr inline bool has_key_comp_v<Range, true, std::void_t<
+            decltype(member_function_invoke_result_v<void, const Range>(&Range::key_comp))
+        >> = true;
+
+        template<class Range, bool = can_inspect_member<Range>, class = void>
+        constexpr inline bool has_key_compare_type_v = false;
+        template<class Range>
+        constexpr inline bool has_key_compare_type_v<Range, true, std::void_t<
+            typename Range::key_comare
+        >> = true;
+
+        template<class Range, bool = has_key_compare_type_v<Range>, bool = has_key_comp_v<Range>>
+        struct key_compare { using type = void; };
+        template<class Range, bool any>
+        struct key_compare<Range, true, any> { using type = typename Range::key_compare; };
+        template<class Range>
+        struct key_compare<Range, false, true> { using type = decltype(member_function_invoke_result_v<void, const Range>(&Range::key_comp)); };
+
+        template<class Range>
+        using key_compare_t = typename key_compare<Range>::type;
+
+        template<class Range, bool = can_inspect_member<Range>, class = void>
+        constexpr inline bool has_key_eq_v = false;
+        template<class Range>
+        constexpr inline bool has_key_eq_v<Range, true, std::void_t<
+            decltype(member_function_invoke_result_v<void, const Range>(&Range::key_eq))
+        >> = true;
+
+        template<class Range, bool = can_inspect_member<Range>, class = void>
+        constexpr inline bool has_key_equal_type_v = false;
+        template<class Range>
+        constexpr inline bool has_key_equal_type_v<Range, true, std::void_t<
+            typename Range::key_equal
+        >> = true;
+
+        template<class Range, bool = has_key_equal_type_v<Range>, bool = has_key_eq_v<Range>>
+        struct key_equal { using type = void; };
+        template<class Range, bool any>
+        struct key_equal<Range, true, any> { using type = typename Range::key_equal; };
+        template<class Range>
+        struct key_equal<Range, false, true> { using type = decltype(member_function_invoke_result_v<void, const Range>(&Range::key_eq)); };
+
+        template<class Range>
+        using key_equal_t = typename key_equal<Range>::type;
+
+        template<class Range, bool = can_inspect_member<Range>, class = void>
+        constexpr inline bool has_hash_function_v = false;
+        template<class Range>
+        constexpr inline bool has_hash_function_v<Range, true, std::void_t<
+            decltype(member_function_invoke_result_v<void, const Range>(&Range::hash_function))
+        >> = true;
+
+        template<class Range, bool = can_inspect_member<Range>, class = void>
+        constexpr inline bool has_hasher_type_v = false;
+        template<class Range>
+        constexpr inline bool has_hasher_type_v<Range, true, std::void_t<
+            typename Range::hasher
+        >> = true;
+
+        template<class Range, bool = has_hasher_type_v<Range>, bool = has_hash_function_v<Range>>
+        struct hasher { using type = void; };
+        template<class Range, bool any>
+        struct hasher<Range, true, any> { using type = typename Range::hasher; };
+        template<class Range>
+        struct hasher<Range, false, true> { using type = decltype(member_function_invoke_result_v<void, const Range>(&Range::hash_function)); };
+
+        template<class Range>
+        using hasher_t = typename hasher<Range>::type;
+
+        template<class Range, bool = can_inspect_member<Range>, class = void>
+        constexpr inline bool has_key_type_type_v = false;
+        template<class Range>
+        constexpr inline bool has_key_type_type_v<Range, true, std::void_t<
+            typename Range::key_type
+        >> = true;
+
+        template<class Range, class Result, bool, class = void, class ...Args>
+        constexpr inline bool has_find = false;
+        template<class Range, class Result, class ...Args>
+        constexpr inline bool has_find<Range, Result, true, std::void_t<
+            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::find))
+        >, Args...> = true;
+
+        template<class Range, class Result, class ...Args>
+        constexpr inline bool has_find_v = has_find<Range, Result, can_inspect_member<Range>, void, Args...>;
+
+
+        template<class Range, class Result, bool, class = void, class ...Args>
+        constexpr inline bool has_at = false;
+        template<class Range, class Result, class ...Args>
+        constexpr inline bool has_at<Range, Result, true, std::void_t<
+            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::at))
+        >, Args...> = true;
+
+        template<class Range, class Result, class ...Args>
+        constexpr inline bool has_at_v = has_at<Range, Result, can_inspect_member<Range>, void, Args...>;
+    }
+
+    template<class T>
+    constexpr inline bool is_string_like_v = range_member_traits::has_length_v<T>;
+
+    template<class Impl, std::size_t = std::tuple_size_v<range_traits_type<Impl>>>
     struct has_map_like_properties_impl : std::false_type {};
     template<class Impl>
     struct has_map_like_properties_impl<Impl, 2> {
@@ -424,78 +575,44 @@ namespace bxlx::detail2 {
         template<class T>
         constexpr static inline bool is_transparent_v<T, std::void_t<typename T::is_transparent>> = true;
 
-        template<class, class = void>
-        constexpr static inline bool has_no_transparent_key_comp_v = false;
         template<class T>
-        constexpr static inline bool has_no_transparent_key_comp_v<T, std::void_t<
-            decltype(member_function_invoke_result_v<void, const T>(&T::key_comp))
-        >> = !is_transparent_v<decltype(member_function_invoke_result_v<void, const T>(&T::key_comp))>;
+        constexpr static inline bool has_map_find_function_v = range_member_traits::has_find_v<
+            const T,
+            get_begin_iterator_t<const T>,
+            tuple_element_cvref_t<0, typename range_traits<const T>::reference>
+        >;
 
-        template<class, class = void>
-        constexpr static inline bool has_no_transparent_key_eq_v = false;
         template<class T>
-        constexpr static inline bool has_no_transparent_key_eq_v<T, std::void_t<
-            decltype(member_function_invoke_result_v<void, const T>(&T::key_eq))
-        >> = !is_transparent_v<decltype(member_function_invoke_result_v<void, const T>(&T::key_eq))>;
+        constexpr static inline bool has_set_find_function_v = range_member_traits::has_find_v<
+            const T,
+            get_begin_iterator_t<const T>,
+            typename range_traits<const T>::reference
+        >;
 
-        template<class, class = void>
-        constexpr static inline bool has_no_transparent_hash_function_v = false;
         template<class T>
-        constexpr static inline bool has_no_transparent_hash_function_v<T, std::void_t<
-            decltype(member_function_invoke_result_v<void, const T>(&T::hash_function))
-        >> = !is_transparent_v<decltype(member_function_invoke_result_v<void, const T>(&T::hash_function))>;
+        constexpr static inline bool has_map_at_function_v = range_member_traits::has_at_v<
+            const T,
+            tuple_element_cvref_t<1, typename range_traits<const T>::reference>,
+            tuple_element_cvref_t<0, typename range_traits<const T>::reference>
+        >;
 
-
-        template<class, class = void>
-        constexpr static inline bool has_map_find_function_v = false;
-        template<class T>
-        constexpr static inline bool has_map_find_function_v<T, std::void_t<
-            decltype(member_function_invoke_result_v<get_begin_iterator_t<const T>, const T, copy_cvref_t<
-                typename range_traits<const T>::reference,
-                std::tuple_element_t<0, typename range_traits<T>::value_type>
-            >>(&T::find))
-        >> = true;
-
-        template<class, class = void>
-        constexpr static inline bool has_set_find_function_v = false;
-        template<class T>
-        constexpr static inline bool has_set_find_function_v<T, std::void_t<
-            decltype(member_function_invoke_result_v<get_begin_iterator_t<const T>, const T, typename range_traits<const T>::reference>(&T::find))
-        >> = true;
-
-        template<class, class = void>
-        constexpr static inline bool has_map_at_function_v = false;
-        template<class T>
-        constexpr static inline bool has_map_at_function_v<T, std::enable_if_t<
-            std::is_same_v<
-                copy_cvref_t<
-                    typename range_traits<const T>::reference,
-                    std::tuple_element_t<1, typename range_traits<T>::value_type>
-                >,
-                decltype(member_function_invoke_result_v<copy_cvref_t<
-                    typename range_traits<const T>::reference,
-                    std::tuple_element_t<1, typename range_traits<T>::value_type>
-                >, const T, copy_cvref_t<
-                    typename range_traits<const T>::reference,
-                    std::tuple_element_t<0, typename range_traits<T>::value_type>
-                >>(&T::at))
-            >
-        >> = true;
-
-        template<class, class = void>
+        template<class T, bool = range_member_traits::has_key_type_type_v<T>, class = void>
         constexpr static inline bool has_map_key_type_v = false;
         template<class T>
-        constexpr static inline bool has_map_key_type_v<T, std::enable_if_t<
-            std::is_same_v<typename T::key_type, remove_cvref_t<std::tuple_element_t<0, typename range_traits<T>::value_type>>>
+        constexpr static inline bool has_map_key_type_v<T, true, std::enable_if_t<
+            std::is_same_v<typename T::key_type, remove_cvref_t<std::tuple_element_t<0, range_traits_type<T>>>>
         >> = true;
+
+        template<class T>
+        constexpr static inline bool has_no_transparent_v = !std::is_void_v<T> && !is_transparent_v<T>;
 
         [[maybe_unused]] constexpr static inline bool value = has_map_find_function_v<Impl> &&
             (!has_set_find_function_v<Impl> ||
              has_map_at_function_v<Impl> ||
              has_map_key_type_v<Impl> ||
-             has_no_transparent_key_comp_v<Impl> ||
-             has_no_transparent_key_eq_v<Impl> ||
-             has_no_transparent_hash_function_v<Impl>);
+             has_no_transparent_v<range_member_traits::key_compare_t<Impl>> ||
+             has_no_transparent_v<range_member_traits::key_equal_t<Impl>> ||
+             has_no_transparent_v<range_member_traits::hasher_t<Impl>>);
     };
 
 
@@ -511,42 +628,6 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr inline bool is_map_like_container_v<T, true> = has_map_like_properties_v<T>;
 
-
-    template<class Comp>
-    struct comparator_to_equality : Comp {
-        using Comp::Comp;
-
-        template<class U>
-        constexpr auto operator()(const U& lhs, const U& rhs) const noexcept -> std::invoke_result_t<Comp, U, U> {
-            return !this->Comp::operator()(lhs, rhs) && !this->Comp::operator()(rhs, lhs);
-        }
-    };
-
-    template<class T, bool = is_defined_v<T>>
-    struct map_set_traits {
-        using equality = void;
-    };
-
-    template<class T>
-    struct map_set_traits<T, true> {
-        template<class U = T, class = void>
-        struct equality_getter : std::common_type<void> {};
-        template<class U>
-        struct equality_getter<U, std::enable_if_t<
-            has_map_like_properties_impl<void, 2>::template has_no_transparent_key_comp_v<U>
-        >> : std::common_type<comparator_to_equality<decltype(member_function_invoke_result_v<void, const T>(&T::key_comp))>> {};
-        template<class U>
-        struct equality_getter<U, std::enable_if_t<
-            has_map_like_properties_impl<void, 2>::template has_no_transparent_key_eq_v<U>
-        >> : std::common_type<decltype(member_function_invoke_result_v<void, const T>(&T::key_eq))> {};
-
-        using equality = typename equality_getter<T>::type;
-    };
-
-    template<class T>
-    using map_set_equality_t = typename map_set_traits<T>::equality;
-    template<class T>
-    constexpr static inline bool has_map_set_equality_v = !std::is_void_v<map_set_equality_t<T>>;
 
     template<class T, bool = is_defined_v<T>>
     constexpr static inline bool is_set_like_container = false;

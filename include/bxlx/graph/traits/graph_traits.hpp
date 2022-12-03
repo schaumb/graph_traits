@@ -25,12 +25,6 @@ namespace bxlx {
 namespace bxlx::traits {
     template<class T>
     struct type_identity { using type = T; };
-    template<std::size_t I, class T>
-    struct tuple_element_cvref {
-        using type = detail2::copy_cvref_t<T, std::tuple_element_t<I, detail2::remove_cvref_t<T>>>;
-    };
-    template<std::size_t I, class T>
-    using tuple_element_cvref_t = typename tuple_element_cvref<I, T>::type;
 
     template<class T, class V = std::make_index_sequence<std::tuple_size_v<T>>>
     struct properties;
@@ -204,6 +198,7 @@ namespace bxlx::traits {
     struct edge_container_size {};
     struct inside_container_size {};
     struct node_equality_type{};
+    struct node_comparator_type{};
 
     struct no_prop {
         template<class>
@@ -249,7 +244,8 @@ namespace bxlx::traits {
                 property<node_container_size, constant_t<bxlx::detail2::compile_time_size_v<T>>>,
                 empty_properties
             >,
-            property<edge_repr_type, detail2::subscript_operator_return<T>>
+            property<edge_repr_type, detail2::subscript_operator_return<T>>,
+            property<bitset, std::true_type>
         >;
     };
 
@@ -308,7 +304,7 @@ namespace bxlx::traits {
     template<class ...Conditions>
     struct tuple_like : accept_recursively<tuple_like<Conditions...>, detail2::type_classification::tuple_like> {
         template<class T, std::size_t...Ix>
-        static merge_properties<empty_properties, get_properties<Conditions, tuple_element_cvref_t<Ix, T>>...>
+        static merge_properties<empty_properties, get_properties<Conditions, detail2::tuple_element_cvref_t<Ix, T>>...>
         merge_properties_helper(std::index_sequence<Ix...>) { return {}; }
 
         template<class T>
@@ -316,7 +312,7 @@ namespace bxlx::traits {
 
         template<class T, std::size_t ...Ix>
         constexpr static bool is_valid_nested(std::index_sequence<Ix...>) {
-            return (Conditions::template is_valid<tuple_element_cvref_t<Ix, T>>() && ...);
+            return (Conditions::template is_valid<detail2::tuple_element_cvref_t<Ix, T>>() && ...);
         }
 
         template<class T>
@@ -332,7 +328,7 @@ namespace bxlx::traits {
 
         template<class T, std::size_t ...Ix>
         constexpr static auto why_not_nested(std::index_sequence<Ix...>) {
-            return error_handling::tuple_nested_mismatched<error_handling::condition_and_error<Conditions, decltype(Conditions::template why_not<tuple_element_cvref_t<Ix, T>>())>...>{};
+            return error_handling::tuple_nested_mismatched<error_handling::condition_and_error<Conditions, decltype(Conditions::template why_not<detail2::tuple_element_cvref_t<Ix, T>>())>...>{};
         }
 
         template<class T>
@@ -378,8 +374,12 @@ namespace bxlx::traits {
                 property<user_node_index, std::false_type>,
                 empty_properties
             >,
-            std::conditional_t<bxlx::detail2::has_map_set_equality_v<T> && (std::is_same_v<container_size_prop, inside_container_size> || std::is_same_v<container_size_prop, node_container_size>),
-                property<node_equality_type, bxlx::detail2::map_set_equality_t<T>>,
+            std::conditional_t<!std::is_void_v<bxlx::detail2::range_member_traits::key_equal_t<T>> && (std::is_same_v<container_size_prop, inside_container_size> || std::is_same_v<container_size_prop, node_container_size>),
+                property<node_equality_type, bxlx::detail2::range_member_traits::key_equal_t<T>>,
+                empty_properties
+            >,
+            std::conditional_t<!std::is_void_v<bxlx::detail2::range_member_traits::key_compare_t<T>> && (std::is_same_v<container_size_prop, inside_container_size> || std::is_same_v<container_size_prop, node_container_size>),
+                property<node_comparator_type, bxlx::detail2::range_member_traits::key_compare_t<T>>,
                 empty_properties
             >
         >;
@@ -457,7 +457,7 @@ namespace bxlx::traits {
     template<std::size_t I>
     struct getter_t {
         template<class T, class ...Ts>
-        [[nodiscard]] constexpr auto operator()(T&& val, Ts&&...) const noexcept -> tuple_element_cvref_t<I, T> {
+        [[nodiscard]] constexpr auto operator()(T&& val, Ts&&...) const noexcept -> detail2::tuple_element_cvref_t<I, T> {
             return std::get<I>(val);
         }
     };
@@ -505,6 +505,8 @@ namespace bxlx::traits {
         using edge_property_type [[maybe_unused]] = has_property_or_t<Props, edge_property, void>;
 
         using node_equality_type [[maybe_unused]] = has_property_or_t<Props, node_equality_type, void>;
+        using node_comparator_type [[maybe_unused]] = has_property_or_t<Props, node_comparator_type, void>;
+        constexpr static auto is_bitset = has_property_or_t<Props, bitset, std::false_type>::value;
     };
 
     struct adjacency_list : with_graph_property<any_of<
@@ -532,7 +534,7 @@ namespace bxlx::traits {
             template<class P>
             struct get_node_property_getter<P, true, std::enable_if_t<
                 std::is_same_v<get_property<P, node_property>,
-                    tuple_element_cvref_t<1, get_property<P, traits::node_repr_type>>
+                    detail2::tuple_element_cvref_t<1, get_property<P, traits::node_repr_type>>
             >>> : type_identity<getter_t<1>> {};
 
             constexpr static auto get_edge_property = std::conditional_t<graph_traits::has_edge_property, getter_t<1>, noop_t>{};

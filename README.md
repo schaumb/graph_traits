@@ -268,7 +268,8 @@ in the schema, the node_index/index must be the same
 - node/edge/graph properties any combination
 
 
-these ranges cannot be any compile time fix range:
+These ranges cannot be any compile time fix range.
+If range is a set like object, no different strategy (std::less<K> or std::equal_to<K>) is allowed for the keys
 
 - `map<node_index, range<node_index>`
 - `map<node_index, range<pair<node_index, edge_prop>>`
@@ -276,6 +277,8 @@ these ranges cannot be any compile time fix range:
 - `pair<map<node_index, range<node_index>, graph_prop>`
 - node/edge/graph properties any combination
 
+
+Map-s cannot be used by different strategy for keys (std::less<K> or std::equal_to<K>)
 
 - `map<node_index, map<node_index, edge_prop>>`
 - `map<node_index, pair<map<node_index, edge_prop>, node_prop>>`

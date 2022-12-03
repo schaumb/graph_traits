@@ -130,12 +130,6 @@ struct constexpr_vector {
 
     [[nodiscard]] constexpr std::size_t size() const { return s; }
 
-    [[nodiscard]] constexpr const T& operator[](std::size_t i) const {
-        if (i >= s)
-            throw std::out_of_range("constexpr vector");
-        return arr[i];
-    }
-
     template<class ...Args>
     constexpr T& emplace_back(Args&& ...args) {
         if (s == Ix)
@@ -353,8 +347,13 @@ constexpr static auto check = [] (auto&& ...args) {
         auto&& edges = std::as_const(GraphTraits::out_edges(node::get_node(g, i)));
 
         for (std::size_t ix{}, size = std::size(edges); ix != size; ++ix) {
-            if (edges[ix])
-                return false;
+            if constexpr (bxlx::detail2::has_subscript_operator<node::out_edge_container_t<GraphTraits>>) {
+                if (edges[ix])
+                    return false;
+            } else {
+                if (*(std::begin(edges) + ix))
+                    return false;
+            }
         }
         if constexpr (GraphTraits::out_edge_container_size == 0) {
             for (auto& node : GraphTraits::get_nodes(g)) {

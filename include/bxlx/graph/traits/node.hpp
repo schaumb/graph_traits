@@ -17,6 +17,17 @@ namespace bxlx::traits::node {
     using node_repr_t = typename Traits::node_repr_type;
     template<class Traits>
     using node_prop_t = typename Traits::node_property_type;
+    template<class Traits>
+    using node_container_t = typename Traits::node_container_type;
+    template<class Traits>
+    using out_edge_container_t = typename Traits::out_edge_container_type;
+
+    template<class Traits>
+    constexpr static bool adj_list_v = Traits::representation == traits::graph_representation::adjacency_list;
+    template<class Traits>
+    constexpr static bool adj_matrix_v = Traits::representation == traits::graph_representation::adjacency_matrix;
+    template<class Traits>
+    constexpr static bool edge_list_v = Traits::representation == traits::graph_representation::edge_list;
 
 
     template<class not_a_graph, class ... Args>
@@ -46,8 +57,8 @@ namespace bxlx::traits::node {
 
     template<class Graph, class GraphTraits = graph_traits_t<Graph>>
     constexpr auto has_node(const Graph& g, const node_t<GraphTraits>& n)
-    -> std::enable_if_t<!std::is_void_v<node_repr_t<GraphTraits>> &&
-                        !GraphTraits::user_node_index, bool>
+        -> std::enable_if_t<!std::is_void_v<node_repr_t<GraphTraits>> &&
+                            !GraphTraits::user_node_index, bool>
     {
         if constexpr (GraphTraits::max_node_compile_time > 0) {
             constexpr auto node_size = static_cast<node_t<GraphTraits>>(GraphTraits::max_node_compile_time);
@@ -78,7 +89,7 @@ namespace bxlx::traits::node {
             if (auto it = nodes.find(n); it != std::end(nodes))
                 return std::addressof(*it);
         } else if (has_node(g, n)) {
-            if constexpr (detail2::has_subscript_operator<std::remove_reference_t<decltype(nodes)>>) {
+            if constexpr (detail2::has_subscript_operator<node_container_t<GraphTraits>>) {
                 return std::addressof(nodes[n]);
             } else {
                 return std::addressof(*(std::begin(nodes) + n));
@@ -129,14 +140,14 @@ namespace bxlx::traits::node {
     template<auto>
     constexpr static inline traits::identity_t pass{};
 
-    template<typename T, typename With, std::size_t ...Ix>
+    template<class T, class With, std::size_t ...Ix>
     constexpr auto aggregate_initialize(std::index_sequence<Ix...>, const With& with) -> decltype(T{pass<Ix>(with)...}) {
         return T{pass<Ix>(with)...};
     }
 
-    template<typename T, typename With, std::size_t N, class = void>
+    template<class, class, std::size_t, class = void>
     constexpr static bool is_aggregate_initializable_v = false;
-    template<typename T, typename With, std::size_t N>
+    template<class T, class With, std::size_t N>
     constexpr static bool is_aggregate_initializable_v<T, With, N, std::void_t<
         decltype(aggregate_initialize<T, With>(std::make_index_sequence<N>{}, std::declval<const With&>()))
     >> = true;
@@ -148,96 +159,71 @@ namespace bxlx::traits::node {
 
     template<class GraphTraits>
     struct add_node_traits<GraphTraits, false, false> {
-        using RealTraits = GraphTraits;
-        constexpr static bool adj_list = GraphTraits::representation == traits::graph_representation::adjacency_list;
-        constexpr static bool adj_matrix = GraphTraits::representation == traits::graph_representation::adjacency_matrix;
-        constexpr static bool fix_out_edge = GraphTraits::out_edge_container_size != 0;
-        using NodeContainer = typename GraphTraits::node_container_type;
-        constexpr static auto node_size = decltype(std::size(std::declval<NodeContainer&>())){};
-        using OutEdgeContainer = typename GraphTraits::out_edge_container_type;
-        constexpr static auto out_edge_size = decltype(std::size(std::declval<OutEdgeContainer&>())){};
-        constexpr static bool has_edge_prop = GraphTraits::has_edge_property;
-        constexpr static auto out_edges = GraphTraits::out_edge_container_size;
-
-        template<class Traits = add_node_traits, class = void>
+        template<class Traits = GraphTraits, bool = GraphTraits::out_edge_container_size != 0, class = void>
         struct check_emplace : std::false_type {};
 
-        template<class Traits>
-        struct check_emplace<Traits, std::enable_if_t<
-            (Traits::adj_list && !Traits::fix_out_edge) || (Traits::adj_matrix && Traits::fix_out_edge),
-            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>().emplace_back())>
+        template<class Traits, bool fix_out_edge>
+        struct check_emplace<Traits, fix_out_edge, std::enable_if_t<
+            ((adj_list_v<Traits> && !fix_out_edge) || (adj_matrix_v<Traits> && fix_out_edge)) &&
+            detail2::range_member_traits::has_emplace_back_v<node_container_t<Traits>>
         >> : std::true_type {
             template<class Graph>
             constexpr static decltype(auto) do_it(Graph& g) {
-                auto& nodes = Traits::RealTraits::get_nodes(g);
-                typename Traits::RealTraits::node_index_t ix = std::size(nodes);
+                auto& nodes = Traits::get_nodes(g);
+                node_t<Traits> ix = std::size(nodes);
                 nodes.emplace_back();
                 return ix;
             }
         };
 
         template<class Traits>
-        struct check_emplace<Traits, std::enable_if_t<
-            (Traits::adj_matrix && !Traits::fix_out_edge),
-            std::void_t<
-                decltype(std::declval<typename Traits::NodeContainer&>().emplace_back()),
-                decltype(std::declval<typename Traits::OutEdgeContainer>().resize(Traits::out_edge_size))
-            >
+        struct check_emplace<Traits, false, std::enable_if_t<
+            adj_matrix_v<Traits> &&
+            detail2::range_member_traits::has_emplace_back_v<node_container_t<Traits>> &&
+            detail2::range_member_traits::has_resize_v<out_edge_container_t<Traits>>
         >> : std::true_type {
             template<class Graph>
             constexpr static decltype(auto) do_it(Graph& g) {
-                auto& nodes = Traits::RealTraits::get_nodes(g);
-                typename Traits::RealTraits::node_index_t ix = std::size(nodes);
+                auto& nodes = Traits::get_nodes(g);
+                node_t<Traits> ix = std::size(nodes);
                 nodes.emplace_back();
-                auto to = std::size(nodes);
+                std::size_t to = std::size(nodes);
                 for (auto&& node : nodes)
-                    Traits::RealTraits::out_edges(node).resize(to);
+                    Traits::out_edges(node).resize(to);
                 return ix;
             }
         };
 
         template<class Traits>
-        struct check_emplace<Traits, std::enable_if_t<
-            (Traits::adj_list && Traits::fix_out_edge && !Traits::has_edge_prop),
-            std::enable_if_t<
-                is_aggregate_initializable_v<
-                    typename Traits::OutEdgeContainer,
-                    typename Traits::RealTraits::node_index_t,
-                    Traits::out_edges
-                >,
-                std::void_t<decltype(std::declval<typename Traits::NodeContainer&>().emplace_back(std::declval<typename Traits::OutEdgeContainer&&>()))>
-            >
+        struct check_emplace<Traits, true, std::enable_if_t<
+            adj_list_v<Traits> && !Traits::has_edge_property &&
+            is_aggregate_initializable_v<out_edge_container_t<Traits>, node_t<Traits>, Traits::out_edge_container_size> &&
+            detail2::range_member_traits::has_emplace_back_v<node_container_t<Traits>, out_edge_container_t<Traits>&&>
         >> : std::true_type {
             template<class Graph>
             constexpr static decltype(auto) do_it(Graph& g) {
-                auto& nodes = Traits::RealTraits::get_nodes(g);
-                typename Traits::RealTraits::node_index_t ix = std::size(nodes);
+                auto& nodes = Traits::get_nodes(g);
+                node_t<Traits> ix = std::size(nodes);
                 nodes.emplace_back(aggregate_initialize<
-                    typename Traits::OutEdgeContainer
-                >(std::make_index_sequence<Traits::out_edges>{}, Traits::RealTraits::invalid));
+                    out_edge_container_t<Traits>
+                >(std::make_index_sequence<Traits::out_edge_container_size>{}, Traits::invalid));
                 return ix;
             }
         };
 
         template<class Traits>
-        struct check_emplace<Traits, std::enable_if_t<
-            (Traits::adj_list && Traits::fix_out_edge && Traits::has_edge_prop),
-            std::enable_if_t<
-                is_aggregate_initializable_v<
-                    typename Traits::OutEdgeContainer,
-                    typename Traits::RealTraits::edge_repr_type,
-                    Traits::out_edges
-                >,
-                std::void_t<decltype(std::declval<typename Traits::NodeContainer&>().emplace_back(std::declval<typename Traits::OutEdgeContainer&&>()))>
-            >
+        struct check_emplace<Traits, true, std::enable_if_t<
+            adj_list_v<Traits> && Traits::has_edge_property &&
+            is_aggregate_initializable_v<out_edge_container_t<Traits>, typename Traits::edge_repr_type, Traits::out_edge_container_size> &&
+            detail2::range_member_traits::has_emplace_back_v<node_container_t<Traits>, out_edge_container_t<Traits>&&>
         >> : std::true_type {
             template<class Graph>
             constexpr static decltype(auto) do_it(Graph& g) {
-                auto& nodes = Traits::RealTraits::get_nodes(g);
-                typename Traits::RealTraits::node_index_t ix = std::size(nodes);
+                auto& nodes = Traits::get_nodes(g);
+                node_t<Traits> ix = std::size(nodes);
                 nodes.emplace_back(aggregate_initialize<
-                    typename Traits::OutEdgeContainer
-                >(std::make_index_sequence<Traits::out_edges>{}, typename Traits::RealTraits::edge_repr_type{Traits::RealTraits::invalid, {}}));
+                    out_edge_container_t<Traits>
+                >(std::make_index_sequence<Traits::out_edge_container_size>{}, typename Traits::edge_repr_type{Traits::invalid, {}}));
                 return ix;
             }
         };
@@ -246,48 +232,34 @@ namespace bxlx::traits::node {
 
     template<class GraphTraits>
     struct add_node_traits<GraphTraits, false, true> {
-        using RealTraits = GraphTraits;
-        constexpr static bool adj_list = GraphTraits::representation == traits::graph_representation::adjacency_list;
-        constexpr static bool adj_matrix =
-            GraphTraits::representation == traits::graph_representation::adjacency_matrix;
-        constexpr static bool edge_list =
-            GraphTraits::representation == traits::graph_representation::edge_list;
-        constexpr static bool fix_out_edge = GraphTraits::out_edge_container_size != 0;
-        using NodeContainer = typename GraphTraits::node_container_type;
-        constexpr static auto node_size = decltype(std::size(std::declval<NodeContainer &>())){};
-        using OutEdgeContainer = typename GraphTraits::out_edge_container_type;
-        constexpr static bool has_edge_prop = GraphTraits::has_edge_property;
-        constexpr static auto out_edges = GraphTraits::out_edge_container_size;
-
-        template<class Traits, class, class ...Args>
+        template<class Traits, bool, class, class ...Args>
         struct check_emplace_impl : std::false_type {};
 
         template<class Traits, class ...Args>
-        struct check_emplace_impl<Traits, std::enable_if_t<
-            Traits::edge_list,
-            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>().emplace_back(std::declval<Args&&>()...))>
+        struct check_emplace_impl<Traits, false, std::enable_if_t<
+            edge_list_v<Traits> &&
+            detail2::range_member_traits::has_emplace_back_v<node_container_t<Traits>, Args...>
         >, Args...> : std::true_type {
             template<class Graph>
-            constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
-                auto& nodes = Traits::RealTraits::get_nodes(g);
-                typename Traits::RealTraits::node_index_t ix = std::size(nodes);
+            [[maybe_unused]] constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
+                auto& nodes = Traits::get_nodes(g);
+                node_t<Traits> ix = std::size(nodes);
                 nodes.emplace_back(std::forward<Args>(args)...);
                 return ix;
             }
         };
 
 
-        template<class Traits, class ...Args>
-        struct check_emplace_impl<Traits, std::enable_if_t<
-            ((Traits::adj_list && !Traits::fix_out_edge) || (Traits::adj_matrix && Traits::fix_out_edge)) &&
-            std::is_constructible_v<node_repr_t<typename Traits::RealTraits>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>>,
-            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>()
-                .emplace_back(std::piecewise_construct, std::tuple<>{}, std::declval<std::tuple<Args&&...>>()))>
+        template<class Traits, bool fix_out_edge, class ...Args>
+        struct check_emplace_impl<Traits, fix_out_edge, std::enable_if_t<
+            ((adj_list_v<Traits> && !fix_out_edge) || (adj_matrix_v<Traits> && fix_out_edge)) &&
+            std::is_constructible_v<node_repr_t<Traits>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>> &&
+            bxlx::detail2::range_member_traits::has_emplace_back_v<node_container_t<Traits>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>>
         >, Args...> : std::true_type {
             template<class Graph>
-            constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
-                auto& nodes = Traits::RealTraits::get_nodes(g);
-                typename Traits::RealTraits::node_index_t ix = std::size(nodes);
+            [[maybe_unused]] constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
+                auto& nodes = Traits::get_nodes(g);
+                node_t<Traits> ix = std::size(nodes);
                 nodes.emplace_back(std::piecewise_construct, std::tuple<>{}, std::forward_as_tuple(std::forward<Args>(args)...));
                 return ix;
             }
@@ -295,48 +267,45 @@ namespace bxlx::traits::node {
 
 
         template<class Traits, class ...Args>
-        struct check_emplace_impl<Traits, std::enable_if_t<
-            (Traits::adj_matrix && !Traits::fix_out_edge) &&
-            std::is_constructible_v<node_repr_t<typename Traits::RealTraits>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>>,
-            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>()
-                .emplace_back(std::piecewise_construct, std::tuple<>{}, std::declval<std::tuple<Args&&...>>())),
-                decltype(std::declval<typename Traits::OutEdgeContainer>().resize(decltype(std::size(std::declval<typename Traits::OutEdgeContainer&>())){}))
-            >
+        struct check_emplace_impl<Traits, false, std::enable_if_t<
+            adj_matrix_v<Traits> &&
+            std::is_constructible_v<node_repr_t<Traits>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>> &&
+            bxlx::detail2::range_member_traits::has_emplace_back_v<node_container_t<Traits>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>> &&
+            bxlx::detail2::range_member_traits::has_resize_v<out_edge_container_t<Traits>>
         >, Args...> : std::true_type {
             template<class Graph>
-            constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
-                auto& nodes = Traits::RealTraits::get_nodes(g);
-                typename Traits::RealTraits::node_index_t ix = std::size(nodes);
+            [[maybe_unused]] constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
+                auto& nodes = Traits::get_nodes(g);
+                node_t<Traits> ix = std::size(nodes);
                 nodes.emplace_back(std::piecewise_construct, std::tuple<>{}, std::forward_as_tuple(std::forward<Args>(args)...));
                 auto to = std::size(nodes);
                 for (auto&& node : nodes)
-                    Traits::RealTraits::out_edges(node).resize(to);
+                    Traits::out_edges(node).resize(to);
                 return ix;
             }
         };
 
         template<class Traits, class ...Args>
-        struct check_emplace_impl<Traits, std::enable_if_t<
-            Traits::adj_list && Traits::fix_out_edge && !Traits::has_edge_prop &&
-            std::is_constructible_v<node_repr_t<typename Traits::RealTraits>, std::piecewise_construct_t,
-                std::tuple<typename Traits::OutEdgeContainer&&>, std::tuple<Args&&...>> &&
-                is_aggregate_initializable_v<
-                    typename Traits::OutEdgeContainer,
-                    typename Traits::RealTraits::node_index_t,
-                    Traits::out_edges
-                >,
-            std::void_t<
-                decltype(std::declval<typename Traits::NodeContainer&>()
-                .emplace_back(std::piecewise_construct, std::declval<std::tuple<typename Traits::OutEdgeContainer&&>>(), std::declval<std::tuple<Args&&...>>()))>
+        struct check_emplace_impl<Traits, true, std::enable_if_t<
+            adj_list_v<Traits> && !Traits::has_edge_property &&
+            std::is_constructible_v<node_repr_t<Traits>, std::piecewise_construct_t,
+                std::tuple<out_edge_container_t<Traits>&&>, std::tuple<Args&&...>> &&
+            is_aggregate_initializable_v<
+                out_edge_container_t<Traits>,
+                node_t<Traits>,
+                Traits::out_edge_container_size
+            > &&
+            bxlx::detail2::range_member_traits::has_emplace_back_v<node_container_t<Traits>, std::piecewise_construct_t,
+                std::tuple<out_edge_container_t<Traits>&&>, std::tuple<Args&&...>>
         >, Args...> : std::true_type {
             template<class Graph>
-            constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
-                auto& nodes = Traits::RealTraits::get_nodes(g);
-                typename Traits::RealTraits::node_index_t ix = std::size(nodes);
+            [[maybe_unused]] constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
+                auto& nodes = Traits::get_nodes(g);
+                node_t<Traits> ix = std::size(nodes);
                 nodes.emplace_back(std::piecewise_construct,
                                    std::forward_as_tuple(aggregate_initialize<
-                                       typename Traits::OutEdgeContainer
-                                   >(std::make_index_sequence<Traits::out_edges>{}, Traits::RealTraits::invalid)),
+                                       out_edge_container_t<Traits>
+                                   >(std::make_index_sequence<Traits::out_edge_container_size>{}, Traits::invalid)),
                                    std::forward_as_tuple(std::forward<Args>(args)...));
                 return ix;
             }
@@ -344,102 +313,86 @@ namespace bxlx::traits::node {
 
 
         template<class Traits, class ...Args>
-        struct check_emplace_impl<Traits, std::enable_if_t<
-            Traits::adj_list && Traits::fix_out_edge && Traits::has_edge_prop &&
-            std::is_constructible_v<node_repr_t<typename Traits::RealTraits>, std::piecewise_construct_t,
-                std::tuple<typename Traits::OutEdgeContainer&&>, std::tuple<Args&&...>> &&
+        struct check_emplace_impl<Traits, true, std::enable_if_t<
+            adj_list_v<Traits> && Traits::has_edge_property &&
+            std::is_constructible_v<node_repr_t<Traits>, std::piecewise_construct_t,
+                std::tuple<out_edge_container_t<Traits>&&>, std::tuple<Args&&...>> &&
             is_aggregate_initializable_v<
-                typename Traits::OutEdgeContainer,
-                typename Traits::RealTraits::edge_repr_type,
-                Traits::out_edges
-            >,
-            std::void_t<
-                decltype(std::declval<typename Traits::NodeContainer&>()
-                    .emplace_back(std::piecewise_construct, std::declval<std::tuple<typename Traits::OutEdgeContainer&&>>(), std::declval<std::tuple<Args&&...>>()))>
+                out_edge_container_t<Traits>,
+                typename Traits::edge_repr_type,
+                Traits::out_edge_container_size
+            > &&
+            bxlx::detail2::range_member_traits::has_emplace_back_v<node_container_t<Traits>, std::piecewise_construct_t,
+                std::tuple<out_edge_container_t<Traits>&&>, std::tuple<Args&&...>>
         >, Args...> : std::true_type {
             template<class Graph>
-            constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
-                auto& nodes = Traits::RealTraits::get_nodes(g);
-                typename Traits::RealTraits::node_index_t ix = std::size(nodes);
+            [[maybe_unused]] constexpr static decltype(auto) do_it(Graph& g, Args&&...args) {
+                auto& nodes = Traits::get_nodes(g);
+                node_t<Traits> ix = std::size(nodes);
                 nodes.emplace_back(std::piecewise_construct,
                                    std::forward_as_tuple(aggregate_initialize<
-                                       typename Traits::OutEdgeContainer
-                                   >(std::make_index_sequence<Traits::out_edges>{}, typename Traits::RealTraits::edge_repr_type{Traits::RealTraits::invalid, {}})),
+                                       out_edge_container_t<Traits>
+                                   >(std::make_index_sequence<Traits::out_edge_container_size>{}, typename Traits::edge_repr_type{Traits::invalid, {}})),
                                    std::forward_as_tuple(std::forward<Args>(args)...));
                 return ix;
             }
         };
 
         template<class ...Args>
-        using check_emplace = check_emplace_impl<add_node_traits, void, Args...>;
+        using check_emplace = check_emplace_impl<GraphTraits, GraphTraits::out_edge_container_size != 0, void, Args...>;
     };
 
     template<class GraphTraits>
     struct add_node_traits<GraphTraits, true, false> {
-        using RealTraits = GraphTraits;
-        constexpr static bool adj_list = GraphTraits::representation == traits::graph_representation::adjacency_list;
-        constexpr static bool fix_out_edge = GraphTraits::out_edge_container_size != 0;
-        using NodeContainer = typename GraphTraits::node_container_type;
-
-        template<class Traits = add_node_traits, class = void>
-        struct check_emplace : std::false_type {};
+        template<class Traits = GraphTraits, bool = Traits::out_edge_container_size != 0, class = void>
+        struct check_emplace_impl : std::false_type {};
 
         template<class Traits>
-        struct check_emplace<Traits, std::enable_if_t<
-            Traits::adj_list && !Traits::fix_out_edge,
-            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>().try_emplace(
-                std::declval<node_t<typename Traits::RealTraits>>()
-            ))>
+        struct check_emplace_impl<Traits, false, std::enable_if_t<
+            adj_list_v<Traits> &&
+            bxlx::detail2::range_member_traits::has_try_emplace_v<node_container_t<Traits>>
         >> : std::true_type {
             template<class Graph>
-            constexpr static decltype(auto) do_it(Graph& g, const typename Traits::RealTraits::node_index_t& i) {
-                return std::make_pair(i, Traits::RealTraits::get_nodes(g).try_emplace(i).second);
+            [[maybe_unused]] constexpr static decltype(auto) do_it(Graph& g, const node_t<Traits>& i) {
+                return std::make_pair(i, Traits::get_nodes(g).try_emplace(i).second);
             }
         };
+
+        template<class...>
+        using check_emplace = check_emplace_impl<>;
     };
 
     template<class GraphTraits>
     struct add_node_traits<GraphTraits, true, true> {
-        using RealTraits = GraphTraits;
-        constexpr static bool adj_list = GraphTraits::representation == traits::graph_representation::adjacency_list;
-        constexpr static bool edge_list = GraphTraits::representation == traits::graph_representation::edge_list;
-        using NodeContainer = typename GraphTraits::node_container_type;
-
         template<class Traits, class, class ...Args>
         struct check_emplace_impl : std::false_type {};
 
         template<class Traits, class ...Args>
         struct check_emplace_impl<Traits, std::enable_if_t<
-            Traits::edge_list,
-            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>().try_emplace(
-                std::declval<const node_t<typename Traits::RealTraits>&>(),
-                std::declval<Args&&>()...
-            ))>
+            edge_list_v<Traits> &&
+            bxlx::detail2::range_member_traits::has_try_emplace_v<node_container_t<Traits>, Args...>
         >, Args...> : std::true_type {
             template<class Graph>
-            constexpr static decltype(auto) do_it(Graph& g, const node_t<typename Traits::RealTraits>& i, Args&&...args) {
-                return std::make_pair(i, Traits::RealTraits::get_nodes(g).try_emplace(i, std::forward<Args>(args)...).second);
+            [[maybe_unused]] constexpr static decltype(auto) do_it(Graph& g, const node_t<Traits>& i, Args&&...args) {
+                return std::make_pair(i, Traits::get_nodes(g).try_emplace(i, std::forward<Args>(args)...).second);
             }
         };
 
 
         template<class Traits, class ...Args>
         struct check_emplace_impl<Traits, std::enable_if_t<
-            Traits::adj_list &&
-            std::is_constructible_v<std::tuple_element_t<1, node_repr_t<typename Traits::RealTraits>>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>>,
-            std::void_t<decltype(std::declval<typename Traits::NodeContainer&>()
-                .try_emplace(
-                    std::declval<node_t<typename Traits::RealTraits>>(),
-                    std::piecewise_construct, std::tuple<>{}, std::declval<std::tuple<Args&&...>>()))>
+            adj_list_v<Traits> &&
+            std::is_constructible_v<std::tuple_element_t<1, node_repr_t<Traits>>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>> &&
+            bxlx::detail2::range_member_traits::has_try_emplace_v<node_container_t<Traits>, std::piecewise_construct_t, std::tuple<>, std::tuple<Args&&...>>
         >, Args...> : std::true_type {
             template<class Graph>
-            constexpr static decltype(auto) do_it(Graph& g, const node_t<typename Traits::RealTraits>& i, Args&&...args) {
-                return std::make_pair(i, Traits::RealTraits::get_nodes(g).try_emplace(i, std::piecewise_construct, std::tuple<>{}, std::forward_as_tuple(std::forward<Args>(args)...)).second);
+            [[maybe_unused]] constexpr static decltype(auto) do_it(Graph& g, const node_t<Traits>& i, Args&&...args) {
+                return std::make_pair(i, Traits::get_nodes(g).try_emplace(i, std::piecewise_construct, std::tuple<>{}, std::forward_as_tuple(std::forward<Args>(args)...)).second);
             }
         };
 
         template<class ...Args>
-        using check_emplace = check_emplace_impl<add_node_traits, void, Args...>;
+        using check_emplace = check_emplace_impl<GraphTraits, void, Args...>;
     };
 
     // not a graph
@@ -544,8 +497,45 @@ namespace bxlx::traits::node {
         -> std::enable_if_t<GraphTraits::user_node_index && GraphTraits::has_node_property, std::pair<node_t<GraphTraits>, bool>> = delete;
 
     /*
+    template<class, class, class = void>
+    constexpr static inline bool has_erase_v = false;
+    template<class T, class K>
+    constexpr static inline bool has_erase_v<T, K, std::void_t<
+        decltype(detail2::member_function_invoke_result_v<decltype(std::size(std::declval<T&>())), T, K>(&T::erase))
+    >> = true;
+
     template<class Graph, class GraphTraits = graph_traits<Graph>>
-    constexpr std::size_t remove_edges_with_node(Graph&, const node_t<GraphTraits>&);
+    constexpr std::size_t remove_node_from_edges(Graph& g, const node_t<GraphTraits>& i) {
+        using Out = typename GraphTraits::out_edge_container_type;
+        if constexpr (std::is_void_v<Out>) {
+            using Edges = typename GraphTraits::edge_container_type;
+            if constexpr (has_erase_v<Edges, detail2::get_begin_iterator_t<const Edges>>) {
+                std::size_t res{};
+                auto& edges = GraphTraits::get_edges(g);
+                for (auto it = std::begin(edges), end = std::end(edges); it != end;) {
+                    if (GraphTraits::edge_source(*it) == i || GraphTraits::edge_target(*it) == i) {
+                        it = edges.erase(it); ++res;
+                    } else ++it;
+                }
+                return res;
+            }
+        } else {
+
+        }
+        return 0;
+    }
+
+    template<class Graph, class GraphTraits = graph_traits<Graph>>
+    constexpr std::size_t remove_node_from_edges(Graph&, const node_t<GraphTraits>&);
+
+    template<class Graph, class GraphTraits = graph_traits<Graph>, class Eq = std::equal_to<node_t<GraphTraits>>>
+    constexpr std::size_t remove_node_from_edges(Graph&, const node_t<GraphTraits>&, Eq&& = {});
+
+     .erase(key)
+
+     remove_if --> is_movable
+     .resize() || adj_list && invalid
+
 
     template<class Graph, class GraphTraits = graph_traits<Graph>>
     constexpr bool remove_node(Graph&, const node_t<GraphTraits>&);
