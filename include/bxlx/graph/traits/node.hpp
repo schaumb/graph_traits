@@ -141,18 +141,35 @@ namespace bxlx::traits::node {
     template<class not_a_graph, class ... Args>
     constexpr std::enable_if_t<!is_it_a_graph<detail2::remove_cvref_t<not_a_graph>>, std::size_t> add_node(not_a_graph&, Args&&...) = delete;
 
+    template<bool has_node_property, class ...Args>
+    constexpr static bool vararg_without_node_property = [] () -> bool {
+        static_assert(has_node_property || sizeof...(Args) == 0, "Variadic arg can be passed only if node property is exists");
+        return has_node_property || sizeof...(Args) == 0;
+    };
+
+    template<bool not_user_node_index, class Node, class ...Args>
+    constexpr static bool missing_node_index = [] () -> bool {
+        static_assert(not_user_node_index || sizeof...(Args) > 0, "Missing node index argument");
+        if constexpr (sizeof...(Args) > 0) {
+            static_assert(not_user_node_index || std::is_convertible_v<std::tuple_element_t<0, std::tuple<Args...>>, Node>, "Second argument is not convertible to node_index");
+        }
+        return not_user_node_index;
+    };
 
     template<class Graph, class GraphTraits = graph_traits_t<Graph>, class ...Args>
     constexpr auto add_node(Graph& g, Args&&... args)
-        -> std::enable_if_t<!GraphTraits::user_node_index && GraphTraits::template can_add_node<Args&&...>, node_t<GraphTraits>> {
-        static_assert(GraphTraits::has_node_property || sizeof...(args) == 0, "Variadic arg can be added only if node property exists");
+        -> std::enable_if_t<!GraphTraits::user_node_index &&
+            vararg_without_node_property<GraphTraits::has_node_property || GraphTraits::user_node_index, Args&&...> &&
+            missing_node_index<!GraphTraits::user_node_index, node_t<GraphTraits>, Args...> &&
+            GraphTraits::template can_add_node<Args&&...>, node_t<GraphTraits>> {
         return GraphTraits::add_node(g, std::forward<Args>(args)...);
     };
 
     template<class Graph, class GraphTraits = graph_traits_t<Graph>, class ...Args>
     constexpr auto add_node(Graph& g, const node_t<GraphTraits>& n, Args&&... args)
-        -> std::enable_if_t<GraphTraits::user_node_index && GraphTraits::template can_add_node<const node_t<GraphTraits>&, Args&&...>, std::pair<node_t<GraphTraits>, bool>> {
-        static_assert(GraphTraits::has_node_property || sizeof...(args) == 0, "Variadic arg can be added only if node property exists");
+        -> std::enable_if_t<GraphTraits::user_node_index &&
+            vararg_without_node_property<GraphTraits::has_node_property || !GraphTraits::user_node_index, Args&&...> &&
+            GraphTraits::template can_add_node<const node_t<GraphTraits>&, Args&&...>, std::pair<node_t<GraphTraits>, bool>> {
         return GraphTraits::add_node(g, n, std::forward<Args>(args)...);
     };
 
