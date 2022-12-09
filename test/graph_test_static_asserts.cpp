@@ -210,6 +210,72 @@ constexpr bool check_all_adj_list_1() {
     return true;
 }
 
+
+template<bool node_p, bool edge_p, bool graph_p>
+constexpr bool check_all_adj_list_1_5() {
+    auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
+        assert_on<
+            typename decltype(graph)::type,
+            graph_representation::adjacency_list,
+            typename decltype(index)::type,
+            typename decltype(node_repr)::type,
+            typename decltype(edge_repr)::type,
+            nodes,
+            nodes * inside,
+            typename decltype(graph_prop)::type,
+            typename decltype(node_prop)::type,
+            typename decltype(edge_prop)::type,
+            false
+        >();
+    };
+
+    auto for_each_graph_prop = [&] (auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+        using NodeRange = typename decltype(node_range)::type;
+        using GraphProp = typename decltype(graph_prop)::type;
+        checker(type_identity<std::pair<NodeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
+    };
+    auto for_each_indexed_range = [&] (auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+        if constexpr (graph_p) {
+            props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
+        } else {
+            checker(node_range, type_identity<void>{}, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
+        }
+    };
+
+    auto for_each_node_prop = [&] (auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+        using Range = typename decltype(range)::type;
+        using NodeProp = typename decltype(node_prop)::type;
+        node_indexed_ranges::for_each<std::pair<Range, NodeProp>>(for_each_indexed_range, type_identity<std::pair<Range, NodeProp>>{}, node_prop, range, edge_repr, edge_prop, index);
+    };
+    auto for_each_map = [&] (auto range, auto edge_repr, auto edge_prop, auto index) {
+        using Range = typename decltype(range)::type;
+        if constexpr (node_p) {
+            props::for_each(for_each_node_prop, range, edge_repr, edge_prop, index);
+        } else {
+            node_indexed_ranges::for_each<Range>(for_each_indexed_range, range, type_identity<void>{}, range, edge_repr, edge_prop, index);
+        }
+    };
+
+    auto for_each_edge_prop = [&] (auto edge_prop, auto index) {
+        using Index = typename decltype(index)::type;
+        using EdgeProp = typename decltype(edge_prop)::type;
+        map_with_node_index::for_each<Index, EdgeProp>(for_each_map,
+                                                       type_identity<std::pair<const Index, EdgeProp>>{}, edge_prop, index);
+    };
+
+    auto for_each_indices = [&] (auto index) {
+        using Index = typename decltype(index)::type;
+        if constexpr (edge_p) {
+            props::for_each(for_each_edge_prop, index);
+        }
+    };
+
+    indices::for_each(for_each_indices);
+    return true;
+}
+
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_adj_list_2() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
@@ -657,6 +723,7 @@ using check_nodes = type_holders<
 constexpr auto ignore = (check_nodes::for_each([] (auto v) {
     constexpr auto Val = decltype(v)::type::value;
     static_assert(check_all_adj_list_1<!(Val & 1), !(Val & 2), !(Val & 4)>());
+    static_assert(check_all_adj_list_1_5<!(Val & 1), !(Val & 2), !(Val & 4)>());
     static_assert(check_all_adj_list_2<!(Val & 1), !(Val & 2), !(Val & 4)>());
     static_assert(check_all_adj_list_3<!(Val & 1), !(Val & 2), !(Val & 4)>());
     static_assert(check_all_adj_matrix_1<!(Val & 1), !(Val & 2), !(Val & 4)>());

@@ -268,6 +268,12 @@ in the schema, the node_index/index must be the same
 - node/edge/graph properties any combination
 
 
+- `node_indexed_range<map<integer, edge_prop>>`
+- `node_indexed_range<pair<map<integer, edge_prop>, node_prop>>`
+- `pair<node_indexed_range<map<integer, edge_prop>>, graph_prop>`
+- node/graph properties any combination
+
+
 These ranges cannot be any compile time fix range.
 If range is a set like object, no different strategy (std::less<K> or std::equal_to<K>) is allowed for the keys
 

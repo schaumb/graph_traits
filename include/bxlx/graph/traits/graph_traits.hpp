@@ -527,7 +527,10 @@ namespace bxlx::traits {
     };
 
     struct adjacency_list : with_graph_property<any_of<
-        node_indexed_range<with_node_property<range<with_edge_property<index>>>>,
+        node_indexed_range<with_node_property<any_of<
+            range<with_edge_property<index>>,
+            map_save<edge_repr_type, inside_container_size, index, edge_property>
+        >>>,
         node_map_save<with_property<node_property, any_of<
             range<with_edge_property<node_index>>,
             map_save<edge_repr_type, inside_container_size, node_index, edge_property>
