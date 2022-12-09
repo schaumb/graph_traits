@@ -542,14 +542,15 @@ namespace bxlx::detail2 {
         >> = true;
 
         template<class Range, class Result, bool, class = void, class ...Args>
-        constexpr inline bool has_find = false;
+        constexpr inline bool has_equal_range = false;
         template<class Range, class Result, class ...Args>
-        constexpr inline bool has_find<Range, Result, true, std::void_t<
-            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::find))
+        constexpr inline bool has_equal_range<Range, Result, true, std::void_t<
+            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::equal_range))
         >, Args...> = true;
 
         template<class Range, class Result, class ...Args>
-        constexpr inline bool has_find_v = has_find<Range, Result, can_inspect_member<Range>, void, Args...>;
+        constexpr inline bool has_equal_range_v = has_equal_range<Range, Result, can_inspect_member<Range>, void, Args...>;
+
 
 
         template<class Range, class Result, bool, class = void, class ...Args>
@@ -576,16 +577,16 @@ namespace bxlx::detail2 {
         constexpr static inline bool is_transparent_v<T, std::void_t<typename T::is_transparent>> = true;
 
         template<class T>
-        constexpr static inline bool has_map_find_function_v = range_member_traits::has_find_v<
+        constexpr static inline bool has_map_equal_range_function_v = range_member_traits::has_equal_range_v<
             const T,
-            get_begin_iterator_t<const T>,
+            std::pair<get_begin_iterator_t<const T>, get_begin_iterator_t<const T>>,
             tuple_element_cvref_t<0, typename range_traits<const T>::reference>
         >;
 
         template<class T>
-        constexpr static inline bool has_set_find_function_v = range_member_traits::has_find_v<
+        constexpr static inline bool has_set_equal_range_function_v = range_member_traits::has_equal_range_v<
             const T,
-            get_begin_iterator_t<const T>,
+            std::pair<get_begin_iterator_t<const T>, get_begin_iterator_t<const T>>,
             typename range_traits<const T>::reference
         >;
 
@@ -606,8 +607,8 @@ namespace bxlx::detail2 {
         template<class T>
         constexpr static inline bool has_no_transparent_v = !std::is_void_v<T> && !is_transparent_v<T>;
 
-        [[maybe_unused]] constexpr static inline bool value = has_map_find_function_v<Impl> &&
-            (!has_set_find_function_v<Impl> ||
+        [[maybe_unused]] constexpr static inline bool value = has_map_equal_range_function_v<Impl> &&
+            (!has_set_equal_range_function_v<Impl> ||
              has_map_at_function_v<Impl> ||
              has_map_key_type_v<Impl> ||
              has_no_transparent_v<range_member_traits::key_compare_t<Impl>> ||
@@ -632,7 +633,7 @@ namespace bxlx::detail2 {
     template<class T, bool = is_defined_v<T>>
     constexpr static inline bool is_set_like_container = false;
     template<class T>
-    constexpr static inline bool is_set_like_container<T, true> = !is_map_like_container_v<T> && has_map_like_properties_impl<void, 2>::template has_set_find_function_v<T>;
+    constexpr static inline bool is_set_like_container<T, true> = !is_map_like_container_v<T> && has_map_like_properties_impl<void, 2>::template has_set_equal_range_function_v<T>;
 
 
     enum class type_classification {

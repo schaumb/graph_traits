@@ -180,20 +180,21 @@ struct constexpr_map {
 
     [[nodiscard]] constexpr std::size_t size() const { return s; }
 
-    [[nodiscard]] constexpr const T* find(const K& k) const {
+    [[nodiscard]] constexpr std::pair<const T*, const T*> equal_range(const K& k) const {
+        const T* from = end();
+        const T* to = end();
         for (auto& m : *this)
-            if (m == k)
-                return &m;
-
-        return end();
-    }
-
-    [[nodiscard]] constexpr T* find(const K& k) {
-        for (auto& m : *this)
-            if (m == k)
-                return &m;
-
-        return end();
+            if (from != end()) {
+                if (m.first == k) {
+                    ++to;
+                } else {
+                    return {from, to};
+                }
+            } else if (m.first == k) {
+                from = to = &m;
+                ++to;
+            }
+        return {from, to};
     }
 };
 
@@ -212,26 +213,44 @@ struct constexpr_modifiable_map {
 
     [[nodiscard]] constexpr std::size_t size() const { return s; }
 
-    [[nodiscard]] constexpr const T* find(const K& k) const {
+    [[nodiscard]] constexpr std::pair<const T*, const T*> equal_range(const K& k) const {
+        const T* from = end();
+        const T* to = end();
         for (auto& m : *this)
-            if (Comp{}(m.first, k))
-                return &m;
-
-        return end();
+            if (from != end()) {
+                if (Comp{}(m.first, k)) {
+                    ++to;
+                } else {
+                    return {from, to};
+                }
+            } else if (Comp{}(m.first, k)) {
+                from = to = &m;
+                ++to;
+            }
+        return {from, to};
     }
 
-    [[nodiscard]] constexpr T* find(const K& k) {
+    [[nodiscard]] constexpr std::pair<T*, T*> equal_range(const K& k) {
+        T* from = end();
+        T* to = end();
         for (auto& m : *this)
-            if (Comp{}(m.first, k))
-                return &m;
-
-        return end();
+            if (from != end()) {
+                if (Comp{}(m.first, k)) {
+                    ++to;
+                } else {
+                    return {from, to};
+                }
+            } else if (Comp{}(m.first, k)) {
+                from = to = &m;
+                ++to;
+            }
+        return {from, to};
     }
 
     template<class ...Args>
     [[nodiscard]] constexpr constexpr_pair<T*, bool> try_emplace(const K& k, Args&& ...args) {
-        if (auto p = find(k); p != end())
-            return {p, false};
+        if (auto [f, t] = equal_range(k); f != t)
+            return {f, false};
 
         if (s == Ix)
             throw std::bad_alloc();

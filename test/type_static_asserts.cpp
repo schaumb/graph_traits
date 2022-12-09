@@ -220,7 +220,7 @@ struct MyMap {
         my_iterator& operator++() { return *this; }
         bool operator!=(const my_iterator& oth) const { return false; }
     };
-    [[nodiscard]] my_iterator find(Key) const { return {}; }
+    [[nodiscard]] std::pair<my_iterator, my_iterator> equal_range(Key) const { return {}; }
     [[nodiscard]] my_iterator begin() const { return {}; }
     [[nodiscard]] my_iterator end() const { return {}; }
     [[nodiscard]] std::size_t size() const { return {}; }

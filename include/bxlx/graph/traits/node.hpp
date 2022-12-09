@@ -51,8 +51,8 @@ namespace bxlx::traits::node {
         -> std::enable_if_t<!std::is_void_v<node_repr_t<GraphTraits>> &&
                             GraphTraits::user_node_index, bool>
     {
-        auto&& nodes = GraphTraits::get_nodes(g);
-        return nodes.find(n) != std::end(nodes);
+        auto [from, to] = GraphTraits::get_nodes(g).equal_range(n);
+        return from != to;
     }
 
     template<class Graph, class GraphTraits = graph_traits_t<Graph>>
@@ -86,8 +86,8 @@ namespace bxlx::traits::node {
     {
         auto&& nodes = GraphTraits::get_nodes(g);
         if constexpr (GraphTraits::user_node_index) {
-            if (auto it = nodes.find(n); it != std::end(nodes))
-                return std::addressof(*it);
+            if (auto [from, to] = nodes.equal_range(n); from != to)
+                return std::addressof(*from);
         } else if (has_node(g, n)) {
             if constexpr (detail2::has_subscript_operator<node_container_t<GraphTraits>>) {
                 return std::addressof(nodes[n]);
@@ -113,7 +113,7 @@ namespace bxlx::traits::node {
     constexpr auto get_node(Graph* g, const node_t<GraphTraits>& n)
         -> node_repr_t<GraphTraits>*
     {
-        return get_node_impl(*g, n);
+        return g ? get_node_impl(*g, n) : nullptr;
     }
 
 
@@ -132,7 +132,7 @@ namespace bxlx::traits::node {
     constexpr auto get_node_property(Graph* g, const node_t<GraphTraits>& n)
         -> node_prop_t<GraphTraits>*
     {
-        if (auto it = get_node_impl(*g, n))
+        if (auto it = g ? get_node_impl(*g, n) : nullptr)
             return std::addressof(GraphTraits::get_node_property(*it));
         return nullptr;
     }
