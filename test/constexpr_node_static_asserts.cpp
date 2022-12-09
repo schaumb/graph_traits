@@ -34,6 +34,7 @@ template<class, class T, class ... Ts>
 constexpr static bool has_node_fun = false;
 template<class T, class ...Ts>
 constexpr static bool has_node_fun<std::void_t<
+    bxlx::graph_traits_t<T>,
     decltype(node::has_node(std::declval<const T&>(), std::declval<Ts>()...))
 >, T, Ts...> = true;
 

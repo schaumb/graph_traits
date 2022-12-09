@@ -31,7 +31,7 @@ namespace bxlx::traits::node {
 
 
     template<class not_a_graph, class ... Args>
-    constexpr std::enable_if_t<!is_graph_v<not_a_graph>, bool> has_node(const not_a_graph&, Args&&...) = delete;
+    constexpr std::enable_if_t<!is_it_a_graph<not_a_graph>, bool> has_node(const not_a_graph&, Args&&...) = delete;
 
     template<class Graph, class GraphTraits = graph_traits_t<Graph>, class Eq = std::equal_to<node_t<GraphTraits>>>
     constexpr auto has_node(const Graph& g, const node_t<GraphTraits>& n, Eq&& eq = {})
@@ -79,7 +79,7 @@ namespace bxlx::traits::node {
 
 
     template<class not_a_graph, class ... Args>
-    constexpr std::enable_if_t<!is_graph_v<detail2::remove_cvref_t<std::remove_pointer_t<detail2::remove_cvref_t<not_a_graph>>>>, bool> get_node(not_a_graph&&, Args&&...) = delete;
+    constexpr std::enable_if_t<!is_it_a_graph<detail2::remove_cvref_t<std::remove_pointer_t<detail2::remove_cvref_t<not_a_graph>>>>, bool> get_node(not_a_graph&&, Args&&...) = delete;
 
     template<class Graph, class GraphTraits = graph_traits_t<Graph>>
     constexpr decltype(auto) get_node_impl(Graph& g, const node_t<GraphTraits>& n)
@@ -118,7 +118,7 @@ namespace bxlx::traits::node {
 
 
     template<class not_a_graph, class ... Args>
-    constexpr std::enable_if_t<!is_graph_v<detail2::remove_cvref_t<std::remove_pointer_t<detail2::remove_cvref_t<not_a_graph>>>>, bool>
+    constexpr std::enable_if_t<!is_it_a_graph<detail2::remove_cvref_t<std::remove_pointer_t<detail2::remove_cvref_t<not_a_graph>>>>, bool>
             get_node_property(not_a_graph&&, Args&&...) = delete;
 
     template<class Graph, class GraphTraits = graph_traits_t<std::remove_reference_t<Graph>>>
@@ -139,7 +139,7 @@ namespace bxlx::traits::node {
 
     // not a graph
     template<class not_a_graph, class ... Args>
-    constexpr std::enable_if_t<!is_graph_v<detail2::remove_cvref_t<not_a_graph>>, std::size_t> add_node(not_a_graph&, Args&&...) = delete;
+    constexpr std::enable_if_t<!is_it_a_graph<detail2::remove_cvref_t<not_a_graph>>, std::size_t> add_node(not_a_graph&, Args&&...) = delete;
 
 
     template<class Graph, class GraphTraits = graph_traits_t<Graph>, class ...Args>
