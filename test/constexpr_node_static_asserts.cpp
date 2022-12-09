@@ -131,11 +131,28 @@ struct constexpr_vector {
 
     [[nodiscard]] constexpr std::size_t size() const { return s; }
 
+    constexpr static auto L = [] { T t{}; t = t; };
+
     template<class ...Args>
     constexpr T& emplace_back(Args&& ...args) {
         if (s == Ix)
             throw std::bad_alloc();
-        return arr[s++] = T(std::forward<Args>(args)...);
+        if constexpr (bxlx::detail2::template is_constexpr<&L>(0)) {
+            return arr[s++] = T(std::forward<Args>(args)...);
+        } else {
+            T& r = arr[s++];
+            T&& v(std::forward<Args>(args)...);
+            for (std::size_t i{}, e = std::size(r); i != e; ++i) {
+                if constexpr (bxlx::detail2::is_tuple_like_v<bxlx::detail2::range_traits_type<T>>) {
+                    r[i].first = v[i].first;
+                    r[i].second = v[i].second;
+                } else {
+                    r[i] = v[i];
+                }
+            }
+
+            return r;
+        }
     }
 
     constexpr void resize(std::size_t new_s) {
@@ -279,6 +296,11 @@ constexpr static bool has_add_node_v = has_add_node_impl<void, T, Args...>;
 
 static_assert(!has_add_node_v<int>);
 static_assert(!has_add_node_v<int, std::size_t>);
+auto xc = [] {
+    using TheType = std::map<int, std::vector<int>>;
+    TheType a;
+};
+
 static_assert(!has_add_node_v<std::array<std::vector<int>, 4>>);
 static_assert(!has_add_node_v<std::vector<std::tuple<int, int>>>);
 static_assert(!has_add_node_v<std::initializer_list<std::vector<int>>>);
@@ -399,6 +421,8 @@ constexpr static auto check = [] (auto&& ...args) {
 };
 static_assert(check<constexpr_vector<std::initializer_list<int>, 3>>());
 static_assert(check<constexpr_vector<constexpr_vector<int, 3>, 3>>());
+static_assert(check<constexpr_vector<constexpr_map<int, float, 3>, 3>>());
+static_assert(check<constexpr_vector<std::array<std::pair<int, float>, 3>, 3>>());
 static_assert(check<constexpr_vector<constexpr_vector<constexpr_pair<int, bool>, 3>, 3>>());
 static_assert(check<constexpr_vector<std::array<int, 3>, 3>>());
 static_assert(check<constexpr_vector<std::array<constexpr_pair<int, bool>, 3>, 3>>());
