@@ -250,8 +250,8 @@ template<class, class T, class ...Args>
 constexpr static bool has_add_node_impl = false;
 template<class T, class ...Args>
 constexpr static bool has_add_node_impl<std::void_t<
-    decltype(node::add_node(std::declval<T&>(), std::declval<Args>()...))
->, T, Args...> = true;
+    bxlx::graph_traits_t<T>
+>, T, Args...> = bxlx::graph_traits_t<T>::template can_add_node<T&, Args...>;
 
 template<class T, class ...Args>
 constexpr static bool has_add_node_v = has_add_node_impl<void, T, Args...>;

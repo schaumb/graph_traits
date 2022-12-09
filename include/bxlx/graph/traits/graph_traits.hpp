@@ -484,6 +484,23 @@ namespace bxlx::traits {
         }
     };
 
+
+    template<auto>
+    constexpr static inline identity_t pass{};
+
+    template<class T, class With, std::size_t ...Ix>
+    constexpr auto aggregate_initialize(std::index_sequence<Ix...>, const With& with) -> decltype(T{pass<Ix>(with)...}) {
+        return T{pass<Ix>(with)...};
+    }
+
+    template<class, class, std::size_t, class = void>
+    constexpr static bool is_aggregate_initializable_v = false;
+    template<class T, class With, std::size_t N>
+    constexpr static bool is_aggregate_initializable_v<T, With, N, std::void_t<
+        decltype(aggregate_initialize<T, With>(std::make_index_sequence<N>{}, std::declval<const With&>()))
+    >> = true;
+
+
     template<class Props>
     struct graph_traits_common {
         constexpr static bool has_graph_property = has_property<Props, graph_property>;
@@ -519,6 +536,7 @@ namespace bxlx::traits {
         template<class T, class Props = get_properties<adjacency_list, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
             constexpr static inline auto representation = graph_representation::adjacency_list;
+            using node_index_t = typename graph_traits::node_index_t;
 
             constexpr static auto node_container_size = has_property_or_t<Props, traits::node_container_size, constant_t<0>>::value;
             constexpr static auto out_edge_container_size = has_property_or_t<Props, inside_container_size, constant_t<0>>::value;
@@ -560,6 +578,126 @@ namespace bxlx::traits {
             using node_container_type = std::remove_reference_t<decltype(get_nodes(std::declval<T>()))>;
             using edge_container_type = void;
             using out_edge_container_type = std::remove_reference_t<decltype(out_edges(std::declval<typename graph_traits::node_repr_type>()))>;
+
+
+            constexpr static auto out_edges_initializer = [] () -> decltype(auto) {
+                if constexpr (out_edge_container_size != 0 && !graph_traits::has_edge_property &&
+                              is_aggregate_initializable_v<out_edge_container_type, const node_index_t&, out_edge_container_size>) {
+                    return std::tuple{aggregate_initialize<out_edge_container_type>(
+                        std::make_index_sequence<out_edge_container_size>{}, invalid
+                    )};
+                } else if constexpr (out_edge_container_size != 0 && graph_traits::has_edge_property &&
+                    is_aggregate_initializable_v<out_edge_container_type,
+                        typename graph_traits::edge_repr_type, out_edge_container_size>) {
+                    return std::tuple{aggregate_initialize<out_edge_container_type>(
+                        std::make_index_sequence<out_edge_container_size>{},
+                        typename graph_traits::edge_repr_type{invalid, {}}
+                    )};
+                } else {
+                    return std::tuple{};
+                }
+            };
+
+            constexpr static auto after_add_node = [](auto& new_node) {
+                if constexpr (out_edge_container_size != 0 &&
+                              std::tuple_size_v<decltype(out_edges_initializer())> == 0) {
+                    if constexpr (!std::is_const_v<std::remove_reference_t<
+                        decltype(edge_target(*std::begin(out_edges(new_node))))
+                    >>) {
+                        for (auto& edge : out_edges(new_node)) {
+                            edge_target(edge) = invalid;
+                        }
+                    } else {
+                        return std::false_type{};
+                    }
+                } else {
+                    return std::true_type{};
+                }
+            };
+
+            template<class traits = graph_traits, class ...Args>
+            constexpr static inline auto add_node(std::enable_if_t<!traits::user_node_index, T>& g, Args&& ...args) {
+                constexpr bool no_arg = sizeof...(args) == 0;
+                constexpr bool overridable_if_needed = decltype(after_add_node(std::declval<node_repr_type&>()))::value;
+                auto& nodes = get_nodes(g);
+                node_index_t ix = std::size(nodes);
+
+                if constexpr (traits::has_node_property &&
+                    detail2::range_member_traits::has_emplace_back_v<node_container_type,
+                        std::piecewise_construct_t,
+                        decltype(out_edges_initializer()),
+                        std::tuple<Args&&...>
+                    > && overridable_if_needed
+                ) {
+                    if constexpr (std::is_constructible_v<typename traits::node_property_type,
+                        Args&&...
+                    >) {
+                        after_add_node(nodes.emplace_back(std::piecewise_construct,
+                                                          out_edges_initializer(), // tuple<> or tuple<T>(T{invalid...});
+                                                          std::forward_as_tuple(std::forward<Args&&>(args)...)
+                        ));
+                        return ix;
+                    }
+                } else if constexpr (!traits::has_node_property && no_arg && (out_edge_container_size == 0 ||
+                                     std::tuple_size_v<decltype(out_edges_initializer())> == 0) &&
+                    detail2::range_member_traits::has_emplace_back_v<node_container_type> && overridable_if_needed
+                ) {
+                    after_add_node(nodes.emplace_back());
+                    return ix;
+                } else if constexpr (!traits::has_node_property && no_arg && std::tuple_size_v<decltype(out_edges_initializer())> > 0
+                ) {
+                    if constexpr (
+                        detail2::range_member_traits::has_emplace_back_v<node_container_type,
+                            detail2::tuple_element_cvref_t<0, decltype(out_edges_initializer())>
+                        >
+                    ) {
+                        after_add_node(nodes.emplace_back(std::get<0>(out_edges_initializer())));
+                        return ix;
+                    }
+                }
+            };
+
+            template<class traits = graph_traits, class ...Args>
+            constexpr static inline auto add_node(std::enable_if_t<traits::user_node_index, T>& g, const node_index_t& i, Args&& ...args) {
+                constexpr bool no_arg = sizeof...(args) == 0;
+                if constexpr (traits::has_node_property &&
+                    detail2::range_member_traits::has_try_emplace_v<
+                        node_container_type,
+                        const node_index_t&,
+                        std::piecewise_construct_t,
+                        std::tuple<>,
+                        std::tuple<Args&&...>
+                    >
+                ) {
+                    if constexpr (std::is_constructible_v<typename traits::node_property_type,
+                        Args&&...
+                    >) {
+                        return std::make_pair(i, get_nodes(g).try_emplace(i,
+                                                                          std::piecewise_construct,
+                                                                          std::tuple<>(),
+                                                                          std::forward_as_tuple(
+                                                                              std::forward<Args &&>(args)...)
+                        ).second);
+                    }
+                } else if constexpr (!traits::has_node_property && no_arg &&
+                    detail2::range_member_traits::has_try_emplace_v<
+                        node_container_type,
+                        const node_index_t&
+                    >
+                ) {
+                    return std::make_pair(i, get_nodes(g).try_emplace(i).second);
+                }
+            };
+
+            template<class, class ...Args>
+            constexpr static inline bool can_add_node_impl = false;
+            template<class ...Args>
+            constexpr static inline bool can_add_node_impl<std::void_t<
+                decltype(add_node<>(std::declval<Args>()...))
+            >, Args...> = !std::is_void_v<decltype(add_node<>(std::declval<Args>()...))>;
+
+            template<class ...Args>
+            constexpr static inline bool can_add_node = can_add_node_impl<void, Args...>;
         };
     };
 
@@ -575,6 +713,7 @@ namespace bxlx::traits {
         template<class T, class Props = get_properties<adjacency_matrix, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
             constexpr static inline auto representation = graph_representation::adjacency_matrix;
+            using node_index_t = typename graph_traits::node_index_t;
 
             constexpr static inline auto out_edges = std::conditional_t<graph_traits::has_node_property, getter_t<0>, identity_t>{};
 
@@ -594,6 +733,111 @@ namespace bxlx::traits {
             constexpr static auto get_edge_property = std::conditional_t<graph_traits::has_edge_property, indirect_t, noop_t>{};
             constexpr static auto get_node_property = std::conditional_t<graph_traits::has_node_property, getter_t<1>, noop_t>{};
 
+
+            constexpr static auto after_add_node = [] (auto& nodes) {
+                if constexpr (out_edge_container_size == 0) {
+                    if constexpr (
+                        detail2::range_member_traits::has_resize_v<
+                            out_edge_container_type
+                        >
+                    ) {
+                        node_index_t size = std::size(nodes);
+                        for (auto& node : nodes) {
+                            out_edges(node).resize(size);
+                        }
+                        return std::true_type{};
+                    } else {
+                        return std::false_type{};
+                    }
+                } else {
+                    return std::true_type{};
+                }
+            };
+
+            template<class traits = graph_traits, class ...Args>
+            constexpr static auto add_node (std::enable_if_t<!traits::user_node_index, T>& g, Args&& ...args) {
+                constexpr bool no_arg = sizeof...(args) == 0;
+                auto& nodes = get_nodes(g);
+                node_index_t ix = std::size(nodes);
+                constexpr bool resizable_if_needed = decltype(after_add_node(nodes))::value;
+
+                if constexpr (traits::has_node_property &&
+                    detail2::range_member_traits::has_emplace_back_v<
+                        node_container_type,
+                        std::piecewise_construct_t,
+                        std::tuple<>,
+                        std::tuple<Args&&...>
+                    > && resizable_if_needed
+                ) {
+                    if constexpr (std::is_constructible_v<typename traits::node_property_type,
+                        Args&&...
+                    >) {
+                        nodes.emplace_back(std::piecewise_construct,
+                                           std::tuple<>{},
+                                           std::forward_as_tuple(std::forward<Args &&>(args)...)
+                        );
+                        after_add_node(nodes);
+                        return ix;
+                    }
+                } else if constexpr (!traits::has_node_property && no_arg &&
+                    detail2::range_member_traits::has_emplace_back_v<
+                        node_container_type
+                    > && resizable_if_needed
+                ) {
+                    nodes.emplace_back();
+                    after_add_node(nodes);
+                    return ix;
+                }
+            };
+
+            template<class traits = graph_traits, class ...Args>
+            constexpr static auto add_node(std::enable_if_t<traits::user_node_index, T>& g, const node_index_t& i, Args&& ...args) {
+                constexpr bool no_arg = sizeof...(args) == 0;
+                auto& nodes = get_nodes(g);
+                constexpr bool resizable_if_needed = decltype(after_add_node(nodes))::value;
+
+                if constexpr (traits::has_node_property &&
+                    detail2::range_member_traits::has_try_emplace_v<
+                        node_container_type,
+                        const node_index_t&,
+                        std::piecewise_construct_t,
+                        std::tuple<>,
+                        std::tuple<Args&&...>
+                    > && resizable_if_needed
+                ) {
+                    if constexpr (std::is_constructible_v<typename traits::node_property_type,
+                        Args&&...
+                    >) {
+                        auto res = std::make_pair(i, nodes.try_emplace(i,
+                                                                       std::piecewise_construct,
+                                                                       std::tuple<>(),
+                                                                       std::forward_as_tuple(
+                                                                           std::forward<Args &&>(args)...)
+                        ).second);
+                        after_add_node(nodes);
+                        return res;
+                    }
+                } else if constexpr (!traits::has_node_property && no_arg &&
+                    detail2::range_member_traits::has_try_emplace_v<
+                        node_container_type,
+                        const node_index_t&
+                    > && resizable_if_needed
+                ) {
+                    auto res = std::make_pair(i, nodes.try_emplace(i).second);
+                    after_add_node(nodes);
+                    return res;
+                }
+            };
+
+            template<class, class ...Args>
+            constexpr static inline bool can_add_node_impl = false;
+            template<class ...Args>
+            constexpr static inline bool can_add_node_impl<std::void_t<
+                decltype(add_node<>(std::declval<Args>()...))
+            >, Args...> = !std::is_void_v<decltype(add_node<>(std::declval<Args>()...))>;
+
+            template<class ...Args>
+            constexpr static inline bool can_add_node = can_add_node_impl<void, Args...>;
         };
     };
 
@@ -605,6 +849,7 @@ namespace bxlx::traits {
         template<class T, class Props = get_properties<edge_list, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
             constexpr static inline auto representation = graph_representation::edge_list;
+            using node_index_t = typename graph_traits::node_index_t;
 
             constexpr static auto node_container_size = has_property_or_t<Props, traits::node_container_size, constant_t<0>>::value;
             constexpr static auto out_edge_container_size = 0;
@@ -638,6 +883,50 @@ namespace bxlx::traits {
             using node_container_type = std::remove_reference_t<decltype(get_nodes(std::declval<T>()))>;
             using edge_container_type = std::remove_reference_t<decltype(get_edges(std::declval<T>()))>;
             using out_edge_container_type = void;
+
+            template<class traits = graph_traits, class ...Args>
+            constexpr static auto add_node(std::enable_if_t<!traits::user_node_index, T>& g, Args&& ...args) {
+                if constexpr (!std::is_void_v<node_container_type> &&
+                    detail2::range_member_traits::has_emplace_back_v<
+                        node_container_type,
+                        Args&&...
+                    > &&
+                    std::is_constructible_v<typename traits::node_property_type,
+                        Args&&...
+                    >
+                ) {
+                    auto &nodes = get_nodes(g);
+                    node_index_t ix = std::size(nodes);
+                    nodes.emplace_back(std::forward<Args &&>(args)...);
+                    return ix;
+                }
+            };
+
+            template<class traits = graph_traits, class ...Args>
+            constexpr static auto add_node(std::enable_if_t<traits::user_node_index, T>& g, const node_index_t& i, Args&& ...args) {
+                if constexpr (!std::is_void_v<node_container_type> &&
+                    detail2::range_member_traits::has_try_emplace_v<
+                        node_container_type,
+                        const node_index_t&,
+                        Args&&...
+                    > &&
+                    std::is_constructible_v<typename traits::node_property_type,
+                        Args&&...
+                    >
+                ) {
+                    return std::make_pair(i, get_nodes(g).try_emplace(i, std::forward<decltype(args)>(args)...).second);
+                }
+            };
+
+            template<class, class ...Args>
+            constexpr static inline bool can_add_node_impl = false;
+            template<class ...Args>
+            constexpr static inline bool can_add_node_impl<std::void_t<
+                decltype(add_node<>(std::declval<Args>()...))
+            >, Args...> = !std::is_void_v<decltype(add_node<>(std::declval<Args>()...))>;
+
+            template<class ...Args>
+            constexpr static inline bool can_add_node = can_add_node_impl<void, Args...>;
         };
     };
 
