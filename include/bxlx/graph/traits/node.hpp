@@ -144,14 +144,14 @@ namespace bxlx::traits::node {
 
     template<class Graph, class GraphTraits = graph_traits_t<Graph>, class ...Args>
     constexpr auto add_node(Graph& g, Args&&... args)
-        -> std::enable_if_t<!GraphTraits::user_node_index && GraphTraits::template can_add_node<Graph&, Args&&...>, node_t<GraphTraits>> {
+        -> std::enable_if_t<!GraphTraits::user_node_index && GraphTraits::template can_add_node<Args&&...>, node_t<GraphTraits>> {
         static_assert(GraphTraits::has_node_property || sizeof...(args) == 0, "Variadic arg can be added only if node property exists");
         return GraphTraits::add_node(g, std::forward<Args>(args)...);
     };
 
     template<class Graph, class GraphTraits = graph_traits_t<Graph>, class ...Args>
     constexpr auto add_node(Graph& g, const node_t<GraphTraits>& n, Args&&... args)
-        -> std::enable_if_t<GraphTraits::user_node_index && GraphTraits::template can_add_node<Graph&, const node_t<GraphTraits>&, Args&&...>, std::pair<node_t<GraphTraits>, bool>> {
+        -> std::enable_if_t<GraphTraits::user_node_index && GraphTraits::template can_add_node<const node_t<GraphTraits>&, Args&&...>, std::pair<node_t<GraphTraits>, bool>> {
         static_assert(GraphTraits::has_node_property || sizeof...(args) == 0, "Variadic arg can be added only if node property exists");
         return GraphTraits::add_node(g, n, std::forward<Args>(args)...);
     };

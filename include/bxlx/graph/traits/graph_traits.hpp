@@ -693,8 +693,8 @@ namespace bxlx::traits {
             constexpr static inline bool can_add_node_impl = false;
             template<class ...Args>
             constexpr static inline bool can_add_node_impl<std::void_t<
-                decltype(add_node<>(std::declval<Args>()...))
-            >, Args...> = !std::is_void_v<decltype(add_node<>(std::declval<Args>()...))>;
+                decltype(add_node<>(std::declval<T&>(), std::declval<Args>()...))
+            >, Args...> = !std::is_void_v<decltype(add_node<>(std::declval<T&>(), std::declval<Args>()...))>;
 
             template<class ...Args>
             constexpr static inline bool can_add_node = can_add_node_impl<void, Args...>;
@@ -833,8 +833,8 @@ namespace bxlx::traits {
             constexpr static inline bool can_add_node_impl = false;
             template<class ...Args>
             constexpr static inline bool can_add_node_impl<std::void_t<
-                decltype(add_node<>(std::declval<Args>()...))
-            >, Args...> = !std::is_void_v<decltype(add_node<>(std::declval<Args>()...))>;
+                decltype(add_node<>(std::declval<T&>(), std::declval<Args>()...))
+            >, Args...> = !std::is_void_v<decltype(add_node<>(std::declval<T&>(), std::declval<Args>()...))>;
 
             template<class ...Args>
             constexpr static inline bool can_add_node = can_add_node_impl<void, Args...>;
@@ -922,8 +922,8 @@ namespace bxlx::traits {
             constexpr static inline bool can_add_node_impl = false;
             template<class ...Args>
             constexpr static inline bool can_add_node_impl<std::void_t<
-                decltype(add_node<>(std::declval<Args>()...))
-            >, Args...> = !std::is_void_v<decltype(add_node<>(std::declval<Args>()...))>;
+                decltype(add_node<>(std::declval<T&>(), std::declval<Args>()...))
+            >, Args...> = !std::is_void_v<decltype(add_node<>(std::declval<T&>(), std::declval<Args>()...))>;
 
             template<class ...Args>
             constexpr static inline bool can_add_node = can_add_node_impl<void, Args...>;
