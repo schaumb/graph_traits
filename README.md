@@ -139,46 +139,11 @@ constexpr bool remove_edge(Graph&, const node_t<GraphTraits>&, const node_t<Grap
 
 ### Breadth first search
 
-The result is always a range of this struct
-
-```cpp
-struct breadth_first_search_result {
-    node_index_t parent;
-    node_index_t index;
-    size_t distance;
-    edge_repr_type* edge;
-    node_repr_type* node;
-};
-```
-
-`*_repr_type` are depends on graph representation.
-
----
-
-```cpp
-template<class Graph, class GraphTraits = /* traits */>
-constexpr /* range<bfs_res> */ breadth_first_search(Graph&& graph, node_index_t start_index);
-
-template<class ExPcy, class Graph, class GraphTraits = /* traits */>
-/* range<bfs_res> */ breadth_first_search(ExPcy&& policy, Graph&& graph, node_index_t start_index);
-
-template<class Graph, class GraphTraits = /* traits */, class OutputIterator>
-constexpr OutputIterator breadth_first_search(Graph&& graph, node_index_t start_index, 
-                                              OutputIterator out);
-
-template<class ExPcy, class Graph, class GraphTraits = /* traits */, class OutputIterator>
-OutputIterator breadth_first_search(ExPcy&& policy, Graph&& graph, 
-                                    node_index_t start_index, OutputIterator out);
-```
-
 ---
 
 #### Example for `edge_list`
 
-*current implementation is O(n\*e) where e is the edges count and n is the connected graph nodes count from start. This can be O((n + e)\*log(e)) later*
-
 ```cpp
-#include <bxlx/graph_traits/algs/breadth_first_search.hpp>
 #include <vector>
 #include <string_view>
 #include <utility>
@@ -191,10 +156,10 @@ void run_bfs() {
         {"e", "a"}, {"e", "c"}, {"e", "f"}
     }; 
     
-    for (auto&& bfs_res : bxlx::graph::breadth_first_search(edge_list, "a")) {
-        if (bfs_res.edge) // not the first node
-            std::cout << bfs_res.parent << " -> ";
-        std::cout << bfs_res.index << " (dist: " << bfs_res.distance << ")\n";
+    for (auto&& [parent, index, distance] : bxlx::graph::shortest_paths(edge_list, "a")) {
+        if (distance != 0) // not the first node
+            std::cout << parent << " -> ";
+        std::cout << index << " (dist: " << distance << ")\n";
     }
     // possible output: 
 
@@ -213,7 +178,6 @@ void run_bfs() {
 *O(n + e)*
 
 ```cpp
-#include <bxlx/graph_traits/algs/breadth_first_search.hpp>
 #include <array>
 #include <initializer_list>
 #include <string_view>
@@ -232,11 +196,11 @@ void run_bfs_2() {
         {{},            "node 8"},
         {{8},           "node 9"},
     }};
-    for (auto&& bfs_res : bxlx::graph::breadth_first_search(graph, 2)) {
-        if (bfs_res.edge) // not the first node
-            cout << bfs_res.parent << " -> ";
-        cout << "\"" << bfs_res.node->second << "\" "
-                "(dist: " << bfs_res.distance << ")\n";
+    for (auto&& [parent, index, node, distance] : bxlx::graph::shortest_paths(graph, 2)) {
+        if (distance != 0) // not the first node
+            cout << parent << " -> ";
+        cout << std::quoted(*node) <<
+                " (dist: " << distance << ")\n";
     }
     // output:
     
@@ -344,10 +308,14 @@ constexpr ColoredEdgeOutIt depth_first_search(const Graph& g, node_t<Graph> from
 template<class ColoredEdgeOutIt, class Graph, class GraphTraits = ...>
 constexpr ColoredEdgeOutIt breadth_first_search(const Graph& g, node_t<Graph> from, ColoredEdgeOutIt out);
 // fills 'out' with a flexible class, which implicit convertible to:
-// - std::pair<std::pair<node_t, node_t>, std::pair<TreeType, std::size_t>>             - parent + to + TreeType + distance
-// - std::pair<std::pair<node_t, node_t>, TreeType>                                     - parent + to + TreeType
-// - std::pair<node_t, std::pair<TreeType, std::size_t>>                                -          to + TreeType + distance
-// - std::pair<node_t, TreeType>                                                        -          to + TreeType
+// - std::tuple<node_t, node_t, const node_property_t*, TreeType, std::size_t>          - parent + to + node prop + TreeType + distance
+// - std::tuple<node_t, node_t, const node_property_t*, TreeType>                       - parent + to + node prop + TreeType
+// - std::tuple<node_t, node_t, TreeType, std::size_t>                                  - parent + to             + TreeType + distance
+// - std::tuple<node_t, node_t, TreeType>                                               - parent + to             + TreeType
+// - std::tuple<node_t, const node_property_t*, TreeType, std::size_t>                  -          to + node prop + TreeType + distance
+// - std::tuple<node_t, const node_property_t*, TreeType>                               -          to + node prop + TreeType
+// - std::tuple<node_t, TreeType, std::size_t>                                          -          to             + TreeType + distance
+// - std::pair <node_t, TreeType>                                                       -          to             + TreeType
 
 // where TreeType is one of the following type: 
 // tree_t, forward_t, reverse_t, cross_t, parallel_t; whose implicit convertible to edge_type.
@@ -378,11 +346,15 @@ constexpr OutIt shortest_paths(const Graph& g, node_t<Graph> from, OutIt out, We
 // else use bellman_ford algorithm
 // 
 // fills 'out' with a flexible class, which implicit convertible to: (*)
-// - std::pair<std::pair<node_t, node_t>, std::pair<const edge_property_t*, weight>>    - parent + to + property + weight
-// - std::pair<std::pair<node_t, node_t>, const edge_property_t*>                       - parent + to + property
-// - std::pair<std::pair<node_t, node_t>, weight>                                       - parent + to            + weight
-// - std::pair<node_t, node_t>                                                          - parent + to
-// - std::pair<node_t, weight>                                                          -          to            + weight
+// - std::tuple<node_t, node_t, const node_property_t*, const edge_property_t*, weight> - parent + to + n_property + e_property + weight
+// - std::tuple<node_t, node_t, const node_property_t*, const edge_property_t*>         - parent + to + n_property + e_property
+// - std::tuple<node_t, node_t, const edge_property_t*, weight>                         - parent + to              + e_property + weight
+// - std::tuple<node_t, node_t, const edge_property_t*>                                 - parent + to              + e_property
+// - std::tuple<node_t, node_t, const node_property_t*, weight>                         - parent + to + n_property              + weight
+// - std::tuple<node_t, node_t, const node_property_t*>                                 - parent + to + n_property
+// - std::tuple<node_t, node_t, weight>                                                 - parent + to                           + weight
+// - std::tuple<node_t, const node_property_t*, weight>                                 -          to + n_property              + weight
+// - std::pair <node_t, weight>                                                         -          to                           + weight
 // if edge_property is not exists, those overloads works with edge_repr_t
 
 template<class Weight = EdgePropIdentityCmpOrSizeTOne, class NodeInputIt, class OutIt, class Graph, class GraphTraits = ...>
@@ -521,7 +493,8 @@ template<class OutType = void, class Weight = EdgePropIdentityCmpOrSizeTOne, cla
 constexpr StorageVector shortest_paths(const Graph& g, node_t<Graph> from, Weight = {}, 
                                        WeightRes max_weight = ~WeightRes(),
                                        StorageVector&& = {});
-// returns std::vector<std::pair<node_t, weight>> if OutType == void 
+// returns std::vector<std::tuple<node_t, node_t, weight>> if OutType == void and no bounded property
+// returns std::vector<std::tuple<node_t, node_t, const node_property_t*, weight>> if OutType == void, and it has bounded node property 
 // returns std::vector<OutType> if OutType is constructible from any acceptable edge output, see (*)
 // returns OutType if it is a range of acceptable edge output
 // if Graph node size is constexpr, then returns default std::array<T, NODES> replacement of std::vector
