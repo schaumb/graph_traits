@@ -437,6 +437,16 @@ namespace bxlx::detail2 {
         template<class Range, class ...Args>
         constexpr inline bool has_emplace_back_v = has_emplace_back<Range, can_inspect_member<Range>, void, Args...>;
 
+        template<class Range, bool, class = void, class ...Args>
+        constexpr inline bool has_emplace = false;
+        template<class Range, class ...Args>
+        constexpr inline bool has_emplace<Range, true, std::void_t<
+            decltype(member_function_invoke_result_v<void, Range, Args&&...>(&Range::template emplace<Args&&...>))
+        >, Args...> = true;
+
+        template<class Range, class ...Args>
+        constexpr inline bool has_emplace_v = has_emplace<Range, can_inspect_member<Range>, void, Args...>;
+
 
         template<class Range, bool, class = void, class ...Args>
         constexpr inline bool has_try_emplace = false;
@@ -642,9 +652,19 @@ namespace bxlx::detail2 {
 
 
     template<class T, bool = is_defined_v<T>>
-    constexpr static inline bool is_set_like_container = false;
+    constexpr static inline bool is_set_like_container_v = false;
     template<class T>
-    constexpr static inline bool is_set_like_container<T, true> = !is_map_like_container_v<T> && has_map_like_properties_impl<void, 2>::template has_set_equal_range_function_v<T>;
+    constexpr static inline bool is_set_like_container_v<T, true> = !is_map_like_container_v<T> && has_map_like_properties_impl<void, 2>::template has_set_equal_range_function_v<T>;
+
+    template<class T, bool = is_map_like_container_v<T> || is_set_like_container_v<T>, class = void>
+    constexpr static inline bool is_multi_v = false;
+    template<class T>
+    constexpr static inline bool is_multi_v<T, true, std::enable_if_t<
+        range_member_traits::has_emplace_v<std::remove_const_t<T>, std::remove_const_t<range_traits_type<T>>&&>
+    >> = !is_tuple_like_v<decltype(
+        member_function_invoke_result_v<void, std::remove_const_t<T>, std::remove_const_t<range_traits_type<T>>&&>(
+            &std::remove_const_t<T>::template emplace<std::remove_const_t<range_traits_type<T>>&&>
+    ))>;
 
 
     enum class type_classification {

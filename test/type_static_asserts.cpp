@@ -338,4 +338,21 @@ static_assert(classify<const bool> == type_classification::bool_t);
 static_assert(classify<const std::map<int, int>> == type_classification::map_like_container);
 static_assert(classify<const std::unordered_map<int, int>> == type_classification::map_like_container);
 
+static_assert(bxlx::detail2::is_set_like_container_v<std::set<int>>);
+static_assert(bxlx::detail2::is_set_like_container_v<std::set<std::pair<int, int>>>);
+static_assert(bxlx::detail2::is_set_like_container_v<std::set<std::pair<const int, int>>>);
+static_assert(bxlx::detail2::is_set_like_container_v<std::set<int, std::greater<>>>);
+static_assert(bxlx::detail2::is_set_like_container_v<std::multiset<int>>);
+static_assert(!bxlx::detail2::is_set_like_container_v<std::map<int, int>>);
+
+static_assert(!bxlx::detail2::is_multi_v<std::set<int>>);
+static_assert(!bxlx::detail2::is_multi_v<std::set<int, std::less<>>>);
+static_assert(bxlx::detail2::is_multi_v<std::multiset<int>>);
+static_assert(bxlx::detail2::is_multi_v<std::multiset<int, std::less<>>>);
+static_assert(!bxlx::detail2::is_multi_v<std::map<int, int>>);
+static_assert(!bxlx::detail2::is_multi_v<std::map<int, int, std::less<>>>);
+static_assert(bxlx::detail2::is_multi_v<std::multimap<int, int>>);
+static_assert(bxlx::detail2::is_multi_v<std::multimap<int, int, std::less<>>>);
+
+
 int main() {}
