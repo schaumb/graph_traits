@@ -552,6 +552,17 @@ namespace bxlx::detail2 {
         constexpr inline bool has_equal_range_v = has_equal_range<Range, Result, can_inspect_member<Range>, void, Args...>;
 
 
+        template<class Range, class Result, bool, class = void, class ...Args>
+        constexpr inline bool has_erase = false;
+        template<class Range, class Result, class ...Args>
+        constexpr inline bool has_erase<Range, Result, true, std::void_t<
+            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::erase))
+        >, Args...> = true;
+
+        template<class Range, class Result, class ...Args>
+        constexpr inline bool has_erase_v = has_erase<Range, Result, can_inspect_member<Range>, void, Args...>;
+
+
 
         template<class Range, class Result, bool, class = void, class ...Args>
         constexpr inline bool has_at = false;

@@ -323,3 +323,269 @@ Map-s cannot be used by different strategy for keys (std::less<K> or std::equal_
 
 ---
 
+
+## Algorithms, functions
+
+### Non modifying algorithms
+
+```cpp
+struct edge_types {
+  enum type { tree, forward, reverse, cross, parallel };
+  using tree_t = std::integral_constant<type, tree>;
+  using forward_t = std::integral_constant<type, forward>;
+  using reverse_t = std::integral_constant<type, reverse>;
+  using cross_t = std::integral_constant<type, cross>;
+  using parallel_t = std::integral_constant<type, parallel>;
+};
+using edge_type = edge_types::type;
+
+template<class ColoredEdgeOutIt, class Graph, class GraphTraits = ...>
+constexpr ColoredEdgeOutIt depth_first_search(const Graph& g, node_t<Graph> from, ColoredEdgeOutIt out);
+template<class ColoredEdgeOutIt, class Graph, class GraphTraits = ...>
+constexpr ColoredEdgeOutIt breadth_first_search(const Graph& g, node_t<Graph> from, ColoredEdgeOutIt out);
+// fills 'out' with a flexible class, which implicit convertible to:
+// - std::pair<std::pair<node_t, node_t>, std::pair<TreeType, std::size_t>>             - parent + to + TreeType + distance
+// - std::pair<std::pair<node_t, node_t>, TreeType>                                     - parent + to + TreeType
+// - std::pair<node_t, std::pair<TreeType, std::size_t>>                                -          to + TreeType + distance
+// - std::pair<node_t, TreeType>                                                        -          to + TreeType
+
+// where TreeType is one of the following type: 
+// tree_t, forward_t, reverse_t, cross_t, parallel_t; whose implicit convertible to edge_type.
+
+
+template<class Weight = EdgePropIdentityCmpOrSizeTOne, class OutIt, class Graph, class GraphTraits = ...>
+constexpr OutIt shortest_paths(const Graph& g, node_t<Graph> from, OutIt out, Weight = {}, WeightRes max_weight = ~WeightRes());
+// Weight is default if Graph has edge property, and the property has:
+// - default constructor, (means zero weight/distance)
+// - copy constructor
+// - operator +(P, P)
+// - operator <(P, P)
+// - operator ~() on default constructed item.
+// if edge property is not matching these properties, default SizeTOne is used as weight
+//
+// if Weight is user defined, any callable can pass which:
+// - can be called with 3 argument: (node_t from, node_t to, const edge_property_t& prop)
+// - can be called with 3 argument: (node_t from, node_t to, const edge_repr_t& prop)
+// - can be called with 2 argument: (node_t from, node_t to)
+// - can be called with 1 argument: (const edge_property_t& prop)
+// - can be called with 1 argument: (const edge_repr_t& prop)
+// - returns with a type whose match the listing above
+// it must be sfinae friendly
+//
+// if Weight == SizeTOne, it uses bfs
+// if Weight type is unsigned: T() < ~T(), or used bounded edge as weight, and all edge property is >= T() then dijkstra used
+//    - signedness can be determined constexpr only if T [is trivial C++17] [has constexpr constructor/destructor and operator~ >=C++20]
+// else use bellman_ford algorithm
+// 
+// fills 'out' with a flexible class, which implicit convertible to: (*)
+// - std::pair<std::pair<node_t, node_t>, std::pair<const edge_property_t*, weight>>    - parent + to + property + weight
+// - std::pair<std::pair<node_t, node_t>, const edge_property_t*>                       - parent + to + property
+// - std::pair<std::pair<node_t, node_t>, weight>                                       - parent + to            + weight
+// - std::pair<node_t, node_t>                                                          - parent + to
+// - std::pair<node_t, weight>                                                          -          to            + weight
+// if edge_property is not exists, those overloads works with edge_repr_t
+
+template<class Weight = EdgePropIdentityCmpOrSizeTOne, class NodeInputIt, class OutIt, class Graph, class GraphTraits = ...>
+constexpr OutIt shortest_paths(const Graph& g, NodeInputIt first, NodeInputIt last, OutIt out, Weight = {}, WeightRes max_weight = ~WeightRes());
+// same as previous, but with multiple start node
+
+
+template<class Graph, class GraphTraits = ...>
+constexpr bool is_directed_acyclic(const Graph& g);
+// A graph is directed acyclic if no cycle found in it
+
+
+template<class Graph, class GraphTraits = ...>
+constexpr bool is_connected(const Graph& g, bool is_directed = /*TODO*/);
+template<class Graph, class GraphTraits = ...>
+constexpr bool is_forest(const Graph& g, bool is_directed = /*TODO*/);
+
+template<class Graph, class GraphTraits = ...>
+constexpr bool is_tree(const Graph& g, bool is_directed = /*TODO*/);
+// == is_forest && is_connected
+
+
+
+template<class NodeOutIt, class Graph, class GraphTraits = ...>
+constexpr NodeOutIt component(const Graph& g, node_t<Graph> node, NodeOutIt out);
+// fills 'out' with node indices, whose connected to 'node' 
+
+template<class NodeOutIt, class Graph, class GraphTraits = ...>
+constexpr NodeOutIt topological_sort(const Graph& g, NodeOutIt out);
+
+
+template<class Weight = EdgePropIdentityCmpOrSizeTOne, [class Heuristic,]
+         class OutIt, class Graph, class GraphTraits = ...>
+constexpr OutIt shortest_path(const Graph& g, node_t<Graph> from, node_t<Graph> to, 
+                              OutIt out, Weight&& = {}[, Heuristic&& = {}]);
+// Weight argument is same as in shortest_paths
+
+// Heuristic:
+// - can be called with (node_t from, node_t end)
+// - has copy constructor
+// - return value (r) has operator+(weight, r) -> weight
+
+
+template<class Weight = EdgePropIdentityCmpOrSizeTOne, [class Heuristic,]
+         class NodeInputIt, class OutIt, class Graph, class GraphTraits = ...>
+constexpr OutIt shortest_path(const Graph& g, NodeInputIt first_from, NodeInputIt last_from, node_t<Graph> to, 
+                              OutIt out, Weight&& = {} [, Heuristic&& = {}]);
+// same as previous version, except this accept multiple from indices
+
+
+template<class PairOutIt, class Color = std::size_t, class Graph, class GraphTraits = ...>
+constexpr PairOutIt coloring(const Graph& g, PairOutIt out, Color max_color = ~Color());
+// this algorithm fills 'out' with a pair of node index, and [Color(), ..., max_color) assigned color
+// std::pair<node_t, Color>
+// Color must be default constructible, copy constructible and has operator++ exists
+
+//                                                                          adj_list    | adj_mat   | edge_list
+// if max_color is INF (default, means no maximum), greedy algorithm used   O(n+e)      | ?         | ?
+// if max_color == 2, bipartite algorithm used                              O(n+e)      | ?         | ?
+// else [1] algorithm used                                                  O(c * n^2)  | ?         | ?
+
+// throws invalid_argument if max(out_edge_count(node)..., in_edge_count(node)...) >= max_color 
+
+
+template<class PairOutIt, class ComponentType = std::size_t, class Graph, class GraphTraits = ...>
+constexpr PairOutIt components(const Graph& g, PairOutIt out, ComponentType start = ComponentType());
+// fills 'out' with a pair of node index, and [start, ...) assigned component index
+// std::pair<node_t, ComponentType>
+// ComponentType must be copy constructible and has operator++ exists
+
+
+template<class Weight = EdgePropIdentityCmpOrSizeTOne, class OutIt, class Graph, class GraphTraits = ...>
+constexpr OutIt matching_edges(const Graph& g, OutIt out, Weight&& = {});
+// fills 'out' with edges [minimum weight if set] whose match maximum possible node in the graph
+
+template<class Weight = EdgePropIdentityCmpOrNone, class OutIt, class Graph, class GraphTraits = ...>
+constexpr OutIt cover_edges(const Graph& g, OutIt out, Weight&& = {});
+// fills 'out' with edges [minimum weight if set] whose cover all node in the graph
+// it uses matching() and complements it
+
+template<class Weight = EdgePropIdentityCmpOrNone, class OutIt, class Graph, class GraphTraits = ...>
+constexpr OutIt spanning_edges(const Graph& g, OutIt out, Weight&& = {});
+// fills 'out' with edges [minimum weight if set] whose used in graph it keeps the components connected 
+// without any undirected circle (on a connected graph, it makes a tree)
+
+template<class OutIt, class Graph, class GraphTraits = ...>
+constexpr OutIt eulerian_path(const Graph& g[, node_t<Graph> start], OutIt out, bool closed = false);
+// contains all edge from graph
+
+
+namespace isomorph {
+struct hash {
+    using is_transparent = ...;
+    template<class Graph>
+    constexpr std::size_t operator()(const Graph&) noexcept(...) const;
+    // uses [2]
+};
+
+struct equal_to {
+    using is_transparent = ...;
+    template<class G1, class G2>
+    constexpr bool operator()(const G1&, const G2&) noexcept(...) const;
+    // first uses node degree sorting comparator, then
+    // uses [3]
+};
+
+}
+
+// Currently not needed
+
+template<class Graph, class GraphTraits = ...>
+constexpr bool is_planar(const Graph&);
+// A graph is planar iff it can be drawn in a plane without any edge intersections.
+
+template<class Graph, class GraphTraits = ...>
+constexpr bool is_regular(const Graph&[, std::size_t k = INF]);
+// if k == INF then any regularity accepted, if not, only k regularity
+// graph is k regular iff all node degree is exactly k
+
+
+// [1] Kierstead, H. A., Kostochka, A. V., Mydlarz, M., & Szemerédi, E. (2010). A fast algorithm for equitable coloring. Combinatorica, 30(2), 217-224.
+// [2] Shervashidze, Nino, Pascal Schweitzer, Erik Jan Van Leeuwen, Kurt Mehlhorn, and Karsten M. Borgwardt. Weisfeiler Lehman Graph Kernels. Journal of Machine Learning Research. 2011. http://www.jmlr.org/papers/volume12/shervashidze11a/shervashidze11a.pdf
+// [3] L. P. Cordella, P. Foggia, C. Sansone, M. Vento, "An Improved Algorithm for Matching Large Graphs", 3rd IAPR-TC15 Workshop  on Graph-based Representations in Pattern Recognition, Cuen, pp. 149-159, 2001.
+```
+
+#### Ranges
+
+```cpp
+namespace ranges {
+// + BFS, DFS
+
+
+template<class OutType = void, class Weight = EdgePropIdentityCmpOrSizeTOne, class Graph,
+         class StorageVector = Storage<OutType, Graph>,
+         class GraphTraits = ...>
+constexpr StorageVector shortest_paths(const Graph& g, node_t<Graph> from, Weight = {}, 
+                                       WeightRes max_weight = ~WeightRes(),
+                                       StorageVector&& = {});
+// returns std::vector<std::pair<node_t, weight>> if OutType == void 
+// returns std::vector<OutType> if OutType is constructible from any acceptable edge output, see (*)
+// returns OutType if it is a range of acceptable edge output
+// if Graph node size is constexpr, then returns default std::array<T, NODES> replacement of std::vector
+        // the unfilled array elements will contain GraphTraits::invalid TO nodes 
+
+        
+template<class OutType = void, class Weight = EdgePropIdentityCmpOrSizeTOne, class InputNodes, 
+         class Graph, class StorageVector = Storage<OutType, Graph>, 
+         class GraphTraits = ...>
+constexpr StorageVector shortest_paths(const Graph& g, InputNodes&& from, Weight = {}, 
+                                       WeightRes max_weight = ~WeightRes(),
+                                       StorageVector&& = {});
+
+
+template<class NodeVector = void, class Graph, 
+         class StorageVector = Storage<NodeVector, Graph, node_t<Graph>>,
+         class GraphTraits = ...>
+constexpr StorageVector component(const Graph& g, node_t<Graph> node, StorageVector&& = {});
+
+
+template<class NodeVector = void, class Graph, 
+         class StorageVector = Storage<NodeVector, Graph, node_t<Graph>>, 
+         class GraphTraits = ...>
+constexpr StorageVector topological_sort(const Graph& g, StorageVector&& = {});
+
+
+
+template<class OutType = void, class Weight = EdgePropIdentityCmpOrSizeTOne, [class Heuristic,]
+         class Graph, class StorageVector = Storage<OutType, Graph>, class GraphTraits = ...>
+constexpr StorageVector shortest_path(const Graph& g, node_t<Graph> from, node_t<Graph> to, 
+                                      StorageVector&& = {}, Weight&& = {}[, Heuristic&& = {}]);
+
+
+template<class OutType = void, class Weight = EdgePropIdentityCmpOrSizeTOne, [class Heuristic,]
+         class InputNodes, class Graph, class StorageVector = Storage<OutType, Graph>, 
+         class GraphTraits = ...>
+constexpr StorageVector shortest_path(const Graph& g, InputNodes&& from, node_t<Graph> to, 
+                                      StorageVector&& = {}, Weight&& = {}[, Heuristic&& = {}]);
+
+
+template<class PairVector = void, class Color = std::size_t, class Graph, 
+         class StorageVector = Storage<PairVector, Graph, std::pair<node_t<Graph>, Color>>,
+         class GraphTraits = ...>
+constexpr StorageVector coloring(const Graph& g, Color max_color = ~Color(), StorageVector&& = {});
+
+
+template<class PairVector = void, class ComponentType = std::size_t, class Graph, 
+         class StorageVector = Storage<PairVector, Graph, std::pair<node_t<Graph>, ComponentType>>
+         class GraphTraits = ...>
+constexpr StorageVector components(const Graph& g, ComponentType start = ComponentType(), StorageVector&& = {});
+
+
+
+template<class OutType = void, class Weight = EdgePropIdentityCmpOrSizeTOne, class Graph, 
+         class StorageVector = Storage<OutType, Graph>,
+         class GraphTraits = ...>
+constexpr StorageVector X(const Graph& g, Weight&& = {}, StorageVector&& = {});
+// where X can be: matching_edges, cover_edges, spanning_edges
+
+
+template<class OutType = void, class Graph, 
+         class StorageVector = Storage<OutType, Graph>,
+         class GraphTraits = ...>
+constexpr StorageVector eulerian_path(const Graph& g[, node_t<Graph> start], bool closed = false,
+                                      StorageVector&& = {});
+}
+```
