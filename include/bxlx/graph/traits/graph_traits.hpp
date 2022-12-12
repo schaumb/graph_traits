@@ -103,36 +103,36 @@ namespace bxlx::traits {
         // detailed errors
         template<class>
         struct type_classification_mismatch {
-            using simplified = not_matching_types;
+            using simplified [[maybe_unused]] = not_matching_types;
         };
         template<class, class Properties>
         struct property_mismatch {
-            using simplified = get_property_error<Properties>;
+            using simplified [[maybe_unused]] = get_property_error<Properties>;
         };
         template<class, class...>
         struct multiple_graph_representation {
-            using simplified = graph_multiple_recognize;
+            using simplified [[maybe_unused]] = graph_multiple_recognize;
         };
         template<class>
         struct tuple_size_mismatch {
-            using simplified = not_matching_types;
+            using simplified [[maybe_unused]] = not_matching_types;
         };
 
         template<class ... All>
         struct any_nested_mismatched {
-            using simplified = reduce_errors_t<typename All::simplified...>;
+            using simplified [[maybe_unused]] = reduce_errors_t<typename All::simplified...>;
         };
         template<class ... All>
         struct tuple_nested_mismatched {
-            using simplified = reduce_errors_t<typename All::simplified...>;
+            using simplified [[maybe_unused]] = reduce_errors_t<typename All::simplified...>;
         };
         template<class, class Err>
         struct condition_and_error {
-            using simplified = typename Err::simplified;
+            using simplified [[maybe_unused]] = typename Err::simplified;
         };
         template<class C>
         struct condition_and_error<C, void> {
-            using simplified = void;
+            using simplified [[maybe_unused]] = void;
         };
     }
 
@@ -140,6 +140,18 @@ namespace bxlx::traits {
         adjacency_list,
         adjacency_matrix,
         edge_list,
+    };
+
+    enum class edge_direction_t {
+        unknown,
+        undirected [[maybe_unused]],
+        directed [[maybe_unused]]
+    };
+
+    enum class allow_parallel_edges_t {
+        unknown,
+        yes [[maybe_unused]],
+        no [[maybe_unused]]
     };
 
     template<detail2::type_classification ... types>
@@ -197,8 +209,8 @@ namespace bxlx::traits {
     struct node_container_size {};
     struct edge_container_size {};
     struct inside_container_size {};
-    struct node_equality_type{};
-    struct node_comparator_type{};
+    struct node_equality_type {};
+    struct node_comparator_type {};
 
     struct no_prop {
         template<class>
@@ -558,7 +570,13 @@ namespace bxlx::traits {
         constexpr static bool has_edge_property = has_property<Props, edge_property>;
         constexpr static bool has_node_property = has_property<Props, node_property>;
 
-        constexpr static auto get_graph_property = std::conditional_t<has_graph_property, getter_t<1>, noop_t>{};
+        [[maybe_unused]] constexpr static edge_direction_t edge_direction =
+            has_property_or_t<Props, edge_direction_t, constant_t<edge_direction_t::unknown>>::value;
+        [[maybe_unused]] constexpr static allow_parallel_edges_t allow_parallel_edges =
+            has_property_or_t<Props, allow_parallel_edges_t, constant_t<allow_parallel_edges_t::unknown>>::value;
+
+
+        [[maybe_unused]] constexpr static auto get_graph_property = std::conditional_t<has_graph_property, getter_t<1>, noop_t>{};
 
         using node_index_t [[maybe_unused]] = has_property_or_t<Props, node_index, std::size_t>;
         constexpr static bool user_node_index = get_property<Props, traits::user_node_index>::value;
@@ -574,7 +592,7 @@ namespace bxlx::traits {
 
         using node_equality_type [[maybe_unused]] = has_property_or_t<Props, node_equality_type, void>;
         using node_comparator_type [[maybe_unused]] = has_property_or_t<Props, node_comparator_type, void>;
-        constexpr static auto is_bitset = has_property_or_t<Props, bitset, std::false_type>::value;
+        [[maybe_unused]] constexpr static auto is_bitset = has_property_or_t<Props, bitset, std::false_type>::value;
     };
 
     struct adjacency_list : with_graph_property<any_of<
@@ -630,7 +648,7 @@ namespace bxlx::traits {
             constexpr static inline auto invalid = invalid_v<graph_traits>;
 
             using node_container_type = std::remove_reference_t<decltype(get_nodes(std::declval<T>()))>;
-            using edge_container_type = void;
+            using edge_container_type [[maybe_unused]] = void;
             using out_edge_container_type = std::remove_reference_t<decltype(out_edges(std::declval<typename graph_traits::node_repr_type>()))>;
 
 
@@ -743,7 +761,7 @@ namespace bxlx::traits {
                 }
             };
 
-            template<class, class ...Args>
+            template<class, class ...>
             constexpr static inline bool can_add_node_impl = false;
             template<class ...Args>
             constexpr static inline bool can_add_node_impl<std::void_t<
@@ -775,7 +793,7 @@ namespace bxlx::traits {
             constexpr static inline auto get_nodes = std::conditional_t<graph_traits::has_graph_property, getter_t<0>, identity_t>{};
 
             using node_container_type = std::remove_reference_t<decltype(get_nodes(std::declval<T>()))>;
-            using edge_container_type = void;
+            using edge_container_type [[maybe_unused]] = void;
             using out_edge_container_type = std::remove_reference_t<decltype(out_edges(std::declval<typename graph_traits::node_repr_type>()))>;
 
             constexpr static auto node_container_size = detail2::compile_time_size_v<node_container_type>;
@@ -883,7 +901,7 @@ namespace bxlx::traits {
                 }
             };
 
-            template<class, class ...Args>
+            template<class, class ...>
             constexpr static inline bool can_add_node_impl = false;
             template<class ...Args>
             constexpr static inline bool can_add_node_impl<std::void_t<
@@ -936,7 +954,7 @@ namespace bxlx::traits {
 
             using node_container_type = std::remove_reference_t<decltype(get_nodes(std::declval<T>()))>;
             using edge_container_type = std::remove_reference_t<decltype(get_edges(std::declval<T>()))>;
-            using out_edge_container_type = void;
+            using out_edge_container_type [[maybe_unused]] = void;
 
             template<class traits = graph_traits, class ...Args>
             constexpr static auto add_node(std::enable_if_t<!traits::user_node_index, T>& g, Args&& ...args) {
@@ -972,7 +990,7 @@ namespace bxlx::traits {
                 }
             };
 
-            template<class, class ...Args>
+            template<class, class ...>
             constexpr static inline bool can_add_node_impl = false;
             template<class ...Args>
             constexpr static inline bool can_add_node_impl<std::void_t<
@@ -997,7 +1015,7 @@ namespace bxlx::traits {
 
     template<class T>
     struct graph_sfinae_impl<T, true> {
-        using type = graph_traits<T>;
+        using type [[maybe_unused]] = graph_traits<T>;
     };
 
     template<class T, class Why = decltype(graph::why_not<T>())>

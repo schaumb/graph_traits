@@ -27,6 +27,7 @@ namespace std {
 #include <deque>
 #include <optional>
 #include <map>
+#include <set>
 
 namespace node = bxlx::traits::node;
 
@@ -311,6 +312,7 @@ static_assert(has_add_node_v<std::vector<std::vector<int>>>);
 static_assert(has_add_node_v<std::vector<std::vector<std::pair<int, float>>>>);
 static_assert(has_add_node_v<std::vector<std::array<int, 10>>>);
 static_assert(has_add_node_v<std::vector<std::array<std::pair<int, float>, 10>>>);
+static_assert(has_add_node_v<std::vector<std::multiset<int>>>);
 
 static_assert(has_add_node_v<std::vector<std::vector<bool>>>);
 static_assert(has_add_node_v<std::vector<std::deque<bool>>>);
@@ -342,6 +344,7 @@ static_assert(!has_add_node_v<std::map<int, std::vector<int>>>);
 static_assert(!has_add_node_v<std::map<int, std::vector<int>>, int, int>);
 static_assert(has_add_node_v<std::map<std::string, std::vector<std::string>>, std::string>);
 static_assert(has_add_node_v<std::map<int, std::map<int, int>>, int>);
+static_assert(!has_add_node_v<std::multimap<int, std::map<int, int>>, int>); // multimap has no .try_emplace
 static_assert(has_add_node_v<constexpr_modifiable_map<int, std::map<int, int>, 10>, int>);
 static_assert(!has_add_node_v<constexpr_map<int, std::map<int, int>, 10>, int>);
 
