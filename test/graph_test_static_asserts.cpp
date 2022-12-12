@@ -128,13 +128,16 @@ struct type_holders {
     }
 };
 
+template<class T>
+using ms = std::multiset<T>;
+
 template <class T, class U>
 using other_map = std::unordered_map<T, U>;
 
 using map_with_node_index = map_it<map, other_map>;
 using node_indexed_ranges = range_it<fx_range, ra_range>;
 using edge_ranges = range_it<fx_range, ra_range, set, si_range>;
-using any_ranges = range_it<fx_range, range>;
+using any_ranges = range_it<fx_range, ms>;
 using optionals = range_it<opt, std::add_pointer_t>;
 using bools = type_holders<bool>;
 using bitsets = type_holders<std::bitset<5>, std::vector<bool>>;
@@ -182,19 +185,26 @@ constexpr bool check_all_adj_list_1() {
         using NodeProp = typename decltype(node_prop)::type;
         node_indexed_ranges::for_each<std::pair<Range, NodeProp>>(for_each_indexed_range, type_identity<std::pair<Range, NodeProp>>{}, node_prop, range, edge_repr, edge_prop, index);
     };
-    auto for_each_any_range = [&] (auto range, auto edge_repr, auto edge_prop, auto index) {
+    auto for_each_any_range = [&] (auto range, auto edge_prop, auto index) {
         using Range = typename decltype(range)::type;
+        using EdgeRepr = bxlx::detail2::range_traits_type<Range>;
+        constexpr auto edge_repr = type_identity<EdgeRepr>{};
+        constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
+            std::is_void_v<typename decltype(edge_prop)::type>,
+            type_identity<void>,
+            bxlx::detail2::tuple_element_cvref<1, EdgeRepr>
+        >::type>{};
         if constexpr (node_p) {
-            props::for_each(for_each_node_prop, range, edge_repr, edge_prop, index);
+            props::for_each(for_each_node_prop, range, edge_repr, modified_edge_prop, index);
         } else {
-            node_indexed_ranges::for_each<Range>(for_each_indexed_range, range, type_identity<void>{}, range, edge_repr, edge_prop, index);
+            node_indexed_ranges::for_each<Range>(for_each_indexed_range, range, type_identity<void>{}, range, edge_repr, modified_edge_prop, index);
         }
     };
 
     auto for_each_edge_prop = [&] (auto edge_prop, auto index) {
         using Index = typename decltype(index)::type;
         using EdgeProp = typename decltype(edge_prop)::type;
-        any_ranges::for_each<std::pair<Index, EdgeProp>>(for_each_any_range, type_identity<std::pair<Index, EdgeProp>>{}, edge_prop, index);
+        any_ranges::for_each<std::pair<Index, EdgeProp>>(for_each_any_range, edge_prop, index);
     };
 
     auto for_each_indices = [&] (auto index) {
@@ -202,7 +212,7 @@ constexpr bool check_all_adj_list_1() {
         if constexpr (edge_p) {
             props::for_each(for_each_edge_prop, index);
         } else {
-            any_ranges::for_each<Index>(for_each_any_range, index, type_identity<void>{}, index);
+            any_ranges::for_each<Index>(for_each_any_range, type_identity<void>{}, index);
         }
     };
 
@@ -316,22 +326,29 @@ constexpr bool check_all_adj_list_2() {
         map_with_node_index::for_each<NodeIndex, std::pair<Range, NodeProp>>(for_each_indexed_range, type_identity<
             std::pair<const NodeIndex, std::pair<Range, NodeProp>>>{}, node_prop, range, edge_repr, edge_prop, index);
     };
-    auto for_each_any_range = [&] (auto range, auto edge_repr, auto edge_prop, auto index) {
+    auto for_each_any_range = [&] (auto range, auto edge_prop, auto index) {
         using NodeIndex = typename decltype(index)::type;
         using Range = typename decltype(range)::type;
+        using EdgeRepr = bxlx::detail2::range_traits_type<Range>;
+        constexpr auto edge_repr = type_identity<EdgeRepr>{};
+        constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
+            std::is_void_v<typename decltype(edge_prop)::type>,
+            type_identity<void>,
+            bxlx::detail2::tuple_element_cvref<1, EdgeRepr>
+        >::type>{};
         if constexpr (bxlx::detail2::compile_time_size_v<Range> != 0) {
             // not acceptable.
         } else if constexpr (node_p) {
-            props::for_each(for_each_node_prop, range, edge_repr, edge_prop, index);
+            props::for_each(for_each_node_prop, range, edge_repr, modified_edge_prop, index);
         } else {
-            map_with_node_index::for_each<NodeIndex, Range>(for_each_indexed_range, type_identity<std::pair<const NodeIndex, Range>>{}, type_identity<void>{}, range, edge_repr, edge_prop, index);
+            map_with_node_index::for_each<NodeIndex, Range>(for_each_indexed_range, type_identity<std::pair<const NodeIndex, Range>>{}, type_identity<void>{}, range, edge_repr, modified_edge_prop, index);
         }
     };
 
     auto for_each_edge_prop = [&] (auto edge_prop, auto index) {
         using Index = typename decltype(index)::type;
         using EdgeProp = typename decltype(edge_prop)::type;
-        any_ranges::for_each<std::pair<Index, EdgeProp>>(for_each_any_range, type_identity<std::pair<Index, EdgeProp>>{}, edge_prop, index);
+        any_ranges::for_each<std::pair<Index, EdgeProp>>(for_each_any_range, edge_prop, index);
     };
 
     auto for_each_indices = [&] (auto index) {
@@ -339,7 +356,7 @@ constexpr bool check_all_adj_list_2() {
         if constexpr (edge_p) {
             props::for_each(for_each_edge_prop, index);
         } else {
-            any_ranges::for_each<Index>(for_each_any_range, index, type_identity<void>{}, index);
+            any_ranges::for_each<Index>(for_each_any_range, type_identity<void>{}, index);
         }
     };
 

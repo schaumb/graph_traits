@@ -212,17 +212,35 @@ namespace bxlx::traits {
             property<ReprType, U>>;
     };
 
+    struct weaker_if_property_is_range {
+        template<class T>
+        using properties [[maybe_unused]] = std::conditional_t<
+            detail2::is_range_v<T>,
+            property<weaker_if_property_is_range, std::true_type>,
+            empty_properties
+        >;
+    };
+
     struct edge_property : always_valid {
         template<class T>
-        using properties [[maybe_unused]] = property<edge_property, T>;
+        using properties [[maybe_unused]] = merge_properties<
+            get_properties<weaker_if_property_is_range, T>,
+            property<edge_property, T>
+        >;
     };
     struct node_property : always_valid {
         template<class T>
-        using properties [[maybe_unused]] = property<node_property, T>;
+        using properties [[maybe_unused]] = merge_properties<
+            get_properties<weaker_if_property_is_range, T>,
+            property<node_property, T>
+        >;
     };
     struct graph_property : always_valid {
         template<class T>
-        using properties [[maybe_unused]] = property<graph_property, T>;
+        using properties [[maybe_unused]] = merge_properties<
+            get_properties<weaker_if_property_is_range, T>,
+            property<graph_property, T>
+        >;
     };
 
     struct node_index : accept_only<detail2::type_classification::indeterminate,
@@ -269,8 +287,36 @@ namespace bxlx::traits {
     template<class... Conditions>
     struct any_of {
         template<class T>
+        constexpr static std::pair<std::size_t, bool> valid() {
+            bool valid[sizeof...(Conditions)] {Conditions::template is_valid<T>() ...};
+            bool has_weaker[sizeof...(Conditions)] {
+                has_property_or_t<get_properties<std::conditional_t<
+                    Conditions::template is_valid<T>(), Conditions, no_prop
+                >, T>, weaker_if_property_is_range, std::false_type>::value...
+            };
+            bool valid_is_weak{}, multiple_valid_weak{};
+            std::size_t res = ~std::size_t{};
+
+            for (std::size_t i{}, s{sizeof...(Conditions)}; i != s; ++i) {
+                if (!valid[i]) continue;
+                if (bool weak = has_weaker[i]; res >= s || (valid_is_weak && !weak)) {
+                    res = i;
+                    valid_is_weak = weak;
+                } else if (weak) {
+                    multiple_valid_weak = true;
+                } else {
+                    return {~std::size_t{}, false};
+                }
+            }
+            if (valid_is_weak && multiple_valid_weak)
+                return {~std::size_t{}, false};
+
+            return {res, res < sizeof...(Conditions)};
+        }
+
+        template<class T>
         constexpr static bool is_valid() {
-            return (Conditions::template is_valid<T>() + ...) == 1;
+            return valid<T>().second;
         }
 
 
@@ -288,10 +334,7 @@ namespace bxlx::traits {
 
         template<class T>
         constexpr static std::size_t the_valid_index() {
-            std::size_t ix{};
-            std::size_t res = ~std::size_t{};
-            static_cast<void>((..., (Conditions::template is_valid<T>() ? res = ix : ++ix)));
-            return res;
+            return valid<T>().first;
         }
 
         template<class T>
@@ -374,11 +417,19 @@ namespace bxlx::traits {
                 property<user_node_index, std::false_type>,
                 empty_properties
             >,
-            std::conditional_t<!std::is_void_v<bxlx::detail2::range_member_traits::key_equal_t<T>> && (std::is_same_v<container_size_prop, inside_container_size> || std::is_same_v<container_size_prop, node_container_size>),
+            std::conditional_t<!std::is_void_v<bxlx::detail2::range_member_traits::key_equal_t<T>> &&
+                ((std::is_same_v<container_size_prop, inside_container_size> &&
+                    (detail2::classify<T> == detail2::type_classification::map_like_container ||
+                        std::is_void_v<has_property_or_t<get_properties<Cond, detail2::range_traits_type<T>>, edge_property, void>>)) ||
+                    std::is_same_v<container_size_prop, node_container_size>),
                 property<node_equality_type, bxlx::detail2::range_member_traits::key_equal_t<T>>,
                 empty_properties
             >,
-            std::conditional_t<!std::is_void_v<bxlx::detail2::range_member_traits::key_compare_t<T>> && (std::is_same_v<container_size_prop, inside_container_size> || std::is_same_v<container_size_prop, node_container_size>),
+            std::conditional_t<!std::is_void_v<bxlx::detail2::range_member_traits::key_compare_t<T>> &&
+                ((std::is_same_v<container_size_prop, inside_container_size> &&
+                    (detail2::classify<T> == detail2::type_classification::map_like_container ||
+                        std::is_void_v<has_property_or_t<get_properties<Cond, detail2::range_traits_type<T>>, edge_property, void>>)) ||
+                    std::is_same_v<container_size_prop, node_container_size>),
                 property<node_comparator_type, bxlx::detail2::range_member_traits::key_compare_t<T>>,
                 empty_properties
             >
