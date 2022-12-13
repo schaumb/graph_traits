@@ -204,6 +204,7 @@ namespace bxlx::traits {
 
     // properties
     struct user_node_index {};
+    struct user_edge_index {};
     struct node_repr_type {};
     struct edge_repr_type {};
     struct node_container_size {};
@@ -261,9 +262,16 @@ namespace bxlx::traits {
         using properties [[maybe_unused]] = merge_properties<property<user_node_index, std::true_type>, property<node_index, std::remove_cv_t<T>>>;
     };
 
+    struct edge_index : accept_only<detail2::type_classification::indeterminate,
+        detail2::type_classification::index, detail2::type_classification::optional> {
+        template<class T>
+        using properties [[maybe_unused]] = merge_properties<property<user_edge_index, std::true_type>, property<edge_index, std::remove_cv_t<T>>>;
+    };
+
+    template<class index_type = node_index, class user_index_type = std::conditional_t<std::is_same_v<index_type, node_index>, user_node_index, user_edge_index>>
     struct index : accept_only<detail2::type_classification::index> {
         template<class T>
-        using properties [[maybe_unused]] = merge_properties<property<user_node_index, std::false_type>, property<node_index, std::remove_cv_t<T>>>;
+        using properties [[maybe_unused]] = merge_properties<property<user_index_type, std::false_type>, property<index_type, std::remove_cv_t<T>>>;
     };
 
     struct bool_t : accept_only<detail2::type_classification::bool_t>, no_prop {};
@@ -431,7 +439,7 @@ namespace bxlx::traits {
             >,
             std::conditional_t<!std::is_void_v<bxlx::detail2::range_member_traits::key_equal_t<T>> &&
                 ((std::is_same_v<container_size_prop, inside_container_size> &&
-                    (detail2::classify<T> == detail2::type_classification::map_like_container ||
+                    (detail2::is_map_like_container_v<T> ||
                         std::is_void_v<has_property_or_t<get_properties<Cond, detail2::range_traits_type<T>>, edge_property, void>>)) ||
                     std::is_same_v<container_size_prop, node_container_size>),
                 property<node_equality_type, bxlx::detail2::range_member_traits::key_equal_t<T>>,
@@ -439,7 +447,7 @@ namespace bxlx::traits {
             >,
             std::conditional_t<!std::is_void_v<bxlx::detail2::range_member_traits::key_compare_t<T>> &&
                 ((std::is_same_v<container_size_prop, inside_container_size> &&
-                    (detail2::classify<T> == detail2::type_classification::map_like_container ||
+                    (detail2::is_map_like_container_v<T> ||
                         std::is_void_v<has_property_or_t<get_properties<Cond, detail2::range_traits_type<T>>, edge_property, void>>)) ||
                     std::is_same_v<container_size_prop, node_container_size>),
                 property<node_comparator_type, bxlx::detail2::range_member_traits::key_compare_t<T>>,
@@ -491,10 +499,10 @@ namespace bxlx::traits {
 
     template<class T, class ...Ts>
     using with_graph_property = with_property<graph_property, T, Ts...>;
-    template<class T>
-    struct with_node_property : with_property<node_property, T> {
+    template<class T, class ...Ts>
+    struct with_node_property : with_property<node_property, T, Ts...> {
         template<class U>
-        using properties [[maybe_unused]] = merge_properties<get_properties<with_property<node_property, T>, U>,
+        using properties [[maybe_unused]] = merge_properties<get_properties<with_property<node_property, T, Ts...>, U>,
             property<node_repr_type, U>>;
     };
     template<class T, class ...Ts>
@@ -505,11 +513,12 @@ namespace bxlx::traits {
     };
 
     template<class Property, class SizeProperty, class T, class U>
-    struct map_save : accept_recursively<range_impl<SizeProperty, save_type<Property, tuple_like<T, U>>>,
-        detail2::type_classification::map_like_container>, range_impl<SizeProperty, save_type<Property, tuple_like<T, U>>> {};
+    struct map_like_range : accept_recursively<range_impl<SizeProperty, save_type<Property, tuple_like<T, U>>>,
+        detail2::type_classification::sized_range, detail2::type_classification::random_access_range>,
+        range_impl<SizeProperty, save_type<Property, tuple_like<T, U>>> {};
 
     template<class U>
-    using node_map_save = map_save<node_repr_type, node_container_size, node_index, U>;
+    using node_map_save = map_like_range<node_repr_type, node_container_size, node_index, U>;
 
     struct noop_t {
         template<class ...Ts>
@@ -580,6 +589,8 @@ namespace bxlx::traits {
 
         using node_index_t [[maybe_unused]] = has_property_or_t<Props, node_index, std::size_t>;
         constexpr static bool user_node_index = get_property<Props, traits::user_node_index>::value;
+        using edge_index_t [[maybe_unused]] = has_property_or_t<Props, edge_index, void>;
+        constexpr static bool user_edge_index = has_property_or_t<Props, traits::user_edge_index, std::false_type>::value;
 
         using node_repr_type [[maybe_unused]] = has_property_or_t<Props, traits::node_repr_type, void>;
         using edge_repr_type [[maybe_unused]] = get_property<Props, edge_repr_type>;
@@ -596,14 +607,12 @@ namespace bxlx::traits {
     };
 
     struct adjacency_list : with_graph_property<any_of<
-        node_indexed_range<with_node_property<any_of<
-            range<with_edge_property<index>>,
-            map_save<edge_repr_type, inside_container_size, index, edge_property>
-        >>>,
-        node_map_save<with_property<node_property, any_of<
-            range<with_edge_property<node_index>>,
-            map_save<edge_repr_type, inside_container_size, node_index, edge_property>
-        >>>
+        node_indexed_range<with_node_property<
+            range<with_edge_property<index<>>>
+        >>,
+        node_map_save<with_property<node_property,
+            range<with_edge_property<node_index>>
+        >>
     >> {
         template<class T, class Props = get_properties<adjacency_list, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
@@ -916,7 +925,7 @@ namespace bxlx::traits {
     struct edge_list : any_of<
         with_graph_property<edge_range<with_edge_property<node_index, node_index>>>,
         with_graph_property<node_map_save<node_property>, edge_range<with_edge_property<node_index, node_index>>>,
-        with_graph_property<node_indexed_range<save_type<node_repr_type, node_property>>, edge_range<with_edge_property<index, index>>>
+        with_graph_property<node_indexed_range<save_type<node_repr_type, node_property>>, edge_range<with_edge_property<index<>, index<>>>>
     > {
         template<class T, class Props = get_properties<edge_list, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {

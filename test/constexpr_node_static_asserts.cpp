@@ -280,8 +280,8 @@ struct constexpr_modifiable_map {
 
 static_assert(bxlx::detail2::classify<constexpr_vector<int, 20>> == bxlx::detail2::type_classification::random_access_range);
 static_assert(bxlx::detail2::compile_time_size_v<constexpr_vector<int, 20>> == 0);
-static_assert(bxlx::detail2::classify<constexpr_map<int, int, 20>> == bxlx::detail2::type_classification::map_like_container);
-static_assert(bxlx::detail2::classify<constexpr_modifiable_map<int, int, 20>> == bxlx::detail2::type_classification::map_like_container);
+static_assert(bxlx::detail2::classify<constexpr_map<int, int, 20>> == bxlx::detail2::type_classification::random_access_range);
+static_assert(bxlx::detail2::classify<constexpr_modifiable_map<int, int, 20>> == bxlx::detail2::type_classification::random_access_range);
 
 
 template<class, class T, class ...Args>

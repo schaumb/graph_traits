@@ -91,6 +91,8 @@ constexpr static bool assert_on() {
     static_assert(traits::representation == repr);
     static_assert(user_defined == traits::user_node_index);
     static_assert(std::is_same_v<typename traits::node_index_t, node_index_t>);
+    static_assert(false == traits::user_edge_index);
+    static_assert(std::is_same_v<typename traits::edge_index_t, void>);
     static_assert(traits::has_graph_property == !std::is_void_v<graph_prop>);
     static_assert(traits::has_node_property == !std::is_void_v<node_prop>);
     static_assert(traits::has_edge_property == !std::is_void_v<edge_prop>);

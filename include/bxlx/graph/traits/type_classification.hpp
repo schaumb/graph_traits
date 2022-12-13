@@ -672,7 +672,6 @@ namespace bxlx::detail2 {
         pre_declared,
         random_access_range,
         bitset_like_container,
-        map_like_container,
         sized_range,
         range,
         tuple_like,
@@ -692,8 +691,7 @@ namespace bxlx::detail2 {
 
     template<class T>
     constexpr inline type_classification classify<T, std::enable_if_t<is_random_access_range_v<T> &&
-                                                                      !is_string_like_v<T> && !is_bitset_like_v<T> &&
-                                                                      !is_map_like_container_v<T>>>
+                                                                      !is_string_like_v<T> && !is_bitset_like_v<T>>>
         = type_classification::random_access_range;
 
     template<class T>
@@ -701,11 +699,7 @@ namespace bxlx::detail2 {
         = type_classification::bitset_like_container;
 
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_map_like_container_v<T>>>
-        = type_classification::map_like_container;
-
-    template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_sized_range_v<T> && !is_map_like_container_v<T>
+    constexpr inline type_classification classify<T, std::enable_if_t<is_sized_range_v<T>
         && !is_random_access_range_v<T> && !is_string_like_v<T>>>
         = type_classification::sized_range;
 
