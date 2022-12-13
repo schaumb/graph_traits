@@ -441,7 +441,7 @@ namespace bxlx::traits {
                 ((std::is_same_v<container_size_prop, inside_container_size> &&
                     (detail2::is_map_like_container_v<T> ||
                         std::is_void_v<has_property_or_t<get_properties<Cond, detail2::range_traits_type<T>>, edge_property, void>>)) ||
-                    std::is_same_v<container_size_prop, node_container_size>),
+                 (std::is_same_v<container_size_prop, node_container_size> && detail2::is_map_like_container_v<T>)),
                 property<node_equality_type, bxlx::detail2::range_member_traits::key_equal_t<T>>,
                 empty_properties
             >,
@@ -449,7 +449,7 @@ namespace bxlx::traits {
                 ((std::is_same_v<container_size_prop, inside_container_size> &&
                     (detail2::is_map_like_container_v<T> ||
                         std::is_void_v<has_property_or_t<get_properties<Cond, detail2::range_traits_type<T>>, edge_property, void>>)) ||
-                    std::is_same_v<container_size_prop, node_container_size>),
+                 (std::is_same_v<container_size_prop, node_container_size> && detail2::is_map_like_container_v<T>)),
                 property<node_comparator_type, bxlx::detail2::range_member_traits::key_compare_t<T>>,
                 empty_properties
             >
@@ -463,10 +463,23 @@ namespace bxlx::traits {
         detail2::type_classification::random_access_range>, range_impl<inside_container_size, Cond> {
     };
 
-    template<class T>
-    struct edge_range : accept_recursively<range_impl<edge_container_size, T>,
+    template<bool only_multimap, class Cond>
+    struct edge_range : accept_recursively<edge_range<only_multimap, Cond>,
         detail2::type_classification::sized_range,
-        detail2::type_classification::random_access_range>, range_impl<edge_container_size, T> {};
+        detail2::type_classification::random_access_range>, range_impl<edge_container_size, Cond> {
+        using Base = accept_recursively<edge_range<only_multimap, Cond>,
+            detail2::type_classification::sized_range,
+            detail2::type_classification::random_access_range>;
+
+        template<class T>
+        constexpr static bool is_valid() {
+            if constexpr (!only_multimap || !detail2::is_map_like_container_v<T> || detail2::is_multi_v<T>) {
+                return Base::template is_valid<T>();
+            } else {
+                return false;
+            }
+        }
+    };
 
     template<class T>
     struct node_indexed_range : accept_recursively<node_indexed_range<T>,
@@ -519,6 +532,13 @@ namespace bxlx::traits {
 
     template<class U>
     using node_map_save = map_like_range<node_repr_type, node_container_size, node_index, U>;
+
+
+    template<class Ix>
+    using edge_range_prop = any_of<
+        edge_range<true, with_edge_property<Ix, Ix>>,
+        edge_range<false, save_type<edge_repr_type, tuple_like<tuple_like<Ix, Ix>, edge_property>>>
+    >;
 
     struct noop_t {
         template<class ...Ts>
@@ -578,14 +598,9 @@ namespace bxlx::traits {
         constexpr static bool has_graph_property = has_property<Props, graph_property>;
         constexpr static bool has_edge_property = has_property<Props, edge_property>;
         constexpr static bool has_node_property = has_property<Props, node_property>;
-
-        [[maybe_unused]] constexpr static edge_direction_t edge_direction =
-            has_property_or_t<Props, edge_direction_t, constant_t<edge_direction_t::unknown>>::value;
-        [[maybe_unused]] constexpr static allow_parallel_edges_t allow_parallel_edges =
-            has_property_or_t<Props, allow_parallel_edges_t, constant_t<allow_parallel_edges_t::unknown>>::value;
-
-
-        [[maybe_unused]] constexpr static auto get_graph_property = std::conditional_t<has_graph_property, getter_t<1>, noop_t>{};
+        using graph_property_type [[maybe_unused]] = has_property_or_t<Props, graph_property, void>;
+        using node_property_type [[maybe_unused]] = has_property_or_t<Props, node_property, void>;
+        using edge_property_type [[maybe_unused]] = has_property_or_t<Props, edge_property, void>;
 
         using node_index_t [[maybe_unused]] = has_property_or_t<Props, node_index, std::size_t>;
         constexpr static bool user_node_index = get_property<Props, traits::user_node_index>::value;
@@ -595,15 +610,22 @@ namespace bxlx::traits {
         using node_repr_type [[maybe_unused]] = has_property_or_t<Props, traits::node_repr_type, void>;
         using edge_repr_type [[maybe_unused]] = get_property<Props, edge_repr_type>;
 
-        constexpr static auto edge_container_size = has_property_or_t<Props, traits::edge_container_size, constant_t<0>>::value;
+        using node_equality_type [[maybe_unused]] = std::conditional_t<
+            user_node_index,
+            has_property_or_t<Props, node_equality_type, void>,
+            std::equal_to<node_index_t>
+        >;
 
-        using graph_property_type [[maybe_unused]] = has_property_or_t<Props, graph_property, void>;
-        using node_property_type [[maybe_unused]] = has_property_or_t<Props, node_property, void>;
-        using edge_property_type [[maybe_unused]] = has_property_or_t<Props, edge_property, void>;
+        using node_comparator_type [[maybe_unused]] = std::conditional_t<
+            user_node_index,
+            has_property_or_t<Props, node_comparator_type, void>,
+            std::less<node_index_t>
+        >;
 
-        using node_equality_type [[maybe_unused]] = has_property_or_t<Props, node_equality_type, void>;
-        using node_comparator_type [[maybe_unused]] = has_property_or_t<Props, node_comparator_type, void>;
-        [[maybe_unused]] constexpr static auto is_bitset = has_property_or_t<Props, bitset, std::false_type>::value;
+        [[maybe_unused]] constexpr static edge_direction_t edge_direction =
+            has_property_or_t<Props, edge_direction_t, constant_t<edge_direction_t::unknown>>::value;
+        [[maybe_unused]] constexpr static allow_parallel_edges_t allow_parallel_edges =
+            has_property_or_t<Props, allow_parallel_edges_t, constant_t<allow_parallel_edges_t::unknown>>::value;
     };
 
     struct adjacency_list : with_graph_property<any_of<
@@ -794,6 +816,8 @@ namespace bxlx::traits {
         template<class T, class Props = get_properties<adjacency_matrix, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
             constexpr static inline auto representation = graph_representation::adjacency_matrix;
+            [[maybe_unused]] constexpr static inline auto is_bitset = has_property_or_t<Props, bitset, std::false_type>::value;
+
             using node_index_t = typename graph_traits::node_index_t;
 
             constexpr static inline auto out_edges = std::conditional_t<graph_traits::has_node_property, getter_t<0>, identity_t>{};
@@ -923,9 +947,9 @@ namespace bxlx::traits {
     };
 
     struct edge_list : any_of<
-        with_graph_property<edge_range<with_edge_property<node_index, node_index>>>,
-        with_graph_property<node_map_save<node_property>, edge_range<with_edge_property<node_index, node_index>>>,
-        with_graph_property<node_indexed_range<save_type<node_repr_type, node_property>>, edge_range<with_edge_property<index<>, index<>>>>
+        with_graph_property<edge_range_prop<node_index>>,
+        with_graph_property<node_map_save<node_property>, edge_range_prop<node_index>>,
+        with_graph_property<node_indexed_range<save_type<node_repr_type, node_property>>, edge_range_prop<index<>>>
     > {
         template<class T, class Props = get_properties<edge_list, T>>
         struct [[maybe_unused]] graph_traits : graph_traits_common<Props> {
@@ -935,7 +959,7 @@ namespace bxlx::traits {
             constexpr static auto node_container_size = has_property_or_t<Props, traits::node_container_size, constant_t<0>>::value;
             constexpr static auto out_edge_container_size = 0;
 
-            constexpr static inline auto max_edge_compile_time = graph_traits::edge_container_size;
+            constexpr static inline auto max_edge_compile_time = has_property_or_t<Props, traits::edge_container_size, constant_t<0>>::value;;
             constexpr static inline auto max_node_compile_time = node_container_size ?
                                                                  node_container_size :
                                                                  max_edge_compile_time * 2;

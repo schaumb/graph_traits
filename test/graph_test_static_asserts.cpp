@@ -46,17 +46,22 @@ using bxlx::graph_traits;
 using bxlx::graph_representation;
 
 static_assert(!is_graph_v<void>);
+static_assert(!is_graph_v<std::map<int, int>>);
 static_assert(!is_graph_v<void*>);
 static_assert(!is_graph_v<set<set<int>>>);
 static_assert(!is_graph_v<ra_range<set<bool>>>);
 static_assert(!is_graph_v<tup<set<bool>>>);
 static_assert(!is_graph_v<set<tup<int, unsigned int>>>);
 static_assert(!is_graph_v<std::map<int, map<int, int>, std::greater<int>>>);
-static_assert(is_graph_v<map<int, std::unordered_map<int, int>>>);
+static_assert(bxlx::is_it_a_graph<map<int, std::unordered_map<int, int>>>);
+static_assert(bxlx::is_it_a_graph<std::multimap<int, int>>);
 
-static_assert(is_graph_v<ra_range<set<int>>>);
-static_assert(is_graph_v<set<tup<int, int>>>);
-static_assert(is_graph_v<set<tup<int, int, float>>>);
+static_assert(bxlx::is_it_a_graph<std::map<std::pair<int, int>, int>>);
+static_assert(bxlx::is_it_a_graph<std::multimap<std::pair<int, int>, int>>);
+
+static_assert(bxlx::is_it_a_graph<ra_range<set<int>>>);
+static_assert(bxlx::is_it_a_graph<set<tup<int, int>>>);
+static_assert(bxlx::is_it_a_graph<set<tup<int, int, float>>>);
 
 template<class T>
 constexpr static inline auto repr = graph_traits<T>::representation;
@@ -85,7 +90,6 @@ template<class T, graph_representation repr, class node_index_t, class node_repr
     class graph_prop, class node_prop, class edge_prop, bool user_defined>
 constexpr static bool assert_on() {
     static_assert(bxlx::traits::is_it_a_graph<T>);
-    static_assert(is_graph_v<T>);
 
     using traits = graph_traits<T>;
     static_assert(traits::representation == repr);
@@ -134,7 +138,7 @@ template<class T>
 using ms = std::multiset<T>;
 
 template <class T, class U>
-using other_map = std::unordered_map<T, U>;
+using other_map = std::set<std::pair<T, U>>;
 
 using map_with_node_index = map_it<map, other_map>;
 using node_indexed_ranges = range_it<fx_range, ra_range>;
@@ -261,20 +265,26 @@ constexpr bool check_all_adj_list_1_5() {
         using NodeProp = typename decltype(node_prop)::type;
         node_indexed_ranges::for_each<std::pair<Range, NodeProp>>(for_each_indexed_range, type_identity<std::pair<Range, NodeProp>>{}, node_prop, range, edge_repr, edge_prop, index);
     };
-    auto for_each_map = [&] (auto range, auto edge_repr, auto edge_prop, auto index) {
+    auto for_each_map = [&] (auto range, auto edge_prop, auto index) {
         using Range = typename decltype(range)::type;
+        using EdgeRepr = bxlx::detail2::range_traits_type<Range>;
+        constexpr auto edge_repr = type_identity<EdgeRepr>{};
+        constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
+            std::is_void_v<typename decltype(edge_prop)::type>,
+            type_identity<void>,
+            bxlx::detail2::tuple_element_cvref<1, EdgeRepr>
+        >::type>{};
         if constexpr (node_p) {
-            props::for_each(for_each_node_prop, range, edge_repr, edge_prop, index);
+            props::for_each(for_each_node_prop, range, edge_repr, modified_edge_prop, index);
         } else {
-            node_indexed_ranges::for_each<Range>(for_each_indexed_range, range, type_identity<void>{}, range, edge_repr, edge_prop, index);
+            node_indexed_ranges::for_each<Range>(for_each_indexed_range, range, type_identity<void>{}, range, edge_repr, modified_edge_prop, index);
         }
     };
 
     auto for_each_edge_prop = [&] (auto edge_prop, auto index) {
         using Index = typename decltype(index)::type;
         using EdgeProp = typename decltype(edge_prop)::type;
-        map_with_node_index::for_each<Index, EdgeProp>(for_each_map,
-                                                       type_identity<std::pair<const Index, EdgeProp>>{}, edge_prop, index);
+        map_with_node_index::for_each<Index, EdgeProp>(for_each_map, edge_prop, index);
     };
 
     auto for_each_indices = [&] (auto index) {
@@ -313,11 +323,20 @@ constexpr bool check_all_adj_list_2() {
         using GraphProp = typename decltype(graph_prop)::type;
         checker(type_identity<std::pair<NodeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
     };
-    auto for_each_indexed_range = [&] (auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+    auto for_each_indexed_range = [&] (auto node_range, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
+        using NodeRange = typename decltype(node_range)::type;
+        using NodeRepr = bxlx::detail2::range_traits_type<NodeRange>;
+        constexpr auto node_repr = type_identity<NodeRepr>{};
+        constexpr auto modified_node_prop = std::conditional_t<
+            std::is_void_v<typename decltype(node_prop)::type>,
+            type_identity<void>,
+            bxlx::detail2::tuple_element_cvref<1, bxlx::detail2::tuple_element_cvref_t<1, NodeRepr>>
+        >{};
+
         if constexpr (graph_p) {
-            props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
+            props::for_each(for_each_graph_prop, node_range, node_repr, modified_node_prop, range, edge_repr, edge_prop, index);
         } else {
-            checker(node_range, type_identity<void>{}, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
+            checker(node_range, type_identity<void>{}, node_range, node_repr, modified_node_prop, range, edge_repr, edge_prop, index);
         }
     };
 
@@ -325,8 +344,7 @@ constexpr bool check_all_adj_list_2() {
         using NodeIndex = typename decltype(index)::type;
         using Range = typename decltype(range)::type;
         using NodeProp = typename decltype(node_prop)::type;
-        map_with_node_index::for_each<NodeIndex, std::pair<Range, NodeProp>>(for_each_indexed_range, type_identity<
-            std::pair<const NodeIndex, std::pair<Range, NodeProp>>>{}, node_prop, range, edge_repr, edge_prop, index);
+        map_with_node_index::for_each<NodeIndex, std::pair<Range, NodeProp>>(for_each_indexed_range, node_prop, range, edge_repr, edge_prop, index);
     };
     auto for_each_any_range = [&] (auto range, auto edge_prop, auto index) {
         using NodeIndex = typename decltype(index)::type;
@@ -343,7 +361,7 @@ constexpr bool check_all_adj_list_2() {
         } else if constexpr (node_p) {
             props::for_each(for_each_node_prop, range, edge_repr, modified_edge_prop, index);
         } else {
-            map_with_node_index::for_each<NodeIndex, Range>(for_each_indexed_range, type_identity<std::pair<const NodeIndex, Range>>{}, type_identity<void>{}, range, edge_repr, modified_edge_prop, index);
+            map_with_node_index::for_each<NodeIndex, Range>(for_each_indexed_range, type_identity<void>{}, range, edge_repr, modified_edge_prop, index);
         }
     };
 
@@ -605,12 +623,18 @@ constexpr bool check_all_edge_list_1() {
     auto for_each_node_map = [&] (auto node_range, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
         using NodeRange = typename decltype(node_range)::type;
         using EdgeRange = typename decltype(edge_range)::type;
-        constexpr auto node_repr = type_identity<bxlx::detail2::range_traits_type<NodeRange>>{};
+        using NodeRepr = bxlx::detail2::range_traits_type<NodeRange>;
+        constexpr auto node_repr = type_identity<NodeRepr>{};
+        constexpr auto modified_node_prop = std::conditional_t<
+            std::is_void_v<typename decltype(node_prop)::type>,
+            type_identity<void>,
+            bxlx::detail2::tuple_element_cvref<1, NodeRepr>
+        >{};
         if constexpr (graph_p) {
-            props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+            props::for_each(for_each_graph_prop, node_range, node_repr, modified_node_prop, edge_range, edge_repr, edge_prop, node_index);
         } else {
             checker(type_identity<std::pair<NodeRange, EdgeRange>>{}, type_identity<void>{},
-                    node_range, node_repr, node_prop, edge_range, edge_repr, edge_prop, node_index);
+                    node_range, node_repr, modified_node_prop, edge_range, edge_repr, edge_prop, node_index);
         }
     };
 
@@ -759,30 +783,30 @@ static_assert(assert_on<tup<ra_range<tup<fx_range<opt<struct edge_prop>>, struct
     opt<struct edge_prop>, 5, 25, struct graph_prop, struct node_prop, struct edge_prop, false>());
 
 
-static_assert(is_graph_v< ra_range<   range<integral>>>);
-static_assert(is_graph_v< ra_range<ra_range<  bool_t>>>);
-static_assert(is_graph_v< ra_range<ra_range<     opt<struct edge_prop>>>>);
-static_assert(is_graph_v< ra_range<   range<     tup<integral, struct edge_prop>>>>);
-static_assert(is_graph_v< si_range<     tup<integral, integral>>>);
-static_assert(is_graph_v< si_range<     tup<integral, integral, struct edge_prop>>>);
-static_assert(is_graph_v< ra_range<     tup<   range< integral>, struct node_prop>>>);
-static_assert(is_graph_v< ra_range<     tup<ra_range<   bool_t>, struct node_prop>>>);
-static_assert(is_graph_v< ra_range<     tup<ra_range<      opt<struct edge_prop>>, struct node_prop>>>);
-static_assert(is_graph_v< ra_range<     tup<   range<      tup<integral, struct edge_prop>>, struct node_prop>>>);
+static_assert(bxlx::is_it_a_graph< ra_range<   range<integral>>>);
+static_assert(bxlx::is_it_a_graph< ra_range<ra_range<  bool_t>>>);
+static_assert(bxlx::is_it_a_graph< ra_range<ra_range<     opt<struct edge_prop>>>>);
+static_assert(bxlx::is_it_a_graph< ra_range<   range<     tup<integral, struct edge_prop>>>>);
+static_assert(bxlx::is_it_a_graph< si_range<     tup<integral, integral>>>);
+static_assert(bxlx::is_it_a_graph< si_range<     tup<integral, integral, struct edge_prop>>>);
+static_assert(bxlx::is_it_a_graph< ra_range<     tup<   range< integral>, struct node_prop>>>);
+static_assert(bxlx::is_it_a_graph< ra_range<     tup<ra_range<   bool_t>, struct node_prop>>>);
+static_assert(bxlx::is_it_a_graph< ra_range<     tup<ra_range<      opt<struct edge_prop>>, struct node_prop>>>);
+static_assert(bxlx::is_it_a_graph< ra_range<     tup<   range<      tup<integral, struct edge_prop>>, struct node_prop>>>);
 
-static_assert(is_graph_v< tup<ra_range<range<integral>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<ra_range<bool_t>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<si_range<tup<integral, integral>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<range<tup<integral, struct edge_prop>>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<map<integral, struct edge_prop>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<ra_range<opt<struct edge_prop>>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<si_range<tup<integral, integral, struct edge_prop>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<tup<range<integral>, struct node_prop>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<tup<ra_range<bool_t>, struct node_prop>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<tup<range<tup<integral, struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
-static_assert(is_graph_v< tup<ra_range<tup<ra_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<range<integral>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<ra_range<bool_t>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<si_range<tup<integral, integral>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<range<tup<integral, struct edge_prop>>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<map<integral, struct edge_prop>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<ra_range<opt<struct edge_prop>>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<si_range<tup<integral, integral, struct edge_prop>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<range<integral>, struct node_prop>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<ra_range<bool_t>, struct node_prop>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<range<tup<integral, struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
+static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<ra_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
 
 
 static_assert(std::is_same_v<typename bxlx::graph_traits<std::array<std::array<int, 10>, 3>>::out_edge_container_type, std::array<int, 10>>);

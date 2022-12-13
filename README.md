@@ -232,32 +232,20 @@ in the schema, the node_index/index must be the same
 - node/edge/graph properties any combination
 
 
-- `node_indexed_range<map<integer, edge_prop>>`
-- `node_indexed_range<pair<map<integer, edge_prop>, node_prop>>`
-- `pair<node_indexed_range<map<integer, edge_prop>>, graph_prop>`
-- node/graph properties any combination
-
-
 These ranges cannot be any compile time fix range.
-If range is a set like object, no different strategy (std::less<K> or std::equal_to<K>) is allowed for the keys
+If range is a set like object (set/map), no different comparing (std::less<K> or std::equal_to<K>) is allowed for the keys
 
-- `map<node_index, range<node_index>`
-- `map<node_index, range<pair<node_index, edge_prop>>`
-- `map<node_index, pair<range<node_index>, node_prop>>`
-- `pair<map<node_index, range<node_index>, graph_prop>`
+- `node_range<pair<node_index, range<node_index>>>`
+- `node_range<pair<node_index, range<pair<node_index, edge_prop>>>>`
+- `node_range<pair<node_index, pair<range<node_index>, node_prop>>>`
+- `pair<node_range<pair<node_index, range<node_index>>>, graph_prop>`
 - node/edge/graph properties any combination
 
 
-Map-s cannot be used by different strategy for keys (std::less<K> or std::equal_to<K>)
+map accepted as range<pair<index, *>>
 
-- `map<node_index, map<node_index, edge_prop>>`
-- `map<node_index, pair<map<node_index, edge_prop>, node_prop>>`
-- `pair<map<node_index, map<node_index, edge_prop>>, graph_prop>`
-- node/graph properties any combination
 
 ### `adjacency_matrix`
-
-*bitset_like: std::bitset<>, std::vector&lt;bool&gt;*
 
 - `node_indexed_range<bitset_like>`
 - `node_indexed_range<pair<bitset_like, node_prop>>`
@@ -271,11 +259,14 @@ Map-s cannot be used by different strategy for keys (std::less<K> or std::equal_
 - `pair<node_indexed_range<node_indexed_range<bool>>, graph_prop>`
 - node/edge/graph properties any combination
 
+
+*bitset_like: std::bitset<>, std::vector&lt;bool&gt;*
+
 ### `edge_list`
 
 - `edge_range<pair<node_index, node_index>>`
 - `edge_range<tuple<node_index, node_index, edge_prop>>`
-- `tuple<map<node_index, node_prop>, edge_range<pair<node_index, node_index>>>`
+- `tuple<mode_range<pair<node_index, node_prop>>, edge_range<pair<node_index, node_index>>>`
 - `tuple<edge_range<tuple<node_index, node_index>>, graph_prop>`
 - edge/node/graph properties combination
 
@@ -284,6 +275,14 @@ Map-s cannot be used by different strategy for keys (std::less<K> or std::equal_
 - `pair<node_indexed_range<node_prop>, edge_range<tuple<integer, integer, edge_prop>>>`
 - `tuple<node_indexed_range<node_prop>, edge_range<pair<integer, integer>>, graph_prop>`
 - edge/graph properties any combination
+
+
+map not, but multimap is accepted as edge_range<pair<index, index>>
+
+edge_range<tuple<index, index, edge_prop>> can be
+- range<tuple<index, index, edge_prop>>
+- map<pair<index, index>, edge_prop>
+
 
 ---
 

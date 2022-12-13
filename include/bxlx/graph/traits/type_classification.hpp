@@ -645,13 +645,13 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr inline bool has_map_like_properties_v<T, true> = has_map_like_properties_impl<T>::value;
 
-    template<class T, bool = is_sized_range_v<T> && std::is_class_v<T>>
+    template<class T, bool = is_range_v<T> && std::is_class_v<T>>
     constexpr inline bool is_map_like_container_v = false;
     template<class T>
     constexpr inline bool is_map_like_container_v<T, true> = has_map_like_properties_v<T>;
 
 
-    template<class T, bool = is_defined_v<T>>
+    template<class T, bool = is_defined_v<T> && is_range_v<T>>
     constexpr static inline bool is_set_like_container_v = false;
     template<class T>
     constexpr static inline bool is_set_like_container_v<T, true> = !is_map_like_container_v<T> && has_map_like_properties_impl<void, 2>::template has_set_equal_range_function_v<T>;
