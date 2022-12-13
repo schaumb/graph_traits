@@ -86,6 +86,14 @@ namespace bxlx::traits {
     template<class P, class Prop, class Or>
     using has_property_or_t = typename has_property_or<P, Prop, Or>::type;
 
+    template<class C, class, class = void>
+    struct nested_condition { using type = C; };
+    template<class C, class T>
+    struct nested_condition<C, T, std::void_t<
+        typename C::template nested_condition<T>
+    >> { using type = typename C::template nested_condition<T>; };
+    template<class C, class T>
+    using nested_condition_t = typename nested_condition<C, T>::type;
 
     namespace error_handling {
         template<class T, class...>
@@ -126,12 +134,12 @@ namespace bxlx::traits {
         struct tuple_nested_mismatched {
             using simplified [[maybe_unused]] = reduce_errors_t<typename All::simplified...>;
         };
-        template<class, class Err>
+        template<class, class Err, class Props = void>
         struct condition_and_error {
             using simplified [[maybe_unused]] = typename Err::simplified;
         };
-        template<class C>
-        struct condition_and_error<C, void> {
+        template<class C, class Props>
+        struct condition_and_error<C, void, Props> {
             using simplified [[maybe_unused]] = void;
         };
     }
@@ -345,7 +353,17 @@ namespace bxlx::traits {
             if constexpr (!is_valid<T>()) {
                 if constexpr (((Conditions::template is_valid<T>() + ...) > 1)) {
                     return error_handling::multiple_graph_representation<T,
-                        error_handling::condition_and_error<Conditions, constant_t<Conditions::template is_valid<T>()>>...>{};
+                        error_handling::condition_and_error<
+                            typename std::conditional_t<
+                                Conditions::template is_valid<T>(),
+                                traits::nested_condition<Conditions, T>,
+                                type_identity<Conditions>
+                            >::type,
+                            constant_t<Conditions::template is_valid<T>()>,
+                            get_properties<std::conditional_t<
+                                Conditions::template is_valid<T>(), Conditions, no_prop
+                            >, T>
+                            >...>{};
                 } else {
                     return error_handling::any_nested_mismatched<error_handling::condition_and_error<Conditions, decltype(Conditions::template why_not<T>())>...>{};
                 }
@@ -358,7 +376,10 @@ namespace bxlx::traits {
         }
 
         template<class T>
-        using properties [[maybe_unused]] = get_properties<std::tuple_element_t<the_valid_index<T>(), std::tuple<Conditions...>>, T>;
+        using nested_condition [[maybe_unused]] = std::tuple_element_t<the_valid_index<T>(), std::tuple<Conditions...>>;
+
+        template<class T>
+        using properties [[maybe_unused]] = get_properties<nested_condition<T>, T>;
 
         template<class T>
         using graph_traits = typename std::tuple_element_t<the_valid_index<T>(), std::tuple<Conditions...>>::template graph_traits<T>;
@@ -391,7 +412,8 @@ namespace bxlx::traits {
 
         template<class T, std::size_t ...Ix>
         constexpr static auto why_not_nested(std::index_sequence<Ix...>) {
-            return error_handling::tuple_nested_mismatched<error_handling::condition_and_error<Conditions, decltype(Conditions::template why_not<detail2::tuple_element_cvref_t<Ix, T>>())>...>{};
+            return error_handling::tuple_nested_mismatched<error_handling::condition_and_error<Conditions,
+                decltype(Conditions::template why_not<detail2::tuple_element_cvref_t<Ix, T>>())>...>{};
         }
 
         template<class T>
@@ -406,6 +428,13 @@ namespace bxlx::traits {
                 return error_handling::tuple_size_mismatch<T>{};
             }
         }
+
+        template<class T, std::size_t ...Ix>
+        constexpr static tuple_like<nested_condition_t<Conditions, detail2::tuple_element_cvref_t<Ix, T>>...>
+            nested_condition_impl(std::index_sequence<Ix...>) { return {}; }
+
+        template<class T>
+        using nested_condition [[maybe_unused]] = decltype(nested_condition_impl<T>(std::make_index_sequence<std::tuple_size_v<T>>{}));
     };
 
     template<class container_size_prop, class Cond>
@@ -457,7 +486,7 @@ namespace bxlx::traits {
     };
 
     template<class Cond>
-    struct range : accept_recursively<range_impl<inside_container_size, Cond>,
+    struct range : accept_recursively<range<Cond>,
         detail2::type_classification::range,
         detail2::type_classification::sized_range,
         detail2::type_classification::random_access_range>, range_impl<inside_container_size, Cond> {
@@ -506,6 +535,27 @@ namespace bxlx::traits {
         }
     };
 
+    template<bool accept_only_map, class Property, class SizeProperty, class T, class U>
+    struct map_like_range : accept_recursively<map_like_range<accept_only_map, Property, SizeProperty, T, U>,
+        detail2::type_classification::sized_range, detail2::type_classification::random_access_range>,
+                            range_impl<SizeProperty, save_type<Property, tuple_like<T, U>>> {
+        using Base = accept_recursively<map_like_range<accept_only_map, Property, SizeProperty, T, U>,
+            detail2::type_classification::sized_range, detail2::type_classification::random_access_range>;
+
+        template<class V>
+        constexpr static bool is_valid() {
+            if constexpr (!accept_only_map || (detail2::is_map_like_container_v<V> && !detail2::is_multi_v<V>)) {
+                return Base::template is_valid<V>();
+            } else {
+                return false;
+            }
+        }
+
+    };
+
+    template<bool accept_only_map, class U>
+    using node_map_save = map_like_range<accept_only_map, node_repr_type, node_container_size, node_index, U>;
+
     template<class Property, class T, class ...Ts>
     using with_property = any_of<tuple_like<T, Ts..., Property>,
         std::conditional_t<sizeof...(Ts) == 0, T, tuple_like<T, Ts...>>>;
@@ -524,14 +574,6 @@ namespace bxlx::traits {
         using properties [[maybe_unused]] = merge_properties<get_properties<with_property<edge_property, T, Ts...>, U>,
             property<edge_repr_type, U>>;
     };
-
-    template<class Property, class SizeProperty, class T, class U>
-    struct map_like_range : accept_recursively<range_impl<SizeProperty, save_type<Property, tuple_like<T, U>>>,
-        detail2::type_classification::sized_range, detail2::type_classification::random_access_range>,
-        range_impl<SizeProperty, save_type<Property, tuple_like<T, U>>> {};
-
-    template<class U>
-    using node_map_save = map_like_range<node_repr_type, node_container_size, node_index, U>;
 
 
     template<class Ix>
@@ -632,7 +674,7 @@ namespace bxlx::traits {
         node_indexed_range<with_node_property<
             range<with_edge_property<index<>>>
         >>,
-        node_map_save<with_property<node_property,
+        node_map_save<false, with_property<node_property,
             range<with_edge_property<node_index>>
         >>
     >> {
@@ -948,7 +990,7 @@ namespace bxlx::traits {
 
     struct edge_list : any_of<
         with_graph_property<edge_range_prop<node_index>>,
-        with_graph_property<node_map_save<node_property>, edge_range_prop<node_index>>,
+        with_graph_property<node_map_save<true, node_property>, edge_range_prop<node_index>>,
         with_graph_property<node_indexed_range<save_type<node_repr_type, node_property>>, edge_range_prop<index<>>>
     > {
         template<class T, class Props = get_properties<edge_list, T>>
