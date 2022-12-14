@@ -223,65 +223,101 @@ void run_bfs_2() {
 
 in the schema, the node_index/index must be the same
 
-### `adjacency_list`
+### adjacency_list
 
-- `node_indexed_range<range<integer>>`
-- `node_indexed_range<range<pair<integer, edge_prop>>>`
-- `node_indexed_range<pair<range<integer>, node_prop>>`
-- `pair<node_indexed_range<range<integer>>, graph_prop>`
-- node/edge/graph properties any combination
+#### node index is [0..n)
+
+- Node indexed range can be any random access range. Shortened with `NIR`
+- Node index type is any which classified with `index` type. Shortened with `I`
+- Edge indexed range can be any random access range. Shortened with `EIR`
+- Edge index type is any which classified with `index` type. Shortened with `E`
+- `edge_index` can be any index which copyable and works as a key in the `map`
+
+| Edge directness | Parallelism  | Example                                                                                                                     | Note                                                                                                                                                                                                                                                                                                                                                                        |
+|-----------------|--------------|-----------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Unknown**     | **Unknown**  | `NIR<range<I>>`                                                                                                             | *Edge directness and parallelism can be passed to graph property, or the algorithms where needed.*<br/>*Default consumption that all output edge is in the range, so it will not check the reverse direction.*<br/>*You are the responsible for multiple edge nonexistence if that is disallowed and edge existence in both direction on undirected graph.*                 |
+| **Unknown**     | **Disallow** | `NIR<set<I>>`                                                                                                               | *Edge directness can be passed to graph property, or the algorithms where needed.*<br/>*Default consumption that all output edge is in the set, so it will not check the reverse direction.*<br/>*You are the responsible for edge existence in both direction on undirected graph.*                                                                                        |
+| **Unknown**     | **Allow**    | `NIR<multiset<I>>`                                                                                                          | *Edge directness can be passed to graph property, or the algorithms where needed.*<br/>*Default consumption that all output edge is in the multiset, so it will not check the reverse direction.*<br/>*You are the responsible for edge existence in both direction on undirected graph.*                                                                                   |
+| **Directed**    | **Unknown**  | `NIR<range<pair<I, edge_prop>>>`                                                                                            | Directed, because no `edge_prop` sharing in the structure.<br/>`range` cannot be a `set`<br/>*Edge parallelism can be passed to graph property, or the algorithms where needed.*<br/>*You are the responsible for multiple edge nonexistence if that is disallowed.*                                                                                                        |
+| **Directed**    | **Disallow** | `NIR<map<I, edge_prop>>`                                                                                                    | Directed, because no `edge_prop` sharing in the structure.                                                                                                                                                                                                                                                                                                                  |
+| **Directed**    | **Allow**    | `NIR<multimap<I, edge_prop>>`                                                                                               | Directed, because no `edge_prop` sharing in the structure.                                                                                                                                                                                                                                                                                                                  |
+| **Undirected**  | **Unknown**  | `pair<NIR<range<pair<I, E>>>, EIR<edge_prop>>`<br/><br/>`pair<NIR<range<pair<I, edge_index>>>, map<edge_index, edge_prop>>` | Undirected, because `edge_prop` is shared in the edge range or edge map.<br/>`range` cannot be a `set`<br/>*Algorithms assumes that if (u, v) exists then (v, u) too with same E or edge_index*<br/>*Edge parallelism can be passed to graph property, or the algorithms where needed.*<br/>*You are the responsible for multiple edge nonexistence if that is disallowed.* |
+| **Undirected**  | **Disallow** | `pair<NIR<map<I, E>>, EIR<edge_prop>>`<br/><br/>`pair<NIR<map<I, edge_index>>, map<edge_index, edge_prop>>`                 | Undirected, because `edge_prop` is shared in the edge range or edge map.<br/>*Algorithms assumes that if (u, v) exists then (v, u) too with same E or edge_index*<br/>*Edge parallelism can be passed to graph property, or the algorithms where needed.*<br/>*You are the responsible for multiple edge nonexistence if that is disallowed.*                               |
+| **Undirected**  | **Allow**    | `pair<NIR<multimap<I, E>>, EIR<edge_prop>>`<br/><br/>`pair<NIR<multimap<I, edge_index>>, map<edge_index, edge_prop>>`       | Undirected, because `edge_prop` is shared in the edge range or edge map.<br/>*Algorithms assumes that if (u, v) exists then (v, u) too with same E or edge_index*<br/>*Edge parallelism can be passed to graph property, or the algorithms where needed.*<br/>*You are the responsible for multiple edge nonexistence if that is disallowed.*                               |
+
+- Node property can be added for all if you replace `NIR<$1>` to `NIR<pair<$1, node_property>>`
+- Graph property can be added for all if
+  - replace `pair<NIR<$1>, $2>`-s to `tuple<NIR<$1>, $2, graph_property>`
+  - or `NIR<$1>`-s to `pair<NIR<$1>, graph_property>`
 
 
-These ranges cannot be any compile time fix range.
-If range is a set like object (set/map), no different comparing (std::less<K> or std::equal_to<K>) is allowed for the keys
-
-- `node_range<pair<node_index, range<node_index>>>`
-- `node_range<pair<node_index, range<pair<node_index, edge_prop>>>>`
-- `node_range<pair<node_index, pair<range<node_index>, node_prop>>>`
-- `pair<node_range<pair<node_index, range<node_index>>>, graph_prop>`
-- node/edge/graph properties any combination
+### Q&A
+- Is it not collide the recognition if `pair<NIR<?>, EIR<?>>` and `pair<NIR<?>, graph_property>` is allowed too?
+  - No, because if recognized any `property` as a `range`, that recognition will be **weaker**
+- Can be `edge_index` is different type on the same schema?
+  - No, it will not recognize as a valid type on that schema, so probably the edge map will be recognized as `graph_property`
 
 
-map accepted as range<pair<index, *>>
+#### node index is `node_index` any user defined type
+| Edge directness | Parallelism  | Example                                                                                                                                                               | Note                                                                                                                    |
+|-----------------|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| **Unknown**     | **Unknown**  | `map<node_index, range<node_index>>`                                                                                                                                  | *for more info, see previous table corresponding line*                                                                  |
+| **Unknown**     | **Disallow** | `map<node_index, set<node_index>>`                                                                                                                                    | Different comparator, hash or equality type are not allowed.<br/>*for more info, see previous table corresponding line* |
+| **Unknown**     | **Allow**    | `map<node_index, multiset<node_index>>`                                                                                                                               | Different comparator, hash or equality type are not allowed.<br/>*for more info, see previous table corresponding line* |
+| **Directed**    | **Unknown**  | `map<node_index, range<pair<node_index, edge_prop>>>`                                                                                                                 | `range` cannot be a `set`<br/>*for more info, see previous table corresponding line*                                    |
+| **Directed**    | **Disallow** | `map<node_index, map<node_index, edge_prop>>`                                                                                                                         | *for more info, see previous table corresponding line*                                                                  |
+| **Directed**    | **Allow**    | `map<node_index, multimap<node_index, edge_prop>>`                                                                                                                    | *for more info, see previous table corresponding line*                                                                  |
+| **Undirected**  | **Unknown**  | `pair<map<node_index, range<pair<node_index, E>>>, EIR<edge_prop>>`<br/><br/>`pair<map<node_index, range<pair<node_index, edge_index>>>, map<edge_index, edge_prop>>` | `range` cannot be a `set`<br/>*for more info, see previous table corresponding line*                                    |
+| **Undirected**  | **Disallow** | `pair<map<node_index, map<node_index, E>>, EIR<edge_prop>>`<br/><br/>`pair<map<node_index, map<node_index, edge_index>>, map<edge_index, edge_prop>>`                 | *for more info, see previous table corresponding line*                                                                  |
+| **Undirected**  | **Allow**    | `pair<map<node_index, multimap<node_index, E>>, EIR<edge_prop>>`<br/><br/>`pair<map<node_index, multimap<node_index, edge_index>>, map<edge_index, edge_prop>>`       | *for more info, see previous table corresponding line*                                                                  |
+
+- Node property can be added for all if you replace `map<node_index, $1>` to `map<node_index, pair<$1, node_property>>`
+- Graph property can be added for all if
+  - replace `pair<map<node_index, $1>, $2>`-s to `tuple<map<node_index, $1>, $2, graph_property>`
+  - or `map<node_index, $1>`-s to `pair<map<node_index, $1>, graph_property>`
 
 
 ### `adjacency_matrix`
 
-- `node_indexed_range<bitset_like>`
-- `node_indexed_range<pair<bitset_like, node_prop>>`
-- `pair<node_indexed_range<bitset_like>, graph_prop>`
-- node/graph properties combination
+All `adjacency_matrix` are disallow parallel edges, and no user defined node index possibility
 
 
-- `node_indexed_range<node_indexed_range<bool>>`
-- `node_indexed_range<node_indexed_range<optional<edge_prop>>>`
-- `node_indexed_range<pair<node_indexed_range<bool>, node_prop>>`
-- `pair<node_indexed_range<node_indexed_range<bool>>, graph_prop>`
-- node/edge/graph properties any combination
+| Edge directness                                                   | Compressed | Example                                                                                                                   | Note                                                                                                                                                                       |
+|-------------------------------------------------------------------|------------|---------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Unknown**                                                       | **No**     | `NIR<NIR<bool>>`                                                                                                          | *Edge directness can be passed to graph property, or the algorithms where needed.*<br/>*You are the responsible for edge existence in both direction on undirected graph.* |
+| **Unknown**                                                       | **Yes**    | `NIR<bitset>`                                                                                                             | *Edge directness can be passed to graph property, or the algorithms where needed.*<br/>*You are the responsible for edge existence in both direction on undirected graph.* |
+| **Directed**                                                      | **No**     | `NIR<NIR<optional<edge_prop>>>`                                                                                           | Directed, because no *edge_prop* sharing in the structure.                                                                                                                 |
+| **Directed**<br/>*dinamically calculated, if not constepr size*   | **Yes**    | `random_access_range<bool>`<br/><br/>`bitset`<br/><br/>`random_access_range<optional<edge_prop>>`                         | **Only if size(container) is N²**<br/>*(includes `0` and `1`)*                                                                                                             |
+| **Undirected**                                                    | **No**     | `pair<NIR<NIR<optional<E>>>, EIR<edge_prop>>`<br/><br/>`pair<NIR<NIR<optional<edge_index>>>, map<edge_index, edge_prop>>` | Undirected, because *edge_prop* is shared in the edge range or edge map.                                                                                                   |
+| **Undirected**<br/>*dinamically calculated, if not constepr size* | **Yes**    | `random_access_range<bool>`<br/><br/>`bitset`<br/><br/>`random_access_range<optional<edge_prop>>`                         | **Only if size(container) is N * (N+1) / 2**<br/>*(excludes `0` and `1`)*<br/>*Lower triangular matrix, node addition only a `resize`*                                     |
 
-
-*bitset_like: std::bitset<>, std::vector&lt;bool&gt;*
+- bitsets: `std::bitset<N>`, `std::vector&lt;bool&gt;`
+- Node property can be added for not compressed structures if you replace `NIR<$1>` to `NIR<pair<$1, node_property>>`
+- Graph property can be added for all if
+  - replace `pair<NIR<$1>, $2>`-s to `tuple<NIR<$1>, $2, graph_property>`
+  - or `$1`-s to `pair<$1, graph_property>`
 
 ### `edge_list`
 
-- `edge_range<pair<node_index, node_index>>`
-- `edge_range<tuple<node_index, node_index, edge_prop>>`
-- `tuple<mode_range<pair<node_index, node_prop>>, edge_range<pair<node_index, node_index>>>`
-- `tuple<edge_range<tuple<node_index, node_index>>, graph_prop>`
-- edge/node/graph properties combination
 
 
-- `pair<node_indexed_range<node_prop>, edge_range<pair<integer, integer>>>`
-- `pair<node_indexed_range<node_prop>, edge_range<tuple<integer, integer, edge_prop>>>`
-- `tuple<node_indexed_range<node_prop>, edge_range<pair<integer, integer>>, graph_prop>`
-- edge/graph properties any combination
+| Edge directness | Parallelism  | Example                                                                                                                                                           | Note |
+|-----------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|
+| **Unknown**     | **Unknown**  | `range<pair<node_index, node_index>>`                                                                                                                             |      |
+| **Unknown**     | **Disallow** | `set<pair<node_index, node_index>>`                                                                                                                               |      |
+| **Unknown**     | **Allow**    | `multiset<pair<node_index, node_index>>`                                                                                                                          |      |
+| **Directed**    | **Unknown**  | `range<tuple<node_index, node_index, edge_prop>>`                                                                                                                 |      |
+| **Directed**    | **Disallow** | `map<pair<node_index, node_index>, edge_prop>`                                                                                                                    |      |
+| **Directed**    | **Allow**    | `multimap<pair<node_index, node_index>, edge_prop>`                                                                                                               |      |
+| **Undirected**  | **Unknown**  | `pair<range<tuple<node_index, node_index, E>>, EIR<edge_prop>>`<br/><br/>`pair<range<tuple<node_index, node_index, edge_index>>, map<edge_index, edge_prop>>`     |      |
+| **Undirected**  | **Disallow** | `pair<map<pair<node_index, node_index>, E>, EIR<edge_prop>>`<br/><br/>`pair<map<pair<node_index, node_index>, edge_index>, map<edge_index, edge_prop>>`           |      |
+| **Undirected**  | **Allow**    | `pair<multimap<pair<node_index, node_index>, E>, EIR<edge_prop>>`<br/><br/>`pair<multimap<pair<node_index, node_index>, edge_index>, map<edge_index, edge_prop>>` |      |
 
 
-map not, but multimap is accepted as edge_range<pair<index, index>>
-
-edge_range<tuple<index, index, edge_prop>> can be
-- range<tuple<index, index, edge_prop>>
-- map<pair<index, index>, edge_prop>
+node property can be added
+- For `pair<$1, $2>` the `tuple<map<node_index, node_prop>, $1, $2>` or `tuple<NIR<node_prop>, $1, $2>`
+- Or else `$1` the `pair<map<node_index, node_prop>, $1>` or `pair<NIR<node_prop>, $1>`
+Graph property can be added to the end of the pair-s, tuples
 
 
 ---
@@ -302,22 +338,20 @@ struct edge_types {
 };
 using edge_type = edge_types::type;
 
-template<class ColoredEdgeOutIt, class Graph, class GraphTraits = ...>
-constexpr ColoredEdgeOutIt depth_first_search(const Graph& g, node_t<Graph> from, ColoredEdgeOutIt out);
-template<class ColoredEdgeOutIt, class Graph, class GraphTraits = ...>
-constexpr ColoredEdgeOutIt breadth_first_search(const Graph& g, node_t<Graph> from, ColoredEdgeOutIt out);
-// fills 'out' with a flexible class, which implicit convertible to:
-// - std::tuple<node_t, node_t, const node_property_t*, TreeType, std::size_t>          - parent + to + node prop + TreeType + distance
-// - std::tuple<node_t, node_t, const node_property_t*, TreeType>                       - parent + to + node prop + TreeType
-// - std::tuple<node_t, node_t, TreeType, std::size_t>                                  - parent + to             + TreeType + distance
-// - std::tuple<node_t, node_t, TreeType>                                               - parent + to             + TreeType
-// - std::tuple<node_t, const node_property_t*, TreeType, std::size_t>                  -          to + node prop + TreeType + distance
-// - std::tuple<node_t, const node_property_t*, TreeType>                               -          to + node prop + TreeType
-// - std::tuple<node_t, TreeType, std::size_t>                                          -          to             + TreeType + distance
-// - std::pair <node_t, TreeType>                                                       -          to             + TreeType
+template<class Distance = std::size_t, class ColoredEdgeOutIt, class Graph, class GraphTraits = ...>
+constexpr ColoredEdgeOutIt depth_first_search(const Graph& g, node_t<Graph> from, ColoredEdgeOutIt out, Distance max_distance = ~Distance());
+template<class Distance = std::size_t, class ColoredEdgeOutIt, class Graph, class GraphTraits = ...>
+constexpr ColoredEdgeOutIt breadth_first_search(const Graph& g, node_t<Graph> from, ColoredEdgeOutIt out, Distance max_distance = ~Distance());
+// fills 'out' with a flexible class, which implicit convertible to any 16 tuple:
+// - std::tuple<[node_t, ]node_t, [const node_property_t*, ][const edge_property_t*, ]TreeType [, Distance]>          
+// -             parent  +  to    +      node prop          +   edge prop            +edge type+  distance
+// - std::pair <node_t, TreeType>
 
 // where TreeType is one of the following type: 
 // tree_t, forward_t, reverse_t, cross_t, parallel_t; whose implicit convertible to edge_type.
+
+// if edge_property_t is void, overloads works with edge_repr_t
+// if node_property_t is void, those overloads are not applicable
 
 
 template<class Weight = EdgePropIdentityCmpOrSizeTOne, class OutIt, class Graph, class GraphTraits = ...>
@@ -344,17 +378,12 @@ constexpr OutIt shortest_paths(const Graph& g, node_t<Graph> from, OutIt out, We
 //    - signedness can be determined constexpr only if T [is trivial C++17] [has constexpr constructor/destructor and operator~ >=C++20]
 // else use bellman_ford algorithm
 // 
-// fills 'out' with a flexible class, which implicit convertible to: (*)
-// - std::tuple<node_t, node_t, const node_property_t*, const edge_property_t*, weight> - parent + to + n_property + e_property + weight
-// - std::tuple<node_t, node_t, const node_property_t*, const edge_property_t*>         - parent + to + n_property + e_property
-// - std::tuple<node_t, node_t, const edge_property_t*, weight>                         - parent + to              + e_property + weight
-// - std::tuple<node_t, node_t, const edge_property_t*>                                 - parent + to              + e_property
-// - std::tuple<node_t, node_t, const node_property_t*, weight>                         - parent + to + n_property              + weight
-// - std::tuple<node_t, node_t, const node_property_t*>                                 - parent + to + n_property
-// - std::tuple<node_t, node_t, weight>                                                 - parent + to                           + weight
-// - std::tuple<node_t, const node_property_t*, weight>                                 -          to + n_property              + weight
-// - std::pair <node_t, weight>                                                         -          to                           + weight
-// if edge_property is not exists, those overloads works with edge_repr_t
+// fills 'out' with a flexible class, which implicit convertible to this 8 tuple: (*)
+// - std::tuple<[node_t, ]node_t, [const node_property_t*, ][const edge_property_t*, ]WeightRes>          
+// -              parent + to     +     n_property          +      e_property        + weight
+// - std::pair <node_t, weight> 
+// if edge_property_t is void, those overloads works with edge_repr_t
+// if node_property_t is void, those overloads are not applicable
 
 template<class Weight = EdgePropIdentityCmpOrSizeTOne, class NodeInputIt, class OutIt, class Graph, class GraphTraits = ...>
 constexpr OutIt shortest_paths(const Graph& g, NodeInputIt first, NodeInputIt last, OutIt out, Weight = {}, WeightRes max_weight = ~WeightRes());
