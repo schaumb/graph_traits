@@ -211,6 +211,8 @@ struct MyRar {
     [[nodiscard]] my_iterator end() const { return {}; }
     [[nodiscard]] std::size_t size() const { return {}; }
 };
+
+static_assert(bxlx::detail2::has_subscript_operator_v<MyRar>);
 static_assert(classify<MyRar> == type_classification::random_access_range);
 
 struct MyMap {

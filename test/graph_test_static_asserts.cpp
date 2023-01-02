@@ -475,7 +475,7 @@ constexpr bool check_all_adj_matrix_1() {
             graph_representation::adjacency_matrix,
             std::size_t,
             typename decltype(node_repr)::type,
-            bxlx::detail2::subscript_operator_return<typename decltype(bitset)::type>,
+            bxlx::detail2::subscript_operator_return_t<typename decltype(bitset)::type>,
             node_size,
             node_size * node_size,
             typename decltype(graph_prop)::type,

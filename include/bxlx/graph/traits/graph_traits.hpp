@@ -290,7 +290,7 @@ namespace bxlx::traits {
                 property<node_container_size, constant_t<bxlx::detail2::compile_time_size_v<T>>>,
                 empty_properties
             >,
-            property<edge_repr_type, detail2::subscript_operator_return<T>>,
+            property<edge_repr_type, detail2::subscript_operator_return_t<T>>,
             property<bitset, std::true_type>
         >;
     };

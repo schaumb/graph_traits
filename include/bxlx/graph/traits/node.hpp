@@ -89,7 +89,7 @@ namespace bxlx::traits::node {
             if (auto [from, to] = nodes.equal_range(n); from != to)
                 return std::addressof(*from);
         } else if (has_node(g, n)) {
-            if constexpr (detail2::has_subscript_operator<node_container_t<GraphTraits>>) {
+            if constexpr (detail2::has_subscript_operator_v<node_container_t<GraphTraits>>) {
                 return std::addressof(nodes[n]);
             } else {
                 return std::addressof(*(std::begin(nodes) + n));

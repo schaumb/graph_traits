@@ -137,15 +137,15 @@ namespace bxlx::detail2 {
     constexpr inline bool is_defined_v = is_defined<T>::value;
 
 
-    template <bool IsConvertible, typename From, typename To>
+    template <bool IsConvertible, class From, class To>
     struct is_nothrow_convertible_impl : std::false_type{};
-    template <typename From, typename To>
+    template <class From, class To>
     struct is_nothrow_convertible_impl<true, From, To> {
         static void test(To) noexcept {}
         [[maybe_unused]] constexpr static inline bool value = noexcept(test(std::declval<From>()));
     };
 
-    template <typename From, typename To>
+    template <class From, class To>
     constexpr inline auto is_nothrow_convertible_v
         = is_nothrow_convertible_impl<std::is_convertible_v<From,To>, From, To>::value;
 
@@ -205,18 +205,23 @@ namespace bxlx::detail2 {
         (std::is_integral_v<T> || is_size_t_wrapper<T>);
 
 
+    template<class T>
+    using size_t = decltype(std::size(std::declval<T&>()));
+
     template<class T, bool = is_defined_v<T>, class = void>
     constexpr inline bool has_size_v = false;
     template<class T>
     constexpr inline bool has_size_v<T, true, std::enable_if_t<
-        is_index_v<decltype(std::size(std::declval<T&>()))>
+        is_index_v<size_t<T>>
     >> = true;
 
 
     template<class T, class With = void, bool = has_size_v<T>, class = void>
-    struct subscript_operator_traits {};
+    struct subscript_operator_traits :
+        std::conditional_t<std::is_const_v<T>, std::enable_if<false>, subscript_operator_traits<std::add_const_t<T>>>
+    {};
     template<class T>
-    struct subscript_operator_traits<T, void, true> : subscript_operator_traits<T, decltype(std::size(std::declval<T&>()))> {};
+    struct subscript_operator_traits<T, void, true> : subscript_operator_traits<T, size_t<T>> {};
     template<class T>
     struct subscript_operator_traits<T, void, false> : subscript_operator_traits<T, std::size_t> {};
     template<class T, class With, bool has_size>
@@ -228,13 +233,13 @@ namespace bxlx::detail2 {
     };
 
     template<class T, class With = void>
-    using subscript_operator_return = remove_cvref_t<typename subscript_operator_traits<std::remove_const_t<T>, With>::type>;
+    using subscript_operator_return_t = typename subscript_operator_traits<T, With>::type;
 
-    template<class, class = void, class = void>
-    constexpr inline bool has_subscript_operator = false;
-    template<class T, class With>
-    constexpr inline bool has_subscript_operator<T, With, std::void_t<
-        typename subscript_operator_traits<T, With>::type
+    template<class T, class = void, bool = std::is_const_v<T>, class = void>
+    constexpr inline bool has_subscript_operator_v = false;
+    template<class T, class With, bool any>
+    constexpr inline bool has_subscript_operator_v<T, With, any, std::void_t<
+        subscript_operator_return_t<T, With>
     >> = true;
 
 
@@ -242,8 +247,8 @@ namespace bxlx::detail2 {
     constexpr inline bool is_bitset_like_v = false;
     template<class T>
     constexpr inline bool is_bitset_like_v<T, true, std::enable_if_t<   // bitset has size && it is a class
-        has_subscript_operator<std::remove_const_t<T>>                  // and you can index it, to get a bool_ref
-    >> = is_bool_ref_v<subscript_operator_return<T>>;
+        has_subscript_operator_v<std::remove_const_t<T>>                // and you can index it, to get a bool_ref
+    >> = is_bool_ref_v<remove_cvref_t<subscript_operator_return_t<std::remove_const_t<T>>>>;
 
 
     template<auto* Lambda, int=((*Lambda)(), 0)>
@@ -277,19 +282,19 @@ namespace bxlx::detail2 {
     > = constexpr_std_size<remove_cvref_t<T>>();
 
     template<class, class = void>
-    constexpr inline std::size_t compile_time_size_v = 0;
+    constexpr inline std::size_t compile_time_size_v = {};
     template<class T>
-    constexpr inline std::size_t compile_time_size_v<T, std::enable_if_t<
+    constexpr inline auto compile_time_size_v<T, std::enable_if_t<
         std::is_array_v<T>
     >> = std::extent_v<T>;
     template<class T>
-    constexpr inline std::size_t compile_time_size_v<T, std::enable_if_t<
+    constexpr inline auto compile_time_size_v<T, std::enable_if_t<
         is_tuple_like_v<T>
     >> = tuple_has_same_values_v<T> ? std::tuple_size_v<T> : 0;
     template<class T>
-    constexpr inline std::size_t compile_time_size_v<T, std::enable_if_t<
+    constexpr inline auto compile_time_size_v<T, std::enable_if_t<
         !std::is_array_v<T> && !is_tuple_like_v<T> && constexpr_std_size_v<T>
-    >> = std::size(T{});
+    >> = constexpr_std_size_v<T>;
 
 
     template<class, class = void>
@@ -329,17 +334,23 @@ namespace bxlx::detail2 {
     struct range_traits_impl<T, true, std::enable_if_t<
         !has_std_iterator_traits_v<get_begin_iterator_t<T>>
     >> {
-        template<class U, bool>
+        template<class U, bool, class = void>
         struct ssize_type : std::common_type<std::ptrdiff_t> {};
         template<class U>
-        struct ssize_type<U, true> : std::make_signed<remove_cvref_t<decltype(std::size(std::declval<U>()))>> {};
+        struct ssize_type<U, true, std::enable_if_t<
+            has_size_v<U>
+        >> : std::make_signed<remove_cvref_t<size_t<U>>> {};
+        template<class U>
+        struct ssize_type<U, true, std::enable_if_t<
+            !has_size_v<U>
+        >> : std::make_signed<remove_cvref_t<decltype(compile_time_size_v<U>)>> {};
 
         using reference = decltype(*std::begin(std::declval<T&>()));
         using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
 
         constexpr static bool is_sized = has_size_v<T> || compile_time_size_v<T>;
         [[maybe_unused]] constexpr static bool random_access =
-            has_subscript_operator<const T> ||
+            has_subscript_operator_v<const T> ||
             std::is_invocable_r_v<get_begin_iterator_t<T>, std::plus<>, get_begin_iterator_t<T>, typename ssize_type<T, is_sized>::type>;
         [[maybe_unused]] constexpr static bool predeclared_array = false;
     };
@@ -394,12 +405,14 @@ namespace bxlx::detail2 {
 
     template<class T>
     using range_traits_type = typename range_traits<T>::value_type;
+    template<class T>
+    using range_traits_ref = typename range_traits<T>::reference;
 
     template<class, class = void>
     constexpr inline bool is_range_v = false;
     template<class T>
     constexpr inline bool is_range_v<T, std::void_t<
-        typename range_traits<T>::value_type
+        range_traits_type<T>
     >> = true;
 
 
@@ -417,36 +430,64 @@ namespace bxlx::detail2 {
 
     namespace range_member_traits {
         template<class Range>
-        constexpr inline bool can_inspect_member = is_range_v<Range> && std::is_class_v<Range> && is_defined_v<Range>;
+        constexpr inline bool can_inspect_member = std::is_class_v<Range> && is_defined_v<Range>;
 
-        template<class Range, bool = is_sized_range_v<Range>>
-        struct size { using type = void; };
-        template<class Range>
-        struct size<Range, true> { using type = remove_cvref_t<decltype(std::size(std::declval<Range&>()))>; };
+#define HAS_MEMBER_FUNCTION_VARG(name) \
+        template<class Range, bool, class = void, class ...> \
+        constexpr inline bool has_ ## name = false; \
+        template<class Range, class ...Args> \
+        constexpr inline bool has_ ## name <Range, true, std::void_t< \
+            decltype(member_function_invoke_result_v<void, Range, Args&&...>(&Range::template name<Args&&...>)) \
+        >, Args...> = true; \
+        template<class Range, class ...Args> \
+        constexpr inline bool has_ ## name ## _v = has_ ## name <Range, can_inspect_member<Range>, void, Args...>;
 
-        template<class Range>
-        using size_t = typename size<Range>::type;
+        HAS_MEMBER_FUNCTION_VARG(emplace_back)
+        HAS_MEMBER_FUNCTION_VARG(emplace)
+#undef HAS_MEMBER_FUNCTION_VARG
 
-        template<class Range, bool, class = void, class ...Args>
-        constexpr inline bool has_emplace_back = false;
-        template<class Range, class ...Args>
-        constexpr inline bool has_emplace_back<Range, true, std::void_t<
-            decltype(member_function_invoke_result_v<void, Range, Args&&...>(&Range::template emplace_back<Args&&...>))
-        >, Args...> = true;
+#define HAS_MEMBER_FUNCTION_VARG_WITH_RES(name) \
+        template<class Range, class Result, bool, class = void, class ...Args> \
+        constexpr inline bool has_ ## name = false; \
+        template<class Range, class Result, class ...Args> \
+        constexpr inline bool has_ ## name <Range, Result, true, std::void_t< \
+            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::name)) \
+        >, Args...> = true; \
+        template<class Range, class Result, class ...Args> \
+        constexpr inline bool has_ ## name ## _v = has_ ## name <Range, Result, can_inspect_member<Range>, void, Args...>;
 
-        template<class Range, class ...Args>
-        constexpr inline bool has_emplace_back_v = has_emplace_back<Range, can_inspect_member<Range>, void, Args...>;
+        HAS_MEMBER_FUNCTION_VARG_WITH_RES(equal_range)
+        HAS_MEMBER_FUNCTION_VARG_WITH_RES(erase)
+        HAS_MEMBER_FUNCTION_VARG_WITH_RES(at)
+#undef HAS_MEMBER_FUNCTION_VARG_WITH_RES
 
-        template<class Range, bool, class = void, class ...Args>
-        constexpr inline bool has_emplace = false;
-        template<class Range, class ...Args>
-        constexpr inline bool has_emplace<Range, true, std::void_t<
-            decltype(member_function_invoke_result_v<void, Range, Args&&...>(&Range::template emplace<Args&&...>))
-        >, Args...> = true;
+#define HAS_MEMBER_FUNCTION_NO_ARG(name) \
+        template<class Range, bool = can_inspect_member<Range>, class = void> \
+        constexpr inline bool has_ ## name ## _v = false; \
+        template<class Range> \
+        constexpr inline bool has_ ## name ## _v<Range, true, std::void_t<      \
+            decltype(std::declval<Range&>().name()) \
+        >> = true;
 
-        template<class Range, class ...Args>
-        constexpr inline bool has_emplace_v = has_emplace<Range, can_inspect_member<Range>, void, Args...>;
+        HAS_MEMBER_FUNCTION_NO_ARG(length)
+        HAS_MEMBER_FUNCTION_NO_ARG(key_comp)
+        HAS_MEMBER_FUNCTION_NO_ARG(key_eq)
+        HAS_MEMBER_FUNCTION_NO_ARG(hash_function)
+#undef HAS_MEMBER_FUNCTION_NO_ARG
 
+#define HAS_MEMBER_TYPE(name) \
+        template<class Range, bool = can_inspect_member<Range>, class = void> \
+        constexpr inline bool has_ ## name ## _type_v = false; \
+        template<class Range> \
+        constexpr inline bool has_ ## name ## _type_v<Range, true, std::void_t< \
+            typename Range::name \
+        >> = true;
+
+        HAS_MEMBER_TYPE(key_compare)
+        HAS_MEMBER_TYPE(key_equal)
+        HAS_MEMBER_TYPE(hasher)
+        HAS_MEMBER_TYPE(key_type)
+#undef HAS_MEMBER_TYPE
 
         template<class Range, bool, class = void, class ...Args>
         constexpr inline bool has_try_emplace = false;
@@ -465,27 +506,6 @@ namespace bxlx::detail2 {
             decltype(std::declval<Range&>().resize(std::size_t{}))
         >> = true;
 
-        template<class Range, bool = can_inspect_member<Range>, class = void>
-        constexpr inline bool has_length_v = false;
-        template<class Range>
-        constexpr inline bool has_length_v<Range, true, std::void_t<
-            decltype(member_function_invoke_result_v<void, const Range>(&Range::length))
-        >> = true;
-
-        template<class Range, bool = can_inspect_member<Range>, class = void>
-        constexpr inline bool has_key_comp_v = false;
-        template<class Range>
-        constexpr inline bool has_key_comp_v<Range, true, std::void_t<
-            decltype(member_function_invoke_result_v<void, const Range>(&Range::key_comp))
-        >> = true;
-
-        template<class Range, bool = can_inspect_member<Range>, class = void>
-        constexpr inline bool has_key_compare_type_v = false;
-        template<class Range>
-        constexpr inline bool has_key_compare_type_v<Range, true, std::void_t<
-            typename Range::key_comare
-        >> = true;
-
         template<class Range, bool = has_key_compare_type_v<Range>, bool = has_key_comp_v<Range>>
         struct key_compare { using type = void; };
         template<class Range, bool any>
@@ -495,20 +515,6 @@ namespace bxlx::detail2 {
 
         template<class Range>
         using key_compare_t = typename key_compare<Range>::type;
-
-        template<class Range, bool = can_inspect_member<Range>, class = void>
-        constexpr inline bool has_key_eq_v = false;
-        template<class Range>
-        constexpr inline bool has_key_eq_v<Range, true, std::void_t<
-            decltype(member_function_invoke_result_v<void, const Range>(&Range::key_eq))
-        >> = true;
-
-        template<class Range, bool = can_inspect_member<Range>, class = void>
-        constexpr inline bool has_key_equal_type_v = false;
-        template<class Range>
-        constexpr inline bool has_key_equal_type_v<Range, true, std::void_t<
-            typename Range::key_equal
-        >> = true;
 
         template<class Range, bool = has_key_equal_type_v<Range>, bool = has_key_eq_v<Range>>
         struct key_equal { using type = void; };
@@ -520,20 +526,6 @@ namespace bxlx::detail2 {
         template<class Range>
         using key_equal_t = typename key_equal<Range>::type;
 
-        template<class Range, bool = can_inspect_member<Range>, class = void>
-        constexpr inline bool has_hash_function_v = false;
-        template<class Range>
-        constexpr inline bool has_hash_function_v<Range, true, std::void_t<
-            decltype(member_function_invoke_result_v<void, const Range>(&Range::hash_function))
-        >> = true;
-
-        template<class Range, bool = can_inspect_member<Range>, class = void>
-        constexpr inline bool has_hasher_type_v = false;
-        template<class Range>
-        constexpr inline bool has_hasher_type_v<Range, true, std::void_t<
-            typename Range::hasher
-        >> = true;
-
         template<class Range, bool = has_hasher_type_v<Range>, bool = has_hash_function_v<Range>>
         struct hasher { using type = void; };
         template<class Range, bool any>
@@ -543,46 +535,6 @@ namespace bxlx::detail2 {
 
         template<class Range>
         using hasher_t = typename hasher<Range>::type;
-
-        template<class Range, bool = can_inspect_member<Range>, class = void>
-        constexpr inline bool has_key_type_type_v = false;
-        template<class Range>
-        constexpr inline bool has_key_type_type_v<Range, true, std::void_t<
-            typename Range::key_type
-        >> = true;
-
-        template<class Range, class Result, bool, class = void, class ...Args>
-        constexpr inline bool has_equal_range = false;
-        template<class Range, class Result, class ...Args>
-        constexpr inline bool has_equal_range<Range, Result, true, std::void_t<
-            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::equal_range))
-        >, Args...> = true;
-
-        template<class Range, class Result, class ...Args>
-        constexpr inline bool has_equal_range_v = has_equal_range<Range, Result, can_inspect_member<Range>, void, Args...>;
-
-
-        template<class Range, class Result, bool, class = void, class ...Args>
-        constexpr inline bool has_erase = false;
-        template<class Range, class Result, class ...Args>
-        constexpr inline bool has_erase<Range, Result, true, std::void_t<
-            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::erase))
-        >, Args...> = true;
-
-        template<class Range, class Result, class ...Args>
-        constexpr inline bool has_erase_v = has_erase<Range, Result, can_inspect_member<Range>, void, Args...>;
-
-
-
-        template<class Range, class Result, bool, class = void, class ...Args>
-        constexpr inline bool has_at = false;
-        template<class Range, class Result, class ...Args>
-        constexpr inline bool has_at<Range, Result, true, std::void_t<
-            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::at))
-        >, Args...> = true;
-
-        template<class Range, class Result, class ...Args>
-        constexpr inline bool has_at_v = has_at<Range, Result, can_inspect_member<Range>, void, Args...>;
     }
 
     template<class T>
@@ -601,21 +553,21 @@ namespace bxlx::detail2 {
         constexpr static inline bool has_map_equal_range_function_v = range_member_traits::has_equal_range_v<
             const T,
             std::pair<get_begin_iterator_t<const T>, get_begin_iterator_t<const T>>,
-            tuple_element_cvref_t<0, typename range_traits<const T>::reference>
+            tuple_element_cvref_t<0, range_traits_ref<const T>>
         >;
 
         template<class T>
         constexpr static inline bool has_set_equal_range_function_v = range_member_traits::has_equal_range_v<
             const T,
             std::pair<get_begin_iterator_t<const T>, get_begin_iterator_t<const T>>,
-            typename range_traits<const T>::reference
+            range_traits_ref<const T>
         >;
 
         template<class T>
         constexpr static inline bool has_map_at_function_v = range_member_traits::has_at_v<
             const T,
-            tuple_element_cvref_t<1, typename range_traits<const T>::reference>,
-            tuple_element_cvref_t<0, typename range_traits<const T>::reference>
+            tuple_element_cvref_t<1, range_traits_ref<const T>>,
+            tuple_element_cvref_t<0, range_traits_ref<const T>>
         >;
 
         template<class T, bool = range_member_traits::has_key_type_type_v<T>, class = void>
@@ -639,7 +591,7 @@ namespace bxlx::detail2 {
 
 
     template<class T, bool =
-        is_tuple_like_v<typename range_traits<T>::value_type> &&
+        is_tuple_like_v<range_traits_type<T>> &&
         !range_traits<T>::predeclared_array>
     constexpr inline bool has_map_like_properties_v = false;
     template<class T>
