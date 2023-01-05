@@ -489,6 +489,21 @@ namespace bxlx::detail2 {
         HAS_MEMBER_TYPE(key_type)
 #undef HAS_MEMBER_TYPE
 
+#define TYPE_OR_GETTER(type_name, getter)\
+        template<class Range, bool = has_ ## type_name ## _type_v<Range>, bool = has_ ## getter ## _v<Range>> \
+        struct type_name { using type = void; }; \
+        template<class Range, bool any> \
+        struct type_name<Range, true, any> { using type = typename Range::type_name; }; \
+        template<class Range> \
+        struct type_name<Range, false, true> { using type = decltype(std::declval<Range>().getter()); }; \
+        template<class Range> \
+        using type_name ## _t = typename type_name<Range>::type;
+
+        TYPE_OR_GETTER(key_compare, key_comp)
+        TYPE_OR_GETTER(key_equal, key_eq)
+        TYPE_OR_GETTER(hasher, hash_function)
+#undef TYPE_OR_GETTER
+
         template<class Range, bool, class = void, class ...Args>
         constexpr inline bool has_try_emplace = false;
         template<class Range, class ...Args>
@@ -505,36 +520,6 @@ namespace bxlx::detail2 {
         constexpr inline bool has_resize_v<Range, true, std::void_t<
             decltype(std::declval<Range&>().resize(std::size_t{}))
         >> = true;
-
-        template<class Range, bool = has_key_compare_type_v<Range>, bool = has_key_comp_v<Range>>
-        struct key_compare { using type = void; };
-        template<class Range, bool any>
-        struct key_compare<Range, true, any> { using type = typename Range::key_compare; };
-        template<class Range>
-        struct key_compare<Range, false, true> { using type = decltype(member_function_invoke_result_v<void, const Range>(&Range::key_comp)); };
-
-        template<class Range>
-        using key_compare_t = typename key_compare<Range>::type;
-
-        template<class Range, bool = has_key_equal_type_v<Range>, bool = has_key_eq_v<Range>>
-        struct key_equal { using type = void; };
-        template<class Range, bool any>
-        struct key_equal<Range, true, any> { using type = typename Range::key_equal; };
-        template<class Range>
-        struct key_equal<Range, false, true> { using type = decltype(member_function_invoke_result_v<void, const Range>(&Range::key_eq)); };
-
-        template<class Range>
-        using key_equal_t = typename key_equal<Range>::type;
-
-        template<class Range, bool = has_hasher_type_v<Range>, bool = has_hash_function_v<Range>>
-        struct hasher { using type = void; };
-        template<class Range, bool any>
-        struct hasher<Range, true, any> { using type = typename Range::hasher; };
-        template<class Range>
-        struct hasher<Range, false, true> { using type = decltype(member_function_invoke_result_v<void, const Range>(&Range::hash_function)); };
-
-        template<class Range>
-        using hasher_t = typename hasher<Range>::type;
     }
 
     template<class T>
@@ -589,18 +574,13 @@ namespace bxlx::detail2 {
              has_no_transparent_v<range_member_traits::hasher_t<Impl>>);
     };
 
-
-    template<class T, bool =
-        is_tuple_like_v<range_traits_type<T>> &&
-        !range_traits<T>::predeclared_array>
-    constexpr inline bool has_map_like_properties_v = false;
-    template<class T>
-    constexpr inline bool has_map_like_properties_v<T, true> = has_map_like_properties_impl<T>::value;
-
-    template<class T, bool = is_range_v<T> && std::is_class_v<T>>
+    template<class T, bool = is_range_v<T> && std::is_class_v<T>, class = void>
     constexpr inline bool is_map_like_container_v = false;
     template<class T>
-    constexpr inline bool is_map_like_container_v<T, true> = has_map_like_properties_v<T>;
+    constexpr inline bool is_map_like_container_v<T, true, std::enable_if_t<
+        is_tuple_like_v<range_traits_type<T>> &&
+        !range_traits<T>::predeclared_array
+    >> = has_map_like_properties_impl<T>::value;
 
 
     template<class T, bool = is_defined_v<T> && is_range_v<T>>
@@ -608,7 +588,10 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr static inline bool is_set_like_container_v<T, true> = !is_map_like_container_v<T> && has_map_like_properties_impl<void, 2>::template has_set_equal_range_function_v<T>;
 
-    template<class T, bool = is_map_like_container_v<T> || is_set_like_container_v<T>, class = void>
+    template<class T>
+    constexpr static inline bool is_associative_container_v = is_map_like_container_v<T> || is_set_like_container_v<T>;
+
+    template<class T, bool = is_associative_container_v<T>, class = void>
     constexpr static inline bool is_multi_v = false;
     template<class T>
     constexpr static inline bool is_multi_v<T, true, std::enable_if_t<
@@ -624,6 +607,10 @@ namespace bxlx::detail2 {
         pre_declared,
         random_access_range,
         bitset_like_container,
+        multimap_like_container,
+        map_like_container,
+        multiset_like_container,
+        set_like_container,
         sized_range,
         range,
         tuple_like,
@@ -633,46 +620,66 @@ namespace bxlx::detail2 {
     };
 
     template<class T, class = void>
-    constexpr inline type_classification classify = decltype(defined_type<T>(0))::value ? type_classification::indeterminate : type_classification::pre_declared;
+    constexpr inline type_classification classify = decltype(defined_type<T>(0))::value
+        ? type_classification::indeterminate
+        : type_classification::pre_declared;
 
     template<class T>
-    constexpr inline type_classification classify<T,
-        std::enable_if_t<is_tuple_like_v<T> && !is_range_v<T>>>
-        = type_classification::tuple_like;
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_tuple_like_v<T> && !is_range_v<T>
+    >> = type_classification::tuple_like;
 
 
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_random_access_range_v<T> &&
-                                                                      !is_string_like_v<T> && !is_bitset_like_v<T>>>
-        = type_classification::random_access_range;
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_random_access_range_v<T> && !is_string_like_v<T> && !is_bitset_like_v<T>
+    >> = type_classification::random_access_range;
 
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_bitset_like_v<T>>>
-        = type_classification::bitset_like_container;
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_map_like_container_v<T> && is_multi_v<T> && !is_random_access_range_v<T>
+    >> = type_classification::multimap_like_container;
 
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_sized_range_v<T>
-        && !is_random_access_range_v<T> && !is_string_like_v<T>>>
-        = type_classification::sized_range;
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_map_like_container_v<T> && !is_multi_v<T> && !is_random_access_range_v<T>
+    >> = type_classification::map_like_container;
 
     template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<is_range_v<T> && !is_sized_range_v<T> && !is_string_like_v<T>>>
-        = type_classification::range;
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_set_like_container_v<T> && is_multi_v<T> && !is_random_access_range_v<T>
+    >> = type_classification::multiset_like_container;
 
     template<class T>
-    constexpr inline type_classification classify<T,
-        std::enable_if_t<is_optional_v<T>>>
-        = type_classification::optional;
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_set_like_container_v<T> && !is_multi_v<T> && !is_random_access_range_v<T>
+    >> = type_classification::set_like_container;
 
     template<class T>
-    constexpr inline type_classification classify<T,
-        std::enable_if_t<is_bool_v<T>>>
-        = type_classification::bool_t;
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_bitset_like_v<T>
+    >> = type_classification::bitset_like_container;
 
     template<class T>
-    constexpr inline type_classification classify<T,
-        std::enable_if_t<is_index_v<T>>>
-        = type_classification::index;
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_sized_range_v<T> && !is_random_access_range_v<T> && !is_string_like_v<T> && !is_associative_container_v<T>
+    >> = type_classification::sized_range;
+
+    template<class T>
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_range_v<T> && !is_sized_range_v<T> && !is_string_like_v<T>
+    >> = type_classification::range;
+
+    template<class T>
+    constexpr inline type_classification classify<T, std::enable_if_t<
+        is_optional_v<T>
+    >> = type_classification::optional;
+
+    template<class T>
+    constexpr inline type_classification classify<T, std::enable_if_t<is_bool_v<T>>> = type_classification::bool_t;
+
+    template<class T>
+    constexpr inline type_classification classify<T, std::enable_if_t<is_index_v<T>>> = type_classification::index;
 }
 
 #endif //GRAPH_TYPE_CLASSIFICATION_HPP
