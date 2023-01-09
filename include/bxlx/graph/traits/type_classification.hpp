@@ -268,6 +268,12 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr inline bool is_constexpr_initializable_v = is_constexpr<&constexpr_initializable<remove_cvref_t<T>>>(0);
 
+    template<class, class, class = void>
+    constexpr inline auto constexpr_convertible = [] { throw; };
+    template<class From, class To>
+    constexpr inline auto constexpr_convertible<From, To, std::enable_if_t<is_constexpr_initializable_v<From>>>
+        = [] () -> To { return From{}; };
+
     template<class, class = void>
     constexpr inline auto constexpr_std_size = [] { throw; };
     template<class T>
@@ -432,44 +438,55 @@ namespace bxlx::detail2 {
         template<class Range>
         constexpr inline bool can_inspect_member = std::is_class_v<Range> && is_defined_v<Range>;
 
-#define HAS_MEMBER_FUNCTION_VARG(name) \
+#define HAS_MEMBER_FUNCTION_TEMPLATE_VARG(name) \
+        template<class Range, class ...Args> \
+        using get_ ## name ## _result_t = decltype(member_function_invoke_result_v<void, Range, Args&&...>(&Range::template name<Args&&...>)); \
         template<class Range, bool, class = void, class ...> \
         constexpr inline bool has_ ## name = false; \
         template<class Range, class ...Args> \
         constexpr inline bool has_ ## name <Range, true, std::void_t< \
-            decltype(member_function_invoke_result_v<void, Range, Args&&...>(&Range::template name<Args&&...>)) \
+            get_ ## name ## _result_t<Range, Args...> \
         >, Args...> = true; \
         template<class Range, class ...Args> \
         constexpr inline bool has_ ## name ## _v = has_ ## name <Range, can_inspect_member<Range>, void, Args...>;
 
-        HAS_MEMBER_FUNCTION_VARG(emplace_back)
-        HAS_MEMBER_FUNCTION_VARG(emplace_front)
-        HAS_MEMBER_FUNCTION_VARG(emplace)
-#undef HAS_MEMBER_FUNCTION_VARG
+        HAS_MEMBER_FUNCTION_TEMPLATE_VARG(emplace_back)
+        HAS_MEMBER_FUNCTION_TEMPLATE_VARG(emplace_front)
+        HAS_MEMBER_FUNCTION_TEMPLATE_VARG(emplace)
+#undef HAS_MEMBER_FUNCTION_TEMPLATE_VARG
 
-#define HAS_MEMBER_FUNCTION_VARG_WITH_RES(name) \
+#define HAS_MEMBER_FUNCTION_VARG(name) \
+        template<class Range, class Result, class ...Args> \
+        using get_ ## name ## _helper_result_t = decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::name)); \
+        template<class Range, class ...Args> \
+        using get_ ## name ## _result_t = get_ ## name ## _helper_result_t<Range, void, Args...>; \
         template<class Range, class Result, bool, class = void, class ...Args> \
         constexpr inline bool has_ ## name = false; \
         template<class Range, class Result, class ...Args> \
         constexpr inline bool has_ ## name <Range, Result, true, std::void_t< \
-            decltype(member_function_invoke_result_v<Result, Range, Args...>(&Range::name)) \
+            get_ ## name ## _helper_result_t<Range, Result, Args...> \
         >, Args...> = true; \
         template<class Range, class Result, class ...Args> \
-        constexpr inline bool has_ ## name ## _v = has_ ## name <Range, Result, can_inspect_member<Range>, void, Args...>;
+        constexpr inline bool has_ ## name ## _helper_v = has_ ## name <Range, Result, can_inspect_member<Range>, void, Args...>; \
+        template<class Range, class ...Args> \
+        constexpr inline bool has_ ## name ## _v = has_ ## name ## _helper_v <Range, void, Args...>;
 
-        HAS_MEMBER_FUNCTION_VARG_WITH_RES(equal_range)
-        HAS_MEMBER_FUNCTION_VARG_WITH_RES(erase)
-        HAS_MEMBER_FUNCTION_VARG_WITH_RES(at)
-        HAS_MEMBER_FUNCTION_VARG_WITH_RES(insert)
-        HAS_MEMBER_FUNCTION_VARG_WITH_RES(insert_after)
-#undef HAS_MEMBER_FUNCTION_VARG_WITH_RES
+        HAS_MEMBER_FUNCTION_VARG(equal_range)
+        HAS_MEMBER_FUNCTION_VARG(erase)
+        HAS_MEMBER_FUNCTION_VARG(erase_after)
+        HAS_MEMBER_FUNCTION_VARG(at)
+        HAS_MEMBER_FUNCTION_VARG(insert)
+        HAS_MEMBER_FUNCTION_VARG(insert_after)
+#undef HAS_MEMBER_FUNCTION_VARG
 
 #define HAS_MEMBER_FUNCTION_NO_ARG(name) \
+        template<class Range> \
+        using get_ ## name ## _result_t = decltype(std::declval<Range&>().name()); \
         template<class Range, bool = can_inspect_member<Range>, class = void> \
         constexpr inline bool has_ ## name ## _v = false; \
         template<class Range> \
-        constexpr inline bool has_ ## name ## _v<Range, true, std::void_t<      \
-            decltype(std::declval<Range&>().name()) \
+        constexpr inline bool has_ ## name ## _v<Range, true, std::void_t< \
+            get_ ## name ## _result_t<Range> \
         >> = true;
 
         HAS_MEMBER_FUNCTION_NO_ARG(before_begin)
@@ -481,11 +498,13 @@ namespace bxlx::detail2 {
 #undef HAS_MEMBER_FUNCTION_NO_ARG
 
 #define HAS_MEMBER_TYPE(name) \
+        template<class Range> \
+        using get_ ## name ## _member_t = typename Range::name; \
         template<class Range, bool = can_inspect_member<Range>, class = void> \
         constexpr inline bool has_ ## name ## _type_v = false; \
         template<class Range> \
         constexpr inline bool has_ ## name ## _type_v<Range, true, std::void_t< \
-            typename Range::name \
+            get_ ## name ## _member_t<Range> \
         >> = true;
 
         HAS_MEMBER_TYPE(key_compare)
@@ -498,9 +517,9 @@ namespace bxlx::detail2 {
         template<class Range, bool = has_ ## type_name ## _type_v<Range>, bool = has_ ## getter ## _v<Range>> \
         struct type_name { using type = void; }; \
         template<class Range, bool any> \
-        struct type_name<Range, true, any> { using type = typename Range::type_name; }; \
+        struct type_name<Range, true, any> { using type = get_ ## type_name ## _member_t<Range>; }; \
         template<class Range> \
-        struct type_name<Range, false, true> { using type = decltype(std::declval<Range>().getter()); }; \
+        struct type_name<Range, false, true> { using type = get_ ## getter ## _result_t<Range>; }; \
         template<class Range> \
         using type_name ## _t = typename type_name<Range>::type;
 
@@ -540,21 +559,21 @@ namespace bxlx::detail2 {
         constexpr static inline bool is_transparent_v<T, std::void_t<typename T::is_transparent>> = true;
 
         template<class T>
-        constexpr static inline bool has_map_equal_range_function_v = range_member_traits::has_equal_range_v<
+        constexpr static inline bool has_map_equal_range_function_v = range_member_traits::has_equal_range_helper_v<
             const T,
             std::pair<get_begin_iterator_t<const T>, get_begin_iterator_t<const T>>,
             tuple_element_cvref_t<0, range_traits_ref<const T>>
         >;
 
         template<class T>
-        constexpr static inline bool has_set_equal_range_function_v = range_member_traits::has_equal_range_v<
+        constexpr static inline bool has_set_equal_range_function_v = range_member_traits::has_equal_range_helper_v<
             const T,
             std::pair<get_begin_iterator_t<const T>, get_begin_iterator_t<const T>>,
             range_traits_ref<const T>
         >;
 
         template<class T>
-        constexpr static inline bool has_map_at_function_v = range_member_traits::has_at_v<
+        constexpr static inline bool has_map_at_function_v = range_member_traits::has_at_helper_v<
             const T,
             tuple_element_cvref_t<1, range_traits_ref<const T>>,
             tuple_element_cvref_t<0, range_traits_ref<const T>>
