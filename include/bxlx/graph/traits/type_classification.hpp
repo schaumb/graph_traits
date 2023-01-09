@@ -443,6 +443,7 @@ namespace bxlx::detail2 {
         constexpr inline bool has_ ## name ## _v = has_ ## name <Range, can_inspect_member<Range>, void, Args...>;
 
         HAS_MEMBER_FUNCTION_VARG(emplace_back)
+        HAS_MEMBER_FUNCTION_VARG(emplace_front)
         HAS_MEMBER_FUNCTION_VARG(emplace)
 #undef HAS_MEMBER_FUNCTION_VARG
 
@@ -459,6 +460,8 @@ namespace bxlx::detail2 {
         HAS_MEMBER_FUNCTION_VARG_WITH_RES(equal_range)
         HAS_MEMBER_FUNCTION_VARG_WITH_RES(erase)
         HAS_MEMBER_FUNCTION_VARG_WITH_RES(at)
+        HAS_MEMBER_FUNCTION_VARG_WITH_RES(insert)
+        HAS_MEMBER_FUNCTION_VARG_WITH_RES(insert_after)
 #undef HAS_MEMBER_FUNCTION_VARG_WITH_RES
 
 #define HAS_MEMBER_FUNCTION_NO_ARG(name) \
@@ -469,6 +472,8 @@ namespace bxlx::detail2 {
             decltype(std::declval<Range&>().name()) \
         >> = true;
 
+        HAS_MEMBER_FUNCTION_NO_ARG(before_begin)
+        HAS_MEMBER_FUNCTION_NO_ARG(data)
         HAS_MEMBER_FUNCTION_NO_ARG(length)
         HAS_MEMBER_FUNCTION_NO_ARG(key_comp)
         HAS_MEMBER_FUNCTION_NO_ARG(key_eq)
