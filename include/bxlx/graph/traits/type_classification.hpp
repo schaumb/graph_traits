@@ -477,6 +477,8 @@ namespace bxlx::detail2 {
         HAS_MEMBER_FUNCTION_VARG(at)
         HAS_MEMBER_FUNCTION_VARG(insert)
         HAS_MEMBER_FUNCTION_VARG(insert_after)
+        HAS_MEMBER_FUNCTION_VARG(push_back)
+        HAS_MEMBER_FUNCTION_VARG(push_front)
 #undef HAS_MEMBER_FUNCTION_VARG
 
 #define HAS_MEMBER_FUNCTION_NO_ARG(name) \
@@ -514,14 +516,14 @@ namespace bxlx::detail2 {
 #undef HAS_MEMBER_TYPE
 
 #define TYPE_OR_GETTER(type_name, getter)\
-        template<class Range, bool = has_ ## type_name ## _type_v<Range>, bool = has_ ## getter ## _v<Range>> \
-        struct type_name { using type = void; }; \
-        template<class Range, bool any> \
-        struct type_name<Range, true, any> { using type = get_ ## type_name ## _member_t<Range>; }; \
-        template<class Range> \
-        struct type_name<Range, false, true> { using type = get_ ## getter ## _result_t<Range>; }; \
-        template<class Range> \
-        using type_name ## _t = typename type_name<Range>::type;
+        template<class Range, class Default, bool = has_ ## type_name ## _type_v<Range>, bool = has_ ## getter ## _v<Range>> \
+        struct type_name { using type = Default; }; \
+        template<class Range, class Default, bool any> \
+        struct type_name<Range, Default, true, any> { using type = get_ ## type_name ## _member_t<Range>; }; \
+        template<class Range, class Default> \
+        struct type_name<Range, Default, false, true> { using type = get_ ## getter ## _result_t<Range>; }; \
+        template<class Range, class Default = void> \
+        using type_name ## _t = typename type_name<Range, Default>::type;
 
         TYPE_OR_GETTER(key_compare, key_comp)
         TYPE_OR_GETTER(key_equal, key_eq)
@@ -549,6 +551,13 @@ namespace bxlx::detail2 {
     template<class T>
     constexpr inline bool is_string_like_v = range_member_traits::has_length_v<T>;
 
+    template<class T>
+    constexpr static inline bool has_set_equal_range_function_v = range_member_traits::has_equal_range_helper_v<
+        const T,
+        std::pair<get_begin_iterator_t<const T>, get_begin_iterator_t<const T>>,
+        range_traits_ref<const T>
+    >;
+
     template<class Impl, std::size_t = std::tuple_size_v<range_traits_type<Impl>>>
     struct has_map_like_properties_impl : std::false_type {};
     template<class Impl>
@@ -563,13 +572,6 @@ namespace bxlx::detail2 {
             const T,
             std::pair<get_begin_iterator_t<const T>, get_begin_iterator_t<const T>>,
             tuple_element_cvref_t<0, range_traits_ref<const T>>
-        >;
-
-        template<class T>
-        constexpr static inline bool has_set_equal_range_function_v = range_member_traits::has_equal_range_helper_v<
-            const T,
-            std::pair<get_begin_iterator_t<const T>, get_begin_iterator_t<const T>>,
-            range_traits_ref<const T>
         >;
 
         template<class T>
@@ -610,7 +612,7 @@ namespace bxlx::detail2 {
     template<class T, bool = is_defined_v<T> && is_range_v<T>>
     constexpr static inline bool is_set_like_container_v = false;
     template<class T>
-    constexpr static inline bool is_set_like_container_v<T, true> = !is_map_like_container_v<T> && has_map_like_properties_impl<void, 2>::template has_set_equal_range_function_v<T>;
+    constexpr static inline bool is_set_like_container_v<T, true> = !is_map_like_container_v<T> && has_set_equal_range_function_v<T>;
 
     template<class T>
     constexpr static inline bool is_associative_container_v = is_map_like_container_v<T> || is_set_like_container_v<T>;
@@ -624,6 +626,13 @@ namespace bxlx::detail2 {
         member_function_invoke_result_v<void, std::remove_const_t<T>, std::remove_const_t<range_traits_type<T>>&&>(
             &std::remove_const_t<T>::template emplace<std::remove_const_t<range_traits_type<T>>&&>
     ))>;
+
+    template<class T, bool = is_defined_v<T> && is_range_v<T>>
+    constexpr static inline bool is_queue_like_container_v = false;
+    template<class T>
+    constexpr static inline bool is_queue_like_container_v<T, true> =
+        range_member_traits::has_push_front_v<std::remove_const_t<T>, range_traits_ref<std::add_const_t<T>>> &&
+        range_member_traits::has_push_back_v<std::remove_const_t<T>, range_traits_ref<std::add_const_t<T>>>;
 
 
     enum class type_classification {
