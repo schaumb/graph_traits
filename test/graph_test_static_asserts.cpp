@@ -43,7 +43,7 @@ using fx_range = std::array<T, 5>;
 
 using bxlx::is_graph_v;
 using bxlx::graph_traits;
-using bxlx::graph_representation;
+using bxlx::graph_representation_t;
 
 static_assert(!is_graph_v<void>);
 static_assert(!is_graph_v<std::map<int, int>>);
@@ -52,8 +52,10 @@ static_assert(!is_graph_v<set<set<int>>>);
 static_assert(!is_graph_v<ra_range<set<bool>>>);
 static_assert(!is_graph_v<tup<set<bool>>>);
 static_assert(!is_graph_v<set<tup<int, unsigned int>>>);
-static_assert(!is_graph_v<std::map<int, map<int, int>, std::greater<int>>>);
+static_assert(bxlx::is_it_a_graph<std::map<int, map<int, int>, std::greater<int>>>);
 static_assert(bxlx::is_it_a_graph<map<int, std::unordered_map<int, int>>>);
+static_assert(bxlx::is_it_a_graph<ra_range<std::pair<std::list<int>::iterator, std::list<int>>>>);
+
 static_assert(bxlx::is_it_a_graph<std::multimap<int, int>>);
 
 static_assert(bxlx::is_it_a_graph<std::map<std::pair<int, int>, int>>);
@@ -66,11 +68,11 @@ static_assert(bxlx::is_it_a_graph<set<tup<int, int, float>>>);
 template<class T>
 constexpr static inline auto repr = graph_traits<T>::representation;
 
-static_assert(repr<ra_range<set<int>>> == graph_representation::adjacency_list);
-static_assert(repr<map<string, map<string, int>>> == graph_representation::adjacency_list);
-static_assert(repr<ra_range<ra_range<bool>>> == graph_representation::adjacency_matrix);
-static_assert(repr<set<tup<int, int>>> == graph_representation::edge_list);
-static_assert(repr< std::pair<std::multimap<int, int>, std::list<std::pair<int, int>> > > == graph_representation::edge_list);
+static_assert(repr<ra_range<set<int>>> == graph_representation_t::adjacency_list);
+static_assert(repr<map<string, map<string, int>>> == graph_representation_t::adjacency_list);
+static_assert(repr<ra_range<ra_range<bool>>> == graph_representation_t::adjacency_matrix);
+static_assert(repr<set<tup<int, int>>> == graph_representation_t::edge_list);
+static_assert(repr< std::pair<std::multimap<int, int>, std::list<std::pair<int, int>> > > == graph_representation_t::edge_list);
 static_assert( bxlx::graph_traits_t<std::pair<std::multimap<int, int>, std::list<std::pair<int, int>> >>::has_graph_property);
 static_assert(!bxlx::graph_traits_t<std::pair<std::     map<int, int>, std::list<std::pair<int, int>> >>::has_graph_property);
 
@@ -89,7 +91,7 @@ static_assert(std::is_same_v<simplified_why_not_a_graph<std::pair<std::vector<st
 
 static_assert(bxlx::is_it_a_graph<std::vector<std::vector<int>>>);
 
-template<class T, graph_representation repr, class node_index_t, class node_repr_type, class edge_repr_type, std::size_t nodes, std::size_t edges,
+template<class T, graph_representation_t repr, class node_index_t, class node_repr_type, class edge_repr_type, std::size_t nodes, std::size_t edges,
     class graph_prop, class node_prop, class edge_prop, bool user_defined>
 constexpr static bool assert_on() {
     static_assert(bxlx::traits::is_it_a_graph<T>);
@@ -163,7 +165,7 @@ constexpr bool check_all_adj_list_1() {
         constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
         assert_on<
             typename decltype(graph)::type,
-            graph_representation::adjacency_list,
+            graph_representation_t::adjacency_list,
             typename decltype(index)::type,
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
@@ -237,7 +239,7 @@ constexpr bool check_all_adj_list_1_5() {
         constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
         assert_on<
             typename decltype(graph)::type,
-            graph_representation::adjacency_list,
+            graph_representation_t::adjacency_list,
             typename decltype(index)::type,
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
@@ -308,7 +310,7 @@ constexpr bool check_all_adj_list_2() {
         constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
         assert_on<
             typename decltype(graph)::type,
-            graph_representation::adjacency_list,
+            graph_representation_t::adjacency_list,
             typename decltype(index)::type,
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
@@ -395,7 +397,7 @@ constexpr bool check_all_adj_list_3() {
         constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
         assert_on<
             typename decltype(graph)::type,
-            graph_representation::adjacency_list,
+            graph_representation_t::adjacency_list,
             typename decltype(index)::type,
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
@@ -472,7 +474,7 @@ constexpr bool check_all_adj_matrix_1() {
         constexpr auto node_size = std::max(nodes, bit_node);
         assert_on<
             typename decltype(graph)::type,
-            graph_representation::adjacency_matrix,
+            graph_representation_t::adjacency_matrix,
             std::size_t,
             typename decltype(node_repr)::type,
             bxlx::detail2::subscript_operator_return_t<typename decltype(bitset)::type>,
@@ -529,7 +531,7 @@ constexpr bool check_all_adj_matrix_2() {
         constexpr auto node_size = std::max(nodes, range_size);
         assert_on<
             typename decltype(graph)::type,
-            graph_representation::adjacency_matrix,
+            graph_representation_t::adjacency_matrix,
             std::size_t,
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
@@ -599,7 +601,7 @@ constexpr bool check_all_edge_list_1() {
         constexpr auto edges_size = bxlx::detail2::compile_time_size_v<typename decltype(edge_range)::type>;
         assert_on<
             typename decltype(graph)::type,
-            graph_representation::edge_list,
+            graph_representation_t::edge_list,
             typename decltype(node_index)::type,
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
@@ -694,7 +696,7 @@ constexpr bool check_all_edge_list_2() {
         constexpr auto edges_size = bxlx::detail2::compile_time_size_v<typename decltype(edge_range)::type>;
         assert_on<
             typename decltype(graph)::type,
-            graph_representation::edge_list,
+            graph_representation_t::edge_list,
             typename decltype(node_index)::type,
             typename decltype(node_repr)::type,
             typename decltype(edge_repr)::type,
@@ -783,11 +785,11 @@ constexpr auto ignore = (check_nodes::for_each([] (auto v) {
     static_assert(check_all_edge_list_2<!(Val & 1), !(Val & 2), !(Val & 4)>());
 }), 0);
 
-static_assert(assert_on<set<tup<int, int>>, graph_representation::edge_list, int, void, const tup<int, int>, 0, 0, void, void, void, true>());
-static_assert(assert_on<set<tup<int, int, int>>, graph_representation::edge_list, int, void, const tup<int, int, int>, 0, 0, void, void, const int, true>());
-static_assert(assert_on<tup<fx_range<tup<int, int, struct XX>>, struct A>, graph_representation::edge_list, int, void, tup<int, int, struct XX>, 10, 5, struct A, void, struct XX, true>());
+static_assert(assert_on<set<tup<int, int>>, graph_representation_t::edge_list, int, void, const tup<int, int>, 0, 0, void, void, void, true>());
+static_assert(assert_on<set<tup<int, int, int>>, graph_representation_t::edge_list, int, void, const tup<int, int, int>, 0, 0, void, void, const int, true>());
+static_assert(assert_on<tup<fx_range<tup<int, int, struct XX>>, struct A>, graph_representation_t::edge_list, int, void, tup<int, int, struct XX>, 10, 5, struct A, void, struct XX, true>());
 static_assert(assert_on<tup<ra_range<tup<fx_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>,
-    graph_representation::adjacency_matrix, std::size_t, tup<fx_range<opt<struct edge_prop>>, struct node_prop>,
+    graph_representation_t::adjacency_matrix, std::size_t, tup<fx_range<opt<struct edge_prop>>, struct node_prop>,
     opt<struct edge_prop>, 5, 25, struct graph_prop, struct node_prop, struct edge_prop, false>());
 
 

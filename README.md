@@ -7,7 +7,7 @@ C++17 Graph traits and algorithms
 
 This `graph_traits` library recognizes 3 graph representation type automatically from c++ classes:
 ```cpp
-enum class graph_representation {
+enum class graph_representation_t {
     adjacency_list, // range of range node
     adjacency_matrix, // range of range bool
     edge_list, // pair of node in a list

@@ -634,17 +634,25 @@ namespace bxlx::detail2 {
         range_member_traits::has_push_front_v<std::remove_const_t<T>, range_traits_ref<std::add_const_t<T>>> &&
         range_member_traits::has_push_back_v<std::remove_const_t<T>, range_traits_ref<std::add_const_t<T>>>;
 
+    template<class T, bool = is_queue_like_container_v<T>, class = void>
+    struct queue_partition_point {};
+    template<class T>
+    struct queue_partition_point<T, true, std::enable_if_t<
+        is_random_access_range_v<T>
+    >> : std::common_type<size_t<T>> {};
+    template<class T>
+    struct queue_partition_point<T, true, std::enable_if_t<
+        !is_random_access_range_v<T>
+    >> : std::common_type<get_begin_iterator_t<T>> {};
+
+    template<class T>
+    using queue_partition_point_t = typename queue_partition_point<T>::type;
+
 
     enum class type_classification {
         indeterminate,
         pre_declared,
-        random_access_range,
         bitset_like_container,
-        multimap_like_container,
-        map_like_container,
-        multiset_like_container,
-        set_like_container,
-        sized_range,
         range,
         tuple_like,
         optional,
@@ -662,32 +670,6 @@ namespace bxlx::detail2 {
         is_tuple_like_v<T> && !is_range_v<T>
     >> = type_classification::tuple_like;
 
-
-    template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<
-        is_random_access_range_v<T> && !is_string_like_v<T> && !is_bitset_like_v<T>
-    >> = type_classification::random_access_range;
-
-    template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<
-        is_map_like_container_v<T> && is_multi_v<T> && !is_random_access_range_v<T>
-    >> = type_classification::multimap_like_container;
-
-    template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<
-        is_map_like_container_v<T> && !is_multi_v<T> && !is_random_access_range_v<T>
-    >> = type_classification::map_like_container;
-
-    template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<
-        is_set_like_container_v<T> && is_multi_v<T> && !is_random_access_range_v<T>
-    >> = type_classification::multiset_like_container;
-
-    template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<
-        is_set_like_container_v<T> && !is_multi_v<T> && !is_random_access_range_v<T>
-    >> = type_classification::set_like_container;
-
     template<class T>
     constexpr inline type_classification classify<T, std::enable_if_t<
         is_bitset_like_v<T>
@@ -695,12 +677,7 @@ namespace bxlx::detail2 {
 
     template<class T>
     constexpr inline type_classification classify<T, std::enable_if_t<
-        is_sized_range_v<T> && !is_random_access_range_v<T> && !is_string_like_v<T> && !is_associative_container_v<T>
-    >> = type_classification::sized_range;
-
-    template<class T>
-    constexpr inline type_classification classify<T, std::enable_if_t<
-        is_range_v<T> && !is_sized_range_v<T> && !is_string_like_v<T>
+        is_range_v<T> && !is_string_like_v<T> && !is_bitset_like_v<T>
     >> = type_classification::range;
 
     template<class T>

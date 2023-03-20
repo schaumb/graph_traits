@@ -59,7 +59,7 @@ for line in re.split('([,<>])', all_file):
             sys.stdout.write('\n' + indent)
         sys.stdout.write(line)
 
-        if no_end_line == -1 and (has_std or 'tuple_like' in line or 'range' in line or 'map_save' in line):
+        if no_end_line == -1 and (has_std or 'tuple_like' in line or 'map_save' in line):
             no_end_line = len(indent)
 
 sys.stdout.write('\n')

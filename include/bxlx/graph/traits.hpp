@@ -12,7 +12,6 @@
 #include "traits/graph_traits.hpp"
 
 namespace bxlx {
-    using traits::graph_representation;
     using traits::is_graph_v; // sfinae friendly check.
     using traits::is_it_a_graph; // static_asserts on failure, and prints the error
 
@@ -20,7 +19,7 @@ namespace bxlx {
     struct graph_traits : traits::graph_traits<graph_t> {
         using impl = traits::graph_traits<graph_t>;
 
-        constexpr static graph_representation representation = impl::representation;
+        constexpr static graph_representation_t representation = impl::representation;
         using node_index_t = typename impl::node_index_t;
 
         [[maybe_unused]] constexpr static bool has_graph_property = impl::has_graph_property;

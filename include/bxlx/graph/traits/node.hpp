@@ -23,11 +23,11 @@ namespace bxlx::traits::node {
     using out_edge_container_t = typename Traits::out_edge_container_type;
 
     template<class Traits>
-    constexpr static bool adj_list_v = Traits::representation == traits::graph_representation::adjacency_list;
+    constexpr static bool adj_list_v = Traits::representation == graph_representation_t::adjacency_list;
     template<class Traits>
-    constexpr static bool adj_matrix_v = Traits::representation == traits::graph_representation::adjacency_matrix;
+    constexpr static bool adj_matrix_v = Traits::representation == graph_representation_t::adjacency_matrix;
     template<class Traits>
-    constexpr static bool edge_list_v = Traits::representation == traits::graph_representation::edge_list;
+    constexpr static bool edge_list_v = Traits::representation == graph_representation_t::edge_list;
 
 
     template<class not_a_graph, class ... Args>
