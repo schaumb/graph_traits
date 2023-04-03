@@ -361,5 +361,3 @@ static_assert(bxlx::detail2::is_queue_like_container_v<std::deque<class B>>);
 static_assert(bxlx::detail2::is_queue_like_container_v<std::list<int>>);
 static_assert(!bxlx::detail2::is_queue_like_container_v<std::vector<int>>);
 static_assert(!bxlx::detail2::is_queue_like_container_v<std::forward_list<int>>);
-
-int main() {}
