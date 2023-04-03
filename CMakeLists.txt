@@ -16,15 +16,7 @@ set(CXX_STANDARD 17 CACHE STRING "C++ Standard Version. [17|20|23]")
 set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
 
 add_library(${PROJECT_NAME} INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/storage.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/bitset_helper.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/iterable_alg.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/algorithms/breadth_first_search.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/execution.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits/type_classification.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits/graph_traits.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph/traits/node.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph
 )
 
 add_library(bxlx::graph ALIAS ${PROJECT_NAME})

@@ -17,28 +17,31 @@ enum class graph_representation_t {
 
 Some example:
 ```cpp
-static_assert(graph_traits<vector<vector<int>>>::representation == adjacency_list);
+using enum graph_representation_t;
+static_assert(graph_representation<vector<vector<int>>> == adjacency_list);
 
-static_assert(graph_traits<bool[10][10]>::representation == adjacency_matrix);
+static_assert(graph_representation<bool[10][10]> == adjacency_matrix);
 
-static_assert(graph_traits<list<tuple<int, int, int>>>::representation == 
+static_assert(graph_representation<list<tuple<int, int, int>>> == 
                     edge_list); // with bounded edge property
 
-static_assert(graph_traits<
+static_assert(graph_representation<
     tuple<vector<pair<list<optional<edge_prop>>, node_prop>>, graph_prop>
->::representation == adjacency_matrix); // it has bounded edge, node and graph properties
+> == adjacency_matrix); // it has bounded edge, node and graph properties
 ```
 
 ---
 
 The main concepts:
+- all functions are implemented maximum in C++17 standard.
 - all graph function allocate maximum once, at begin.
 - if constexpr time known the nodes or edges (maximum) size, no heap allocation happens.
+- if any moved (rvalue reference) graph is passed to any algorithm, its storage will be used for the algorithm if no other space is required
 - overloaded functions with first argument `std::execution::*` is the parallel/vectorized algorithms.
 - all function except parallel/vectorized overloads must be `constexpr`.
 - multiple algorithm can be existing based on output iterator category.
   - random access range output to copy/iterate the whole data efficiently (default)
-  - input iterator range when not needed the whole data in memory, like for `take_while` or `drop_while` algorithms.
+  - any iterator range when not needed the whole data in memory, like for `take_while` or `drop_while` algorithms.
     - activated when you pass `bxlx::execution::lazy` execution argument.
 
 
@@ -67,13 +70,13 @@ constexpr bool has_node(const Graph&, const node_t<GraphTraits>&, Eq&& = {});
 
 
 template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
-constexpr auto get_node(Graph [const|&|*] g, const node_t<GraphTraits>&)
-    -> node_repr_t<GraphTraits> [const|&|*];
+constexpr auto get_node(Graph [const|&|&&|*] g, const node_t<GraphTraits>&)
+    -> node_repr_t<GraphTraits> [const|&|&&|*];
 
 
 template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
-constexpr auto get_node_property(Graph [const|&|*] g, const node_t<GraphTraits>&)
-    -> node_prop_t<GraphTraits> [const|&|*];
+constexpr auto get_node_property(Graph [const|&|&&|*] g, const node_t<GraphTraits>&)
+    -> node_prop_t<GraphTraits> [const|&|&&|*];
 
 
 // only for modifiable structures:
@@ -114,13 +117,13 @@ template<class Graph, class GraphTraits = graph_traits<Graph>>
 constexpr bool has_edge(const Graph&, const node_t<GraphTraits>&, const node_t<GraphTraits>&);
 
 template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
-constexpr auto get_edge(Graph [const|&|*] g, const node_t<GraphTraits>&, const node_t<GraphTraits>&)
-    -> edge_repr_t<GraphTraits> [const|&|*];
+constexpr auto get_edge(Graph [const|&|&&|*] g, const node_t<GraphTraits>&, const node_t<GraphTraits>&)
+    -> edge_repr_t<GraphTraits> [const|&|&&|*];
 
 
 template<class Graph, class GraphTraits = graph_traits<std::decay_t<Graph>>>
-constexpr auto get_edge_property(Graph [const|&|*] g, const node_t<GraphTraits>&, const node_t<GraphTraits>&)
-    -> edge_repr_t<GraphTraits> [const|&|*];
+constexpr auto get_edge_property(Graph [const|&|&&|*] g, const node_t<GraphTraits>&, const node_t<GraphTraits>&)
+    -> edge_repr_t<GraphTraits> [const|&|&&|*];
 
 
 // only for modifiable structures:

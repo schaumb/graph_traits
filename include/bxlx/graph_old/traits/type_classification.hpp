@@ -11,6 +11,7 @@
 #include <utility>
 #include <iterator>
 #include <tuple>
+#include <functional>
 
 namespace bxlx::detail2 {
     template<class CVT, class T = std::remove_cv_t<CVT>>
@@ -36,28 +37,31 @@ namespace bxlx::detail2 {
     template<class T>
     using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
-    template<class T, class U>
-    using copy_reference_t = std::conditional_t<std::is_lvalue_reference_v<T>,
-            std::add_lvalue_reference_t<U>,
-            std::conditional_t<std::is_rvalue_reference_v<T>,
-                std::add_rvalue_reference_t<U>,
-                U>>;
+    template<class From, class To>
+    using copy_reference_t = std::conditional_t<std::is_lvalue_reference_v<From>,
+            std::add_lvalue_reference_t<To>,
+            std::conditional_t<std::is_rvalue_reference_v<From>,
+                std::add_rvalue_reference_t<To>,
+                To>>;
 
-    template<class T, class U>
+    template<class From, class To>
     struct copy_cvref {
-        using t_without_ref = std::remove_reference_t<T>;
-        using copied_const = std::conditional_t<std::is_const_v<t_without_ref>, std::add_const_t<U>, U>;
-        using copied_cv = std::conditional_t<std::is_volatile_v<t_without_ref>,
+        using from_without_ref = std::remove_reference_t<From>;
+        using copied_const = std::conditional_t<std::is_const_v<from_without_ref>, std::add_const_t<To>, To>;
+        using copied_cv = std::conditional_t<std::is_volatile_v<from_without_ref>,
                                              std::add_volatile_t<copied_const>, copied_const>;
-        using type = copy_reference_t<T, copied_cv>;
+        using type = copy_reference_t<From, copied_cv>;
     };
 
-    template<class T, class U>
-    using copy_cvref_t = typename copy_cvref<T, U>::type;
+    template<class From, class To>
+    using copy_cvref_t = typename copy_cvref<From, To>::type;
 
     template<std::size_t I, class T>
     struct tuple_element_cvref {
-        using type = copy_cvref_t<T, std::tuple_element_t<I, remove_cvref_t<T>>>;
+        using element_type = std::tuple_element_t<I, remove_cvref_t<T>>;
+        using type = std::conditional_t<std::is_reference_v<element_type>,
+            element_type,
+            copy_cvref_t<T, element_type>>;
     };
     template<std::size_t I, class T>
     using tuple_element_cvref_t = typename tuple_element_cvref<I, T>::type;
@@ -91,8 +95,8 @@ namespace bxlx::detail2 {
     };
 
     template<template <class> class optional_like_t, class real_value_type>
-    struct optional_traits<const optional_like_t<real_value_type>, std::enable_if_t<std::is_same_v<const dummy_type,
-        typename optional_traits_impl<const optional_like_t<dummy_type>>::value_type
+    struct optional_traits<const optional_like_t<real_value_type>, std::enable_if_t<std::is_same_v<dummy_type,
+        std::remove_const_t<typename optional_traits_impl<const optional_like_t<dummy_type>>::value_type>
     >>> {
         using reference [[maybe_unused]] = copy_cvref_t<typename optional_traits_impl<const optional_like_t<dummy_type>>::reference, real_value_type>;
         using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
@@ -150,32 +154,39 @@ namespace bxlx::detail2 {
         = is_nothrow_convertible_impl<std::is_convertible_v<From,To>, From, To>::value;
 
 
-    template<class Helper, class T, bool is_const_v, class ...Args>
+    template<class Helper, class Type, class ...Args>
     struct member_function_invoke_result {
+        using T = std::remove_cv_t<std::remove_reference_t<Type>>;
+        constexpr static bool is_const = std::is_const_v<std::remove_reference_t<Type>>;
+        constexpr static bool is_lv_ref = std::is_lvalue_reference_v<Type>;
+        constexpr static bool is_rv_ref = std::is_rvalue_reference_v<Type>;
         template<class Res = Helper>
-        Res operator()(Res (std::remove_const_t<T>::*) (Args...)) const { return *static_cast<Res*>(nullptr); }
-    };
-    template<class Helper, class T, class ...Args>
-    struct member_function_invoke_result<Helper, T, true, Args...> {
+        auto operator()(Res (T::*) (Args...)) -> std::enable_if_t<!is_const, Res> { return *static_cast<Res*>(nullptr); }
         template<class Res = Helper>
-        Res operator()(Res (std::remove_const_t<T>::*) (Args...) const) const { return *static_cast<Res*>(nullptr); }
+        auto operator()(Res (T::*) (Args...) const) const -> Res { return *static_cast<Res*>(nullptr); }
+        template<class Res = Helper>
+        auto operator()(Res (T::*) (Args...) &) -> std::enable_if_t<!is_rv_ref, Res> { return *static_cast<Res*>(nullptr); }
+        template<class Res = Helper>
+        auto operator()(Res (T::*) (Args...) const & ) const -> Res { return *static_cast<Res*>(nullptr); }
+        template<class Res = Helper>
+        auto operator()(Res (T::*) (Args...) &&) const volatile -> std::enable_if_t<!is_lv_ref, Res> { return *static_cast<Res*>(nullptr); }
+        // volatile and const&& overloads are not handled by design.
     };
 
     template<class Helper, class T, class ...Args>
-    constexpr inline auto member_function_invoke_result_v
-        = member_function_invoke_result<Helper, std::remove_const_t<T>, std::is_const_v<T>, Args...>{};
+    inline member_function_invoke_result<Helper, T, Args...> member_function_invoke_result_v{};
 
-    template<class T, class U, bool = std::is_class_v<T> && is_defined_v<T>, class = void>
-    constexpr static auto has_conversion_operator = false;
+    template<class T, class, bool = std::is_class_v<std::remove_reference_t<T>> && is_defined_v<T>, class = void>
+    constexpr static auto has_conversion_operator_v = false;
     template<class T, class U>
-    constexpr static auto has_conversion_operator<T, U, true, std::void_t<
-        decltype(member_function_invoke_result_v<U, T>(&T::operator U))
+    constexpr static auto has_conversion_operator_v<T, U, true, std::void_t<
+        decltype(member_function_invoke_result_v<U, T>(&std::remove_reference_t<T>::operator U))
     >> = true;
 
     template<class T, class U>
     constexpr static inline bool has_any_conversion_operator =
-        has_conversion_operator<T, U> || has_conversion_operator<T, U&> || has_conversion_operator<T, const U&> ||
-        has_conversion_operator<const T, U> || has_conversion_operator<const T, U&> || has_conversion_operator<const T, const U&>;
+        has_conversion_operator_v<T, U> || has_conversion_operator_v<T, U&> || has_conversion_operator_v<T, const U&> ||
+        has_conversion_operator_v<T, U&&> || has_conversion_operator_v<T, const U&&>;
 
 
     template<class T, bool = is_defined_v<T>>
@@ -217,9 +228,7 @@ namespace bxlx::detail2 {
 
 
     template<class T, class With = void, bool = has_size_v<T>, class = void>
-    struct subscript_operator_traits :
-        std::conditional_t<std::is_const_v<T>, std::enable_if<false>, subscript_operator_traits<std::add_const_t<T>>>
-    {};
+    struct subscript_operator_traits {};
     template<class T>
     struct subscript_operator_traits<T, void, true> : subscript_operator_traits<T, size_t<T>> {};
     template<class T>
@@ -235,10 +244,10 @@ namespace bxlx::detail2 {
     template<class T, class With = void>
     using subscript_operator_return_t = typename subscript_operator_traits<T, With>::type;
 
-    template<class T, class = void, bool = std::is_const_v<T>, class = void>
+    template<class, class = void, class = void>
     constexpr inline bool has_subscript_operator_v = false;
-    template<class T, class With, bool any>
-    constexpr inline bool has_subscript_operator_v<T, With, any, std::void_t<
+    template<class T, class With>
+    constexpr inline bool has_subscript_operator_v<T, With, std::void_t<
         subscript_operator_return_t<T, With>
     >> = true;
 
