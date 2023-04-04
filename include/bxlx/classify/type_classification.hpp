@@ -33,11 +33,6 @@ namespace detail {
     using types = std::tuple<Ts...>;
   };
 
-  template <template <class, class...> class TT, class T, class... Ts>
-  struct template_inspect<TT<T, Ts...>> {
-    using types = std::tuple<T, Ts...>;
-  };
-
   template <template <class, auto> class TT, class T, auto U>
   struct template_inspect<TT<T, U>> {
     using types = std::tuple<T, std::integral_constant<decltype(U), U>>;
