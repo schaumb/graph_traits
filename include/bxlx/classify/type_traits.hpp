@@ -69,6 +69,10 @@ namespace detail {
   struct all_template_defined<T, TL, TT<std::size_t, ix...>>
         : std::conjunction<is_defined<std::tuple_element_t<ix, TL>>...> {};
 
+    template <class T, class TL, std::size_t... ix>
+    struct all_template_defined<T, TL, std::index_sequence<ix...>>
+          : std::conjunction<is_defined<std::tuple_element_t<ix, TL>>...> {};
+
   template <class T>
   struct is_defined<T, std::enable_if_t<is_tuple_v<T>>> : all_template_defined<T, T> {};
 
