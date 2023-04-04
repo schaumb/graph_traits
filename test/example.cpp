@@ -95,6 +95,7 @@ void test_type_traits() {
   ASSERT(!is_optional_v<int[10]>);
   ASSERT(!is_optional_v<int[]>);
   ASSERT(!is_optional_v<node_prop[]>);
+  ASSERT(!is_optional_v<const bitset<10>>);
 
   ASSERT(is_same_v<optional_value_t<optional<node_prop>>, node_prop>);
   ASSERT(is_same_v<optional_reference_t<const volatile node_prop* const>, const volatile node_prop&>);

@@ -43,6 +43,11 @@ namespace detail {
   template <class T, class = void>
   struct is_defined : decltype(defined_type<T>(0)) {};
 
+  template <>
+  struct is_defined<std::true_type> : std::true_type {};
+  template <>
+  struct is_defined<std::false_type> : std::true_type {};
+
   template <class T>
   constexpr inline bool is_defined_v = is_defined<T>::value;
 
