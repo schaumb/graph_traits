@@ -1,0 +1,57 @@
+---
+Language:        Cpp
+BasedOnStyle:    LLVM
+DisableFormat:   false
+
+AlignConsecutiveAssignments: AcrossEmptyLinesAndComments
+AlignConsecutiveDeclarations: AcrossEmptyLinesAndComments
+AlignTrailingComments: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+BinPackParameters: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass:      false
+  AfterEnum:       false
+  AfterFunction:   false
+  AfterNamespace:  false
+  AfterObjCDeclaration: false
+  AfterStruct:     false
+  AfterUnion:      false
+  AfterExternBlock: false
+  BeforeCatch:     false
+  BeforeElse:      false
+  IndentBraces:    false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: false
+BreakConstructorInitializers: BeforeComma
+BreakBeforeConceptDeclarations: true
+BreakBeforeInheritanceComma: true
+BreakInheritanceList: BeforeComma
+ColumnLimit:     120
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+ConstructorInitializerIndentWidth: 6
+ContinuationIndentWidth: 6
+IncludeIsMainRegex: '(Test)?$'
+IndentPPDirectives: AfterHash
+IndentWidth:     2
+
+MacroBlockBegin: ''
+MacroBlockEnd:   ''
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: Inner
+
+PointerAlignment: Left
+
+ReflowComments:  false
+SortIncludes:    CaseInsensitive
+
+SortUsingDeclarations: false
+SpacesBeforeTrailingComments: 1
+
+Standard:        Latest
+UseTab:          Never
+...

@@ -28,8 +28,7 @@ int main() {
 
     ASSERT(graph_representation<bool[10][10]> == adjacency_matrix);
 
-    ASSERT(graph_representation<list<tuple<int, int, int>>> ==
-    edge_list);
+    ASSERT(graph_representation<list<tuple<int, int, int>>> == edge_list);
 
     ASSERT(graph_representation<
         tuple<vector<pair<list<optional<edge_prop>>, node_prop>>, graph_prop>

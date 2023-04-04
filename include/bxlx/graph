@@ -2,14 +2,13 @@
 
 namespace bxlx::graph {
     enum class graph_representation_t {
-        adjacency_list,
+        adjacency_list = 1,
         adjacency_matrix,
         edge_list,
     };
 
     template<class T>
     constexpr graph_representation_t graph_representation = [] {
-        // static_assert(!std::is_same_v<T, T>, "TODO");
         return graph_representation_t{};
     } ();
 }
