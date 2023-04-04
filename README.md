@@ -7,25 +7,27 @@ C++17 Graph traits and algorithms
 
 This `graph_traits` library recognizes 3 graph representation type automatically from c++ classes:
 ```cpp
-enum class graph_representation_t {
-  adjacency_list, // range of range node
-  adjacency_matrix, // range of range bool
-  edge_list, // pair of node in a list
-};
+namespace bxlx::graph {
+  enum class representation_t {
+    adjacency_list, // range of range node
+    adjacency_matrix, // range of range bool
+    edge_list, // pair of node in a list
+  };
+}
 ```
 
 
 Some example:
 ```cpp
-using enum graph_representation_t;
-static_assert(graph_representation<vector<vector<int>>> == adjacency_list);
+using enum bxlx::graph::representation_t;
+static_assert(representation<vector<vector<int>>> == adjacency_list);
 
-static_assert(graph_representation<bool[10][10]> == adjacency_matrix);
+static_assert(representation<bool[10][10]> == adjacency_matrix);
 
-static_assert(graph_representation<list<tuple<int, int, int>>> == 
-                    edge_list); // with bounded edge property
+static_assert(representation<list<tuple<int, int, int>>> ==
+              edge_list); // with bounded edge property
 
-static_assert(graph_representation<
+static_assert(representation<
   tuple<vector<pair<list<optional<edge_prop>>, node_prop>>, graph_prop>
 > == adjacency_matrix); // it has bounded edge, node and graph properties
 ```
