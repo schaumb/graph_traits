@@ -4,6 +4,7 @@
 
 #include <array>
 #include <atomic>
+#include <bitset>
 #include <cassert>
 #include <deque>
 #include <forward_list>
@@ -68,6 +69,7 @@ void test_type_traits() {
   ASSERT(is_same_v<templates<tuple<int, edge_prop, double>>, tuple<int, edge_prop, double>>);
   ASSERT(is_same_v<templates<pair<int, edge_prop>>, tuple<int, edge_prop>>);
   ASSERT(is_same_v<tuple_element_t<0, templates<vector<edge_prop>>>, edge_prop>);
+  ASSERT(is_same_v<tuple_element_t<0, templates<atomic<bool>>>, bool>);
   ASSERT(is_same_v<tuple_element_t<0, templates<deque<edge_prop>>>, edge_prop>);
   ASSERT(is_same_v<tuple_element_t<0, templates<array<edge_prop, 6>>>, edge_prop>);
   ASSERT(tuple_element_t<1, templates<array<edge_prop, 6>>>{}() == 6);
@@ -81,6 +83,11 @@ void test_type_traits() {
   ASSERT(!detail::is_defined_v<std::optional<node_prop>>);
   ASSERT(!detail::is_defined_v<std::tuple<int, node_prop, double>>);
   ASSERT(!detail::is_defined_v<std::pair<int, node_prop>>);
+  /*
+  ASSERT(detail::is_defined_v<vector<edge_prop>>);
+  ASSERT(detail::is_defined_v<deque<edge_prop>>);
+  ASSERT(!detail::is_defined_v<unordered_map<int, edge_prop>>);
+  */
 
   ASSERT(is_optional_v<optional<node_prop>>);
   ASSERT(is_optional_v<node_prop*>);
@@ -92,11 +99,12 @@ void test_type_traits() {
   ASSERT(is_same_v<optional_value_t<optional<node_prop>>, node_prop>);
   ASSERT(is_same_v<optional_reference_t<const volatile node_prop* const>, const volatile node_prop&>);
 
-  /*
-  ASSERT(detail::is_defined_v<std::vector<edge_prop>>);
-  ASSERT(detail::is_defined_v<std::deque<edge_prop>>);
-  ASSERT(!detail::is_defined_v<std::unordered_map<int, edge_prop>>);
-  */
+  ASSERT(is_bitset_like_v<const bitset<10>>);
+  ASSERT(is_bitset_like_v<vector<bool>>);
+  ASSERT(!is_bitset_like_v<vector<edge_prop>>);
+  ASSERT(!is_bitset_like_v<optional<edge_prop>>);
+  // ASSERT(!is_bitset_like_v<unordered_map<int, edge_prop>>);
+
 }
 
 int main() {

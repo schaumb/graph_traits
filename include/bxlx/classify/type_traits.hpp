@@ -25,18 +25,6 @@ namespace detail {
     using types = std::tuple<>;
   };
 
-  /*
-  template <template <class> class TT, class T>
-  struct template_inspect<TT<T>> {
-    using types = std::tuple<T>;
-  };
-
-  template <template <class, class> class TT, class T, class U>
-  struct template_inspect<TT<T, U>> {
-    using types = std::tuple<T, U>;
-  };
-   */
-
   template <template <class...> class TT, class... Ts>
   struct template_inspect<TT<Ts...>> {
     using types = std::tuple<Ts...>;
@@ -47,8 +35,8 @@ namespace detail {
     using types = std::tuple<T, std::integral_constant<decltype(U), U>>;
   };
 
-  template <class T, std::size_t = sizeof(T)>
-  [[maybe_unused]] constexpr std::true_type defined_type(int);
+  template <class T>
+  [[maybe_unused]] constexpr std::true_type defined_type(decltype(sizeof(T)));
   template <class>
   constexpr std::false_type defined_type(...);
 
@@ -69,9 +57,9 @@ namespace detail {
   struct all_template_defined<T, TL, TT<std::size_t, ix...>>
         : std::conjunction<is_defined<std::tuple_element_t<ix, TL>>...> {};
 
-    template <class T, class TL, std::size_t... ix>
-    struct all_template_defined<T, TL, std::index_sequence<ix...>>
-          : std::conjunction<is_defined<std::tuple_element_t<ix, TL>>...> {};
+  template <class T, class TL, std::size_t... ix>
+  struct all_template_defined<T, TL, std::index_sequence<ix...>>
+        : std::conjunction<is_defined<std::tuple_element_t<ix, TL>>...> {};
 
   template <class T>
   struct is_defined<T, std::enable_if_t<is_tuple_v<T>>> : all_template_defined<T, T> {};
@@ -79,8 +67,7 @@ namespace detail {
   template <class T>
   struct is_defined<T, std::enable_if_t<std::is_array_v<T>>> : is_defined<std::remove_extent_t<T>> {};
 
-  template <class T,
-            bool  = !is_tuple_v<T> && !std::is_array_v<T> && !std::is_void_v<std::remove_pointer_t<T>>>
+  template <class T, bool = !is_tuple_v<T> && !std::is_array_v<T> && !std::is_void_v<std::remove_pointer_t<T>>>
   struct optional_traits;
 
   template <class T,
@@ -121,8 +108,7 @@ namespace detail {
   };
 
   template <class T>
-  struct optional_traits<T, true>
-        : optional_traits_impl<T> {};
+  struct optional_traits<T, true> : optional_traits_impl<T> {};
 
   template <class T>
   struct is_defined<T, std::void_t<typename detail::optional_traits<T>::value_type>>
@@ -142,28 +128,26 @@ namespace detail {
   constexpr inline auto is_nothrow_convertible_v = is_nothrow_convertible_impl<From, To>::value;
 
 
-  template <class Helper, class Type, class... Args>
+  template <class Type, class... Args>
   struct member_function_invoke_result {
-    using T = std::remove_cv_t<std::remove_reference_t<Type>>;
-
     constexpr static bool is_const  = std::is_const_v<std::remove_reference_t<Type>>;
     constexpr static bool is_lv_ref = std::is_lvalue_reference_v<Type>;
     constexpr static bool is_rv_ref = std::is_rvalue_reference_v<Type>;
-    template <class Res = Helper>
+    template <class Res, class T>
     auto operator()(Res (T::*)(Args...)) -> std::enable_if_t<!is_const, Res>;
-    template <class Res = Helper>
+    template <class Res, class T>
     auto operator()(Res (T::*)(Args...) const) const -> Res;
-    template <class Res = Helper>
+    template <class Res, class T>
     auto operator()(Res (T::*)(Args...) &) -> std::enable_if_t<!is_rv_ref, Res>;
-    template <class Res = Helper>
+    template <class Res, class T>
     auto operator()(Res (T::*)(Args...) const&) const -> Res;
-    template <class Res = Helper>
+    template <class Res, class T>
     auto operator()(Res (T::*)(Args...) &&) const volatile -> std::enable_if_t<!is_lv_ref, Res>;
     // volatile and const&& overloads are not handled by design.
   };
 
-  template <class Helper, class T, class... Args>
-  inline member_function_invoke_result<Helper, T, Args...> member_function_invoke_result_v{};
+  template <class T, class... Args>
+  inline member_function_invoke_result<T, Args...> member_function_invoke_result_v{};
 
   template <class T, class, bool = std::is_class_v<std::remove_reference_t<T>>&& is_defined_v<T>, class = void>
   constexpr static auto has_conversion_operator_v = false;
@@ -172,12 +156,50 @@ namespace detail {
         T,
         U,
         true,
-        std::void_t<decltype(member_function_invoke_result_v<U, T>(&std::remove_reference_t<T>::operator U))>> = true;
+        std::void_t<decltype(member_function_invoke_result_v<T>(&std::remove_reference_t<T>::operator U))>> = true;
 
   template <class T, class U>
-  constexpr static inline bool has_any_conversion_operator =
+  constexpr static inline bool has_any_conversion_operator_v =
         has_conversion_operator_v<T, U> || has_conversion_operator_v<T, U&> || has_conversion_operator_v<T, const U&> ||
         has_conversion_operator_v<T, U&&> || has_conversion_operator_v<T, const U&&>;
+
+  template <class T>
+  using std_size_t = decltype(std::size(std::declval<T&>()));
+  template <class T>
+  using std_begin_t = decltype(std::begin(std::declval<T&>()));
+  template <class T>
+  using std_end_t = decltype(std::end(std::declval<T&>()));
+
+
+  template <class T, bool = is_defined_v<T>, class = void>
+  constexpr inline bool has_std_size_v = false;
+  template <class T>
+  constexpr inline bool has_std_size_v<T, true, std::void_t<std_size_t<T>>> = true;
+
+  template <class T, class With = void, bool = has_std_size_v<T>, class = void>
+  struct subscript_operator_traits {};
+  template <class T>
+  struct subscript_operator_traits<T, void, true> : subscript_operator_traits<T, std_size_t<T>> {};
+  template <class T>
+  struct subscript_operator_traits<T, void, false> : subscript_operator_traits<T, std::size_t> {};
+  template <class T, class With, bool has_size>
+  struct subscript_operator_traits<T,
+                                   With,
+                                   has_size,
+                                   std::void_t<std::enable_if_t<!std::is_void_v<With>>,
+                                               decltype(member_function_invoke_result_v<T, With>(&T::operator[]))>> {
+    using type [[maybe_unused]] = decltype(member_function_invoke_result_v<T, With>(&T::operator[]));
+  };
+
+  template <class T, class With = void>
+  using subscript_operator_return_t = typename subscript_operator_traits<T, With>::type;
+
+  template <class, class = void, class = void>
+  constexpr inline bool has_subscript_operator_v = false;
+  template <class T, class With>
+  constexpr inline bool has_subscript_operator_v<T, With, std::void_t<subscript_operator_return_t<T, With>>> = true;
+
+
 } // namespace detail
 
 template <class T>
@@ -194,11 +216,11 @@ constexpr inline bool is_optional_v<T, std::void_t<optional_value_t<T>>> = true;
 template <class T, bool = detail::is_defined_v<T>>
 constexpr inline bool is_bool_ref_v = false;
 template <class T>
-constexpr inline bool is_bool_ref_v<T, true> =        // type must be defined
-      std::is_class_v<T> &&                           // bool ref can be only classes, whose
-      detail::is_nothrow_convertible_v<T, bool> &&    // can convert to bool
-      detail::has_any_conversion_operator<T, bool> && // with bool conversion operator
-      !std::is_constructible_v<T, bool&>;             // cannot construct from bool&
+constexpr inline bool is_bool_ref_v<T, true> =          // type must be defined
+      std::is_class_v<T> &&                             // bool ref can be only classes, whose
+      detail::is_nothrow_convertible_v<T, bool> &&      // can convert to bool
+      detail::has_any_conversion_operator_v<T, bool> && // with bool conversion operator
+      !std::is_constructible_v<T, bool&>;               // cannot construct from bool&
 
 template <class T>
 constexpr inline bool is_bool_v = std::is_same_v<std::remove_cv_t<T>, bool> || is_bool_ref_v<T>;
@@ -210,7 +232,7 @@ template <class T>
 constexpr inline bool is_size_t_v<T, true> =              // type must be defined
       std::is_class_v<T> &&                               // size_t wrapper can be only classes, whose
       detail::is_nothrow_convertible_v<T, std::size_t> && // can convert to size_t
-      !detail::has_any_conversion_operator<T, bool> &&    // but not with operator bool. accept char-s
+      !detail::has_any_conversion_operator_v<T, bool> &&  // but not with operator bool. accept char-s
       detail::is_nothrow_convertible_v<std::size_t, T>;   // can convert from size_t
 
 
@@ -224,6 +246,15 @@ constexpr inline bool is_char_v =
 template <class T>
 constexpr inline bool is_index_v =
       !std::is_same_v<bool, std::remove_cv_t<T>> && !is_char_v<T> && (std::is_integral_v<T> || is_size_t_v<T>);
+
+
+template <class T, bool = std::is_class_v<T>&& detail::has_std_size_v<T>, class = void>
+constexpr inline bool is_bitset_like_v = false;
+template <class T>
+constexpr inline bool
+      is_bitset_like_v<T, true, std::enable_if_t<detail::has_subscript_operator_v<std::remove_const_t<T>>>> =
+            is_bool_ref_v<detail::subscript_operator_return_t<std::remove_const_t<T>>>;
+
 
 } // namespace bxlx::graph::type_classification
 
