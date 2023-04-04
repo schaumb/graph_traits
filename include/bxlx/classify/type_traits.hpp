@@ -53,10 +53,6 @@ namespace detail {
     static_assert(std::tuple_size_v<TL> == 0);
   };
 
-  template <class T, class TL, template <class, std::size_t...> class TT, std::size_t... ix>
-  struct all_template_defined<T, TL, TT<std::size_t, ix...>>
-        : std::conjunction<is_defined<std::tuple_element_t<ix, TL>>...> {};
-
   template <class T, class TL, std::size_t... ix>
   struct all_template_defined<T, TL, std::index_sequence<ix...>>
         : std::conjunction<is_defined<std::tuple_element_t<ix, TL>>...> {};
