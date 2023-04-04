@@ -35,8 +35,8 @@ namespace detail {
     using types = std::tuple<T, std::integral_constant<decltype(U), U>>;
   };
 
-  template <class T>
-  [[maybe_unused]] constexpr std::true_type defined_type(decltype(sizeof(T)));
+  template <class T, std::size_t = sizeof(T)>
+  [[maybe_unused]] constexpr std::true_type defined_type(int);
   template <class>
   constexpr std::false_type defined_type(...);
 
