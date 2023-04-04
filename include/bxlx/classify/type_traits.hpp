@@ -61,7 +61,9 @@ namespace detail {
   template <class T,
             class TL = typename template_inspect<T>::types,
             class    = std::make_index_sequence<std::tuple_size_v<TL>>>
-  struct all_template_defined;
+  struct all_template_defined : std::true_type {
+    static_assert(std::tuple_size_v<TL> == 0);
+  };
 
   template <class T, class TL, template <class, std::size_t...> class TT, std::size_t... ix>
   struct all_template_defined<T, TL, TT<std::size_t, ix...>>
