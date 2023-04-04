@@ -15,8 +15,11 @@ option(BXLX_GRAPH_BUILD_TESTING     "Enable test compilation"   ON)
 set(CXX_STANDARD 17 CACHE STRING "C++ Standard Version. [17|20|23]")
 set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
 
-add_library(${PROJECT_NAME} INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph
+add_library(${PROJECT_NAME} INTERFACE)
+
+target_sources(${PROJECT_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph>
+    $<INSTALL_INTERFACE:include/bxlx/graph>
 )
 
 add_library(bxlx::graph ALIAS ${PROJECT_NAME})
@@ -65,5 +68,6 @@ install(FILES
 )
 
 if(BXLX_GRAPH_BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
+    enable_testing()
     add_subdirectory(test)
 endif()
