@@ -117,7 +117,7 @@ namespace detail {
   struct optional_traits_impl<
         T,
         true,
-        std::void_t<std::enable_if_t<std::is_constructible_v<bool, T>>, decltype(*std::declval<T>())>> {
+        std::void_t<decltype(static_cast<bool>(std::declval<T>())), decltype(*std::declval<T>())>> {
     using reference [[maybe_unused]]  = decltype(*std::declval<T&>());
     using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
   };
