@@ -109,8 +109,8 @@ namespace detail {
 #undef BXLX_GRAPH_RANGE_TRAITS_REGEX_NEEDED
   template <bool any, class M, class... Others>
   struct range_traits<std::match_results<M, Others...>, any> {
-    using reference    = const std::sub_match<BidirIt>&;
-    using value_type   = std::sub_match<BidirIt>;
+    using reference    = const std::sub_match<M>&;
+    using value_type   = std::sub_match<M>;
     using iterator_tag = std::random_access_iterator_tag;
 
     constexpr static bool         contiguous    = false;
