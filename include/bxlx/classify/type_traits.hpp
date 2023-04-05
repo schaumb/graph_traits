@@ -5,8 +5,8 @@
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef BXLX_GRAPH_TYPE_CLASSIFICATION_HPP
-#define BXLX_GRAPH_TYPE_CLASSIFICATION_HPP
+#ifndef BXLX_GRAPH_TYPE_TRAITS_HPP
+#define BXLX_GRAPH_TYPE_TRAITS_HPP
 
 #include <optional>
 #include <tuple>
@@ -195,11 +195,31 @@ namespace detail {
   template <class T, class With = void>
   using subscript_operator_return_t = typename subscript_operator_traits<T, With>::type;
 
-  template <class, class = void, class = void>
-  constexpr inline bool has_subscript_operator_v = false;
-  template <class T, class With>
-  constexpr inline bool has_subscript_operator_v<T, With, std::void_t<subscript_operator_return_t<T, With>>> = true;
+  template <class, class = void>
+  constexpr inline bool has_std_iterator_traits_v = false;
+  template <class It>
+  constexpr inline bool has_std_iterator_traits_v<It, std::void_t<typename std::iterator_traits<It>::value_type>> =
+        true;
 
+
+  template <class It, class Sentinel, bool = has_std_iterator_traits_v<It>&& std::is_same_v<It, Sentinel>, class = void>
+  constexpr inline bool is_iterator_pair_v = false;
+  template <class It, class Sentinel>
+  constexpr inline bool is_iterator_pair_v<It, Sentinel, true> = true;
+  template <class It, class Sentinel>
+  constexpr inline bool is_iterator_pair_v<
+        It,
+        Sentinel,
+        false,
+        std::enable_if_t<std::is_convertible_v<decltype(std::declval<It>() != std::declval<Sentinel>()), bool> &&
+                         !std::is_void_v<decltype(*std::declval<It>())> &&
+                         std::is_same_v<decltype(++std::declval<It&>()), It&>>> = true;
+
+  template <class T, bool = is_defined_v<T>, class = void>
+  constexpr inline bool has_begin_end_iterators_v = false;
+  template <class T>
+  constexpr inline bool
+        has_begin_end_iterators_v<T, true, std::enable_if_t<is_iterator_pair_v<std_begin_t<T>, std_end_t<T>>>> = true;
 
 } // namespace detail
 
@@ -238,9 +258,9 @@ constexpr inline bool is_size_t_v<T, true> =              // type must be define
 
 
 template <class CVT, class T = std::remove_cv_t<CVT>>
-constexpr inline bool is_char_v =
-      std::is_same_v<T, char> || std::is_same_v<T, char16_t> || std::is_same_v<T, char32_t> ||
-      std::is_same_v<T, wchar_t> || std::is_same_v<T, decltype(u8'\0')>;
+constexpr inline bool is_char_v = std::is_same_v<T, char> || std::is_same_v<T, char16_t> ||
+                                  std::is_same_v<T, char32_t> || std::is_same_v<T, wchar_t> ||
+                                  std::is_same_v<T, decltype(u8'\0')>;
 // C++17 -> u8'\0' is same type as char, but C++20 it is char8_t, which is different from char
 
 
@@ -249,14 +269,15 @@ constexpr inline bool is_index_v =
       !std::is_same_v<bool, std::remove_cv_t<T>> && !is_char_v<T> && (std::is_integral_v<T> || is_size_t_v<T>);
 
 
-template <class T, bool = std::is_class_v<T>&& detail::has_std_size_v<T>, class = void>
-constexpr inline bool is_bitset_like_v = false;
+template<class T>
+using bitset_reference_t = detail::subscript_operator_return_t<std::remove_const_t<T>>;
+
+template <class T, bool = std::is_class_v<T> && (detail::has_std_size_v<T> || is_tuple_v<T>), class = void>
+constexpr inline bool is_bitset_v = false;
 template <class T>
-constexpr inline bool
-      is_bitset_like_v<T, true, std::enable_if_t<detail::has_subscript_operator_v<std::remove_const_t<T>>>> =
-            is_bool_ref_v<detail::subscript_operator_return_t<std::remove_const_t<T>>>;
+constexpr inline bool is_bitset_v<T, true, std::enable_if_t<is_bool_ref_v<bitset_reference_t<T>>>> = true;
 
 
 } // namespace bxlx::graph::type_classification
 
-#endif //BXLX_GRAPH_TYPE_CLASSIFICATION_HPP
+#endif //BXLX_GRAPH_TYPE_TRAITS_HPP

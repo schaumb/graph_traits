@@ -1,6 +1,7 @@
 #include <bxlx/graph>
-
 #include <bxlx/classify/type_traits.hpp>
+
+#include <bxlx/classify/range_traits.hpp>
 
 #include <array>
 #include <atomic>
@@ -80,9 +81,9 @@ void test_type_traits() {
 
   ASSERT(!detail::is_defined_v<edge_prop>);
   ASSERT(!detail::is_defined_v<node_prop*>);
-  ASSERT(!detail::is_defined_v<std::optional<node_prop>>);
-  ASSERT(!detail::is_defined_v<std::tuple<int, node_prop, double>>);
-  ASSERT(!detail::is_defined_v<std::pair<int, node_prop>>);
+  ASSERT(!detail::is_defined_v<optional<node_prop>>);
+  ASSERT(!detail::is_defined_v<tuple<int, node_prop, double>>);
+  ASSERT(!detail::is_defined_v<pair<int, node_prop>>);
   /*
   ASSERT(detail::is_defined_v<vector<edge_prop>>);
   ASSERT(detail::is_defined_v<deque<edge_prop>>);
@@ -100,10 +101,10 @@ void test_type_traits() {
   ASSERT(is_same_v<optional_value_t<optional<node_prop>>, node_prop>);
   ASSERT(is_same_v<optional_reference_t<const volatile node_prop* const>, const volatile node_prop&>);
 
-  ASSERT(is_bitset_like_v<const bitset<10>>);
-  ASSERT(is_bitset_like_v<vector<bool>>);
-  ASSERT(!is_bitset_like_v<vector<edge_prop>>);
-  ASSERT(!is_bitset_like_v<optional<edge_prop>>);
+  ASSERT(is_bitset_v<const bitset<10>>);
+  ASSERT(is_bitset_v<vector<bool>>);
+  ASSERT(!is_bitset_v<vector<edge_prop>>);
+  ASSERT(!is_bitset_v<optional<edge_prop>>);
   // ASSERT(!is_bitset_like_v<unordered_map<int, edge_prop>>);
 
 }

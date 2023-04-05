@@ -44,6 +44,11 @@ MacroBlockEnd:   ''
 MaxEmptyLinesToKeep: 2
 NamespaceIndentation: Inner
 
+PenaltyBreakAssignment: 6
+PenaltyBreakBeforeFirstCallParameter: 5
+PenaltyBreakOpenParenthesis: 1
+PenaltyBreakTemplateDeclaration: 3
+PenaltyReturnTypeOnItsOwnLine: 0
 PointerAlignment: Left
 
 ReflowComments:  false
