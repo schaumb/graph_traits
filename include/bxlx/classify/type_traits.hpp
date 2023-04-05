@@ -68,7 +68,9 @@ namespace detail {
   template <class T>
   struct is_defined<T, std::enable_if_t<std::is_array_v<T>>> : is_defined<std::remove_extent_t<T>> {};
 
-  template <class T, bool = !is_tuple_v<T> && !std::is_array_v<T> && !std::is_void_v<std::remove_pointer_t<T>>>
+  template <class T,
+            bool = false,
+            bool = !is_tuple_v<T> && !std::is_array_v<T> && !std::is_void_v<std::remove_pointer_t<T>>>
   struct optional_traits;
 
   template <class T,
@@ -77,43 +79,61 @@ namespace detail {
             class   = typename optional_traits<T>::value_type>
   using enable_if_is_optional = T;
 
-  template <class T, bool any>
-  struct optional_traits<volatile enable_if_is_optional<T>, any> : optional_traits<T> {};
+  template <class T, bool any, bool any2>
+  struct optional_traits<volatile enable_if_is_optional<T>, any, any2> : optional_traits<T> {};
 
-  template <class T, bool any>
-  struct optional_traits<const volatile enable_if_is_optional<const T>, any> : optional_traits<const T> {};
+  template <class T, bool any, bool any2>
+  struct optional_traits<const volatile enable_if_is_optional<const T>, any, any2> : optional_traits<const T> {};
 
 
-  template <class V>
-  struct optional_traits<std::optional<V>, true> {
+  template <class V, bool any>
+  struct optional_traits<std::optional<V>, any, true> {
     using value_type = V;
     using reference  = V&;
   };
 
-  template <class V>
-  struct optional_traits<const std::optional<V>, true> {
+  template <class V, bool any>
+  struct optional_traits<const std::optional<V>, any, true> {
     using value_type = V const;
     using reference  = V const&;
   };
 
-  template <class T, bool all_defined = all_template_defined<T>::value, class = void>
+  template <class V, bool any>
+  struct optional_traits<V*, any, true> {
+    using value_type = V;
+    using reference  = V&;
+  };
+
+  template <class V, bool any>
+  struct optional_traits<V* const, any, true> {
+    using value_type = V;
+    using reference  = V&;
+  };
+
+  template <class T, bool all_defined, class = void>
   struct optional_traits_impl {};
 
   template <class T>
   struct optional_traits_impl<
         T,
         true,
-        std::void_t<std::enable_if_t<std::is_convertible_v<T, bool>>, decltype(*std::declval<T>())>> {
+        std::void_t<std::enable_if_t<std::is_constructible_v<bool, T>>, decltype(*std::declval<T>())>> {
     using reference [[maybe_unused]]  = decltype(*std::declval<T&>());
     using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
   };
 
-  template <class T>
-  struct optional_traits<T, true> : optional_traits_impl<T> {};
+  template<class T, bool>
+  struct optional_traits_impl_helper : optional_traits_impl<T, is_defined_v<T>> {};
+
+  template<class T>
+  struct optional_traits_impl_helper<T, true> : optional_traits_impl<T, all_template_defined<T>::value> {};
+
+  template <class T, bool any>
+  struct optional_traits<T, any, true> : optional_traits_impl_helper<T, any> {};
 
   template <class T>
-  struct is_defined<T, std::void_t<typename detail::optional_traits<T>::value_type>>
-        : is_defined<typename detail::optional_traits<T>::value_type> {};
+  struct is_defined<T, std::void_t<typename detail::optional_traits<T, true>::value_type>>
+        : is_defined<typename detail::optional_traits<T, true>::value_type> {};
 
 
   template <class From, class To, bool IsConvertible = std::is_convertible_v<From, To>>
