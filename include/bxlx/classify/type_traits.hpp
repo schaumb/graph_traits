@@ -102,9 +102,17 @@ namespace detail {
   struct is_nothrow_convertible_impl : std::false_type {};
   template <class From, class To>
   struct is_nothrow_convertible_impl<From, To, true> {
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4267 )
+#endif
     static void test(To) noexcept {}
 
     [[maybe_unused]] constexpr static inline bool value = noexcept(test(std::declval<From>()));
+
+#ifdef _MSC_VER
+#pragma warning( pop )
+#endif
   };
 
   template <class From, class To>

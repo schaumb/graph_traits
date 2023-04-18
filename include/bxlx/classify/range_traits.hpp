@@ -15,7 +15,7 @@
 #include "type_traits.hpp"
 
 
-#if defined(_MSC_VER) or defined(__APPLE__)
+#if defined(_MSC_VER) || defined(__APPLE__)
 #  include <deque>
 #  define BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED 1
 #  include <regex>

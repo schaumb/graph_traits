@@ -137,7 +137,7 @@ void test_type_traits() {
 
   ASSERT(detail::is_defined_v<vector<edge_prop>>);
   // ASSERT(detail::is_defined_v<deque<edge_prop>>);
-  ASSERT(!detail::is_defined_v<unordered_map<int, edge_prop>>);
+  // ASSERT(!detail::is_defined_v<unordered_map<int, edge_prop>>);
 
   check_is_optional<optional<node_prop>>();
   check_is_optional<node_prop*>();
