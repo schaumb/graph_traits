@@ -10,6 +10,8 @@
 
 #include <tuple>
 #include <type_traits>
+#include <iterator>
+
 #include "member_traits.hpp"
 
 namespace bxlx::graph::type_classification {

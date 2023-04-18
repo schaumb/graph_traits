@@ -54,8 +54,6 @@ void test_example_graph_representations() { /*
 template<class T>
 using templates = typename bxlx::graph::type_classification::detail::template_inspect<T>::types;
 
-#include <boost/optional.hpp>
-
 template<class Check, bool is_range = false>
 void check_is_tuple() {
   using namespace bxlx::graph::type_classification;
