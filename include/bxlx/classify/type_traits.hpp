@@ -108,7 +108,7 @@ namespace detail {
 #endif
     static void test(To) noexcept {}
 
-    [[maybe_unused]] constexpr static inline bool value = noexcept(test(std::declval<From>()));
+    constexpr static inline bool value = noexcept(test(std::declval<From>()));
 
 #ifdef _MSC_VER
 #pragma warning( pop )
