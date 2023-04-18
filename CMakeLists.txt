@@ -22,8 +22,12 @@ target_sources(${PROJECT_NAME} INTERFACE
     $<INSTALL_INTERFACE:include/bxlx/graph>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/classify/range_traits.hpp>
     $<INSTALL_INTERFACE:include/bxlx/classify/range_traits.hpp>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/classify/optional_traits.hpp>
+    $<INSTALL_INTERFACE:include/bxlx/classify/optional_traits.hpp>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/classify/type_traits.hpp>
     $<INSTALL_INTERFACE:include/bxlx/classify/type_traits.hpp>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/classify/member_traits.hpp>
+    $<INSTALL_INTERFACE:include/bxlx/classify/member_traits.hpp>
 )
 
 add_library(bxlx::graph ALIAS ${PROJECT_NAME})

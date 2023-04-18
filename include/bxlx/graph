@@ -17,8 +17,8 @@ enum class representation_t {
   edge_list,
 };
 
-template <class T>
-constexpr representation_t representation = [] { return representation_t{}; }();
+template <class>
+[[maybe_unused]] constexpr representation_t representation = [] { return representation_t{}; }();
 } // namespace bxlx::graph
 
 #endif //BXLX_GRAPH_INCLUDED

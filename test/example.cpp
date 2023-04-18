@@ -1,9 +1,10 @@
 #include <bxlx/graph>
 #include <bxlx/classify/type_traits.hpp>
-
 #include <bxlx/classify/range_traits.hpp>
+#include <bxlx/classify/optional_traits.hpp>
 
 #include <array>
+#include <map>
 #include <atomic>
 #include <bitset>
 #include <cassert>
@@ -16,6 +17,7 @@
 #include <unordered_map>
 #include <vector>
 
+#define CEXPR_ASSERT_TEST
 #ifdef CEXPR_ASSERT_TEST
 #  define ASSERT(...) static_assert((__VA_ARGS__))
 #else
@@ -52,16 +54,66 @@ void test_example_graph_representations() { /*
 template<class T>
 using templates = typename bxlx::graph::type_classification::detail::template_inspect<T>::types;
 
+#include <boost/optional.hpp>
+
+template<class Check, bool is_range = false>
+void check_is_tuple() {
+  using namespace bxlx::graph::type_classification;
+  ASSERT(is_tuple_v<Check>);
+  ASSERT(!is_optional_v<Check>);
+  ASSERT(is_range == is_range_v<Check>);
+  ASSERT(!is_bool_v<Check>);
+  ASSERT(!is_char_v<Check>);
+  ASSERT(!is_index_v<Check>);
+  ASSERT(!is_bitset_v<Check>);
+}
+
+
+template<class Check>
+void check_is_optional() {
+  using namespace bxlx::graph::type_classification;
+  ASSERT(!is_tuple_v<Check>);
+  ASSERT(is_optional_v<Check>);
+  ASSERT(!is_range_v<Check>);
+  ASSERT(!is_bool_v<Check>);
+  ASSERT(!is_char_v<Check>);
+  ASSERT(!is_index_v<Check>);
+  ASSERT(!is_bitset_v<Check>);
+}
+
+template<class Check>
+void check_is_range() {
+  using namespace bxlx::graph::type_classification;
+  ASSERT(!is_tuple_v<Check>);
+  ASSERT(!is_optional_v<Check>);
+  ASSERT(is_range_v<Check>);
+  ASSERT(!is_bool_v<Check>);
+  ASSERT(!is_char_v<Check>);
+  ASSERT(!is_index_v<Check>);
+  ASSERT(!is_bitset_v<Check>);
+}
+
+template<class Check, bool is_range = false>
+void check_is_bitset() {
+  using namespace bxlx::graph::type_classification;
+  ASSERT(!is_tuple_v<Check>);
+  ASSERT(!is_optional_v<Check>);
+  ASSERT(is_range == is_range_v<Check>);
+  ASSERT(!is_bool_v<Check>);
+  ASSERT(!is_char_v<Check>);
+  ASSERT(!is_index_v<Check>);
+  ASSERT(is_bitset_v<Check>);
+}
+
+
 void test_type_traits() {
   using namespace bxlx::graph::type_classification;
-  ASSERT(is_tuple_v<tuple<int>>);
-  ASSERT(is_tuple_v<tuple<int, float, edge_prop>>);
-  ASSERT(is_tuple_v<pair<int, edge_prop>>);
-  ASSERT(is_tuple_v<array<int, 10>>);
+  check_is_tuple<tuple<int>>();
+  check_is_tuple<tuple<int, float, edge_prop>>();
+  check_is_tuple<pair<int, edge_prop>>();
+  check_is_tuple<array<int, 10>, true>();
   ASSERT(!is_tuple_v<tuple<>>);
   ASSERT(!is_tuple_v<array<int, 0>>);
-  ASSERT(!is_tuple_v<vector<int>>);
-  ASSERT(!is_tuple_v<deque<int>>);
   ASSERT(!is_tuple_v<unordered_map<int, int>>);
   ASSERT(!is_tuple_v<int>);
   ASSERT(!is_tuple_v<int[10]>);
@@ -84,15 +136,15 @@ void test_type_traits() {
   ASSERT(!detail::is_defined_v<optional<node_prop>>);
   ASSERT(!detail::is_defined_v<tuple<int, node_prop, double>>);
   ASSERT(!detail::is_defined_v<pair<int, node_prop>>);
-  /*
-  ASSERT(detail::is_defined_v<vector<edge_prop>>);
-  ASSERT(detail::is_defined_v<deque<edge_prop>>);
-  ASSERT(!detail::is_defined_v<unordered_map<int, edge_prop>>);
-  */
 
-  ASSERT(is_optional_v<optional<node_prop>>);
-  ASSERT(is_optional_v<node_prop*>);
-  ASSERT(is_optional_v<const volatile node_prop* const>);
+  ASSERT(detail::is_defined_v<vector<edge_prop>>);
+  // ASSERT(detail::is_defined_v<deque<edge_prop>>);
+  ASSERT(!detail::is_defined_v<unordered_map<int, edge_prop>>);
+
+  check_is_optional<optional<node_prop>>();
+  check_is_optional<node_prop*>();
+  check_is_optional<const volatile node_prop* const>();
+  check_is_optional<const std::optional<int>>();
   ASSERT(!is_optional_v<int[10]>);
   ASSERT(!is_optional_v<int[]>);
   ASSERT(!is_optional_v<node_prop[]>);
@@ -101,11 +153,37 @@ void test_type_traits() {
   ASSERT(is_same_v<optional_value_t<optional<node_prop>>, node_prop>);
   ASSERT(is_same_v<optional_reference_t<const volatile node_prop* const>, const volatile node_prop&>);
 
-  ASSERT(is_bitset_v<const bitset<10>>);
-  ASSERT(is_bitset_v<vector<bool>>);
+  check_is_range<vector<int>>();
+  check_is_range<vector<node_prop>>();
+  check_is_range<deque<bool>>();
+  check_is_range<deque<node_prop>>();
+  check_is_range<unordered_map<int, edge_prop>>();
+  check_is_range<map<edge_prop, node_prop>>();
+
+  ASSERT(is_bool_v<bool>);
+  ASSERT(is_bool_v<bitset<10>::reference>);
+  ASSERT(is_bool_v<vector<bool>::reference>);
+  ASSERT(!is_bool_v<std::reference_wrapper<bool>>);
+  ASSERT(!is_bool_v<std::atomic<bool>>);
+
+  ASSERT(is_char_v<volatile wchar_t>);
+  ASSERT(!is_char_v<std::uint8_t>);
+
+  enum ASDASD{};
+  ASSERT(is_index_v<std::size_t>);
+  ASSERT(is_index_v<std::atomic<int>>);
+  ASSERT(is_index_v<ASDASD>);
+
+  ASSERT(!is_index_v<int&>);
+  ASSERT(!is_index_v<char>);
+  ASSERT(!is_index_v<bool>);
+
+
+  check_is_bitset<const bitset<10>>();
+  check_is_bitset<vector<bool>, true>();
   ASSERT(!is_bitset_v<vector<edge_prop>>);
   ASSERT(!is_bitset_v<optional<edge_prop>>);
-  // ASSERT(!is_bitset_like_v<unordered_map<int, edge_prop>>);
+  ASSERT(!is_bitset_v<unordered_map<int, edge_prop>>);
 
 }
 
