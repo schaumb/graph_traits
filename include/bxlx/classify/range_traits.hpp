@@ -20,7 +20,7 @@
 #  define BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED 1
 #  include <regex>
 #  define BXLX_GRAPH_RANGE_TRAITS_REGEX_NEEDED 1
-#elif (defined(__clang__) && __clang_major__ < 15) || (!defined(__clang__) && defined(__GNUC__) && __GNUC__ < 12)
+#elif (defined(__clang__) /* && __clang_major__ < 15 */) || (!defined(__clang__) && defined(__GNUC__) /* && __GNUC__ < 12 */)
 #  include <unordered_set>
 #  define BXLX_GRAPH_RANGE_TRAITS_UNORDERED_SET_NEEDED 1
 #  include <unordered_map>
@@ -266,7 +266,7 @@ namespace associative_traits {
   constexpr inline bool is_map_v = false;
 
   template<class T>
-  constexpr inline bool is_set_v = !is_map_v<T> && range_member_traits::has_equal_range_v<T, const range_value_t<T>&>;
+  constexpr inline bool is_set_v = !is_map_v<T> && bxlx::graph::type_classification::detail::range_member_traits::has_equal_range_v<T, const range_value_t<T>&>;
 }
 
 template <class T, bool all_defined, class = void>
