@@ -46,7 +46,6 @@ enum class range_type_t {
   string_like, /* has .length() */
   queue_like,  /* has .push_front() and .push_back() */
   map_like,    /* has .equal_range(tuple_element<0, value_type>) and any of
-             * - !equal_range(value_type)
              * - at(tuple_element<0, value_type>)
              * - key_type
              * */
@@ -269,10 +268,6 @@ namespace associative_traits {
                                                      std::tuple_element_t<0, Val> const&>;
 
     template <class T>
-    constexpr static inline bool has_set_equal_range_function_v = class_member_traits::
-          has_equal_range_res_v<const T, std::pair<std_begin_t<const T>, std_begin_t<const T>>, Val const&>;
-
-    template <class T>
     constexpr static inline bool has_map_at_function_v =
           class_member_traits::has_at_v<const T, std::tuple_element_t<0, Val> const&>;
 
@@ -288,7 +283,7 @@ namespace associative_traits {
 
     [[maybe_unused]] constexpr static inline bool value =
           has_map_equal_range_function_v<Impl> &&
-          (!has_set_equal_range_function_v<Impl> || has_map_at_function_v<Impl> || has_map_key_type_v<Impl>);
+          (has_map_at_function_v<Impl> || has_map_key_type_v<Impl>);
   };
 
   template <class T, class ValueType>
