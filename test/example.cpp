@@ -223,6 +223,9 @@ void test_type_traits() {
   check_range_type<std::unordered_set<node_prop>, const node_prop&, std::forward_iterator_tag,
                    detail::storage_type_t::discontinuous, detail::range_type_t::set_like>();
 
+  check_range_type<std::unordered_set<std::pair<node_prop, int>>, const std::pair<node_prop, int>&,
+                   std::forward_iterator_tag, detail::storage_type_t::discontinuous, detail::range_type_t::set_like>();
+
   check_range_type<std::unordered_map<node_prop, int>, std::pair<const node_prop, int>&, std::forward_iterator_tag,
                    detail::storage_type_t::discontinuous, detail::range_type_t::map_like>();
 }
