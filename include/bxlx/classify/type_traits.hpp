@@ -8,9 +8,9 @@
 #ifndef BXLX_GRAPH_TYPE_TRAITS_HPP
 #define BXLX_GRAPH_TYPE_TRAITS_HPP
 
+#include <iterator>
 #include <tuple>
 #include <type_traits>
-#include <iterator>
 
 #include "member_traits.hpp"
 
@@ -78,15 +78,14 @@ namespace detail {
   template <class, bool = false, class = void>
   constexpr inline bool is_optional_v = false;
   template <class T, bool is_defined>
-  constexpr inline bool is_optional_v<T, is_defined, std::void_t<typename optional_traits<T, is_defined>::value_type>> = true;
+  constexpr inline bool is_optional_v<T, is_defined, std::void_t<typename optional_traits<T, is_defined>::value_type>> =
+        true;
 
   template <class T>
   struct is_defined<T, std::enable_if_t<is_optional_v<T, true>>>
         : is_defined<typename optional_traits<T, true>::value_type> {};
 
-  template <class T,
-            bool is_defined = false,
-            bool = !is_tuple_v<T>, class = void>
+  template <class T, bool is_defined = false, bool = !is_tuple_v<T>, class = void>
   struct range_traits;
 
   template <class, bool = false, class = void>
@@ -103,15 +102,15 @@ namespace detail {
   template <class From, class To>
   struct is_nothrow_convertible_impl<From, To, true> {
 #ifdef _MSC_VER
-#pragma warning( push )
-#pragma warning( disable : 4267 )
+#  pragma warning(push)
+#  pragma warning(disable : 4267)
 #endif
     static void test(To) noexcept {}
 
     constexpr static inline bool value = noexcept(test(std::declval<From>()));
 
 #ifdef _MSC_VER
-#pragma warning( pop )
+#  pragma warning(pop)
 #endif
   };
 
@@ -121,11 +120,8 @@ namespace detail {
   template <class T, class, bool = std::is_class_v<std::remove_reference_t<T>>&& is_defined_v<T>, class = void>
   constexpr static auto has_conversion_operator_v = false;
   template <class T, class U>
-  constexpr static auto has_conversion_operator_v<
-        T,
-        U,
-        true,
-        std::void_t<decltype(member_function_invoke_result_v<T>(&std::remove_reference_t<T>::operator U))>> = true;
+  constexpr static auto
+        has_conversion_operator_v<T, U, true, std::enable_if_t<class_member_traits::has_conversion_v<T, U>>> = true;
 
   template <class T, class U>
   [[maybe_unused]] constexpr static inline bool has_any_conversion_operator_v =
@@ -165,12 +161,12 @@ namespace detail {
   template <class T>
   struct subscript_operator_traits<T, void, false> : subscript_operator_traits<T, std::size_t, is_defined_v<T>> {};
   template <class T, class With, bool has_size>
-  struct subscript_operator_traits<T,
-                                   With,
-                                   has_size,
-                                   std::void_t<std::enable_if_t<!std::is_void_v<With>>,
-                                               decltype(member_function_invoke_result_v<T, With>(&T::operator[]))>> {
-    using type [[maybe_unused]] = decltype(member_function_invoke_result_v<T, With>(&T::operator[]));
+  struct subscript_operator_traits<
+        T,
+        With,
+        has_size,
+        std::enable_if_t<!std::is_void_v<With> && class_member_traits::has_subscript_op_v<T, With>>> {
+    using type [[maybe_unused]] = class_member_traits::get_subscript_op_result_t<T, With>;
   };
 
   template <class T, class With = void>
@@ -199,7 +195,8 @@ template <class T>
 constexpr inline bool is_range_v = detail::is_range_v<T>;
 
 template <class T>
-[[maybe_unused]] constexpr inline bool is_bool_v = std::is_same_v<std::remove_cv_t<T>, bool> || detail::is_bool_ref_v<T>;
+[[maybe_unused]] constexpr inline bool is_bool_v =
+      std::is_same_v<std::remove_cv_t<T>, bool> || detail::is_bool_ref_v<T>;
 
 
 template <class CVT, class T = std::remove_cv_t<CVT>>
@@ -212,13 +209,13 @@ constexpr inline bool is_char_v = std::is_same_v<T, char> || std::is_same_v<T, c
 template <class T>
 [[maybe_unused]] constexpr inline bool is_index_v =
       !std::is_same_v<bool, std::remove_cv_t<T>> && !is_char_v<T> &&
-            (std::is_integral_v<T> || detail::is_size_t_v<T> || std::is_enum_v<T>);
+      (std::is_integral_v<T> || detail::is_size_t_v<T> || std::is_enum_v<T>);
 
 
-template<class T>
+template <class T>
 using bitset_reference_t = detail::subscript_operator_return_t<std::remove_const_t<T>>;
 
-template <class T, bool = std::is_class_v<T> && detail::has_std_size_v<T>, class = void>
+template <class T, bool = std::is_class_v<T>&& detail::has_std_size_v<T>, class = void>
 constexpr inline bool is_bitset_v = false;
 template <class T>
 constexpr inline bool is_bitset_v<T, true, std::enable_if_t<detail::is_bool_ref_v<bitset_reference_t<T>>>> = true;

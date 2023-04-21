@@ -12,36 +12,40 @@
 
 namespace bxlx::graph::type_classification::detail {
 
-template <class Type, class... Args>
+template <class Type, class ResDed, class = void, class... Args>
 struct member_function_invoke_result {
   constexpr static bool is_const  = std::is_const_v<std::remove_reference_t<Type>>;
   constexpr static bool is_lv_ref = std::is_lvalue_reference_v<Type>;
   constexpr static bool is_rv_ref = std::is_rvalue_reference_v<Type>;
-  template <class Res, class T>
+  template <class Res = ResDed, class T = Type>
   auto operator()(Res (T::*)(Args...)) -> std::enable_if_t<!is_const, Res>;
-  template <class Res, class T>
+  template <class Res = ResDed, class T = Type>
   auto operator()(Res (T::*)(Args...) const) const -> Res;
-  template <class Res, class T>
+  template <class Res = ResDed, class T = Type>
   auto operator()(Res (T::*)(Args...) &) -> std::enable_if_t<!is_rv_ref, Res>;
-  template <class Res, class T>
+  template <class Res = ResDed, class T = Type>
   auto operator()(Res (T::*)(Args...) const&) const -> Res;
-  template <class Res, class T>
+  template <class Res = ResDed, class T = Type>
   auto operator()(Res (T::*)(Args...) &&) const volatile -> std::enable_if_t<!is_lv_ref, Res>;
   // volatile and const&& overloads are not handled by design.
 };
 
-template <class T, class... Args>
-inline member_function_invoke_result<T, Args...> member_function_invoke_result_v{};
+template <class Type, class ResDed, class... Args>
+struct member_function_invoke_result<Type, ResDed, std::enable_if_t<(std::is_void_v<Args> || ...)>, Args...> {};
 
 
-namespace range_member_traits {
+template <class T, class Res = void, class... Args>
+inline member_function_invoke_result<T, Res, void, Args...> member_function_invoke_result_v{};
+
+
+namespace class_member_traits {
   template <class Range>
   constexpr inline bool can_inspect_member = std::is_class_v<Range>;
 
-#define HAS_MEMBER_FUNCTION_TEMPLATE_VARARG(name)                                                                        \
+#define HAS_MEMBER_FUNCTION_TEMPLATE_VARARG(name)                                                                      \
   template <class Range, class... Args>                                                                                \
   using get_##name##_result_t =                                                                                        \
-        decltype(member_function_invoke_result_v<Range, Args&&...>(&Range::template name<Args&&...>));                 \
+        decltype(member_function_invoke_result_v<Range, void, Args&&...>(&Range::template name<Args&&...>));           \
   template <class Range, bool = can_inspect_member<Range>, class = void, class...>                                     \
   constexpr inline bool has_##name = false;                                                                            \
   template <class Range, class... Args>                                                                                \
@@ -54,9 +58,25 @@ namespace range_member_traits {
   HAS_MEMBER_FUNCTION_TEMPLATE_VARARG(emplace)
 #undef HAS_MEMBER_FUNCTION_TEMPLATE_VARARG
 
-#define HAS_MEMBER_FUNCTION_VARARG(name)                                                                                 \
+#define HAS_MEMBER_FUNCTION_RES_VARARG(name)                                                                           \
+  template <class Range, class ResHelper, bool, class, class...>                                                       \
+  constexpr inline bool has_##name_res = false;                                                                        \
+  template <class Range, class ResHelper, class... Args>                                                               \
+  constexpr inline bool has_##name_res<                                                                                \
+        Range, ResHelper, true,                                                                                        \
+        std::void_t<decltype(member_function_invoke_result_v<Range, ResHelper, Args...>(&Range::name))>, Args...> =    \
+        true;                                                                                                          \
+  template <class Range, class ResHelper, class... Args>                                                               \
+  constexpr inline bool has_##name##_res_v =                                                                           \
+        has_##name_res<Range, ResHelper, can_inspect_member<Range>, void, Args...>;
+
+  HAS_MEMBER_FUNCTION_RES_VARARG(equal_range)
+
+#undef HAS_MEMBER_FUNCTION_RES_VARARG
+
+#define HAS_MEMBER_FUNCTION_VARARG(name)                                                                               \
   template <class Range, class... Args>                                                                                \
-  using get_##name##_result_t = decltype(member_function_invoke_result_v<Range, Args...>(&Range::name));               \
+  using get_##name##_result_t = decltype(member_function_invoke_result_v<Range, void, Args...>(&Range::name));         \
   template <class Range, bool = can_inspect_member<Range>, class = void, class...>                                     \
   constexpr inline bool has_##name = false;                                                                            \
   template <class Range, class... Args>                                                                                \
@@ -64,7 +84,6 @@ namespace range_member_traits {
   template <class Range, class... Args>                                                                                \
   constexpr inline bool has_##name##_v = has_##name<Range, can_inspect_member<Range>, void, Args...>;
 
-  HAS_MEMBER_FUNCTION_VARARG(equal_range)
   HAS_MEMBER_FUNCTION_VARARG(erase)
   HAS_MEMBER_FUNCTION_VARARG(erase_after)
   HAS_MEMBER_FUNCTION_VARARG(at)
@@ -90,10 +109,11 @@ namespace range_member_traits {
   HAS_MEMBER_FUNCTION_NO_ARG(hash_function)
 #undef HAS_MEMBER_FUNCTION_NO_ARG
 
-#define HAS_MEMBER_OPERATOR_NO_ARG(name, op)                                                                               \
+#define HAS_MEMBER_OPERATOR_NO_ARG(name, op)                                                                           \
   template <class Range>                                                                                               \
-  using get_##name##_result_t = decltype(member_function_invoke_result_v<Range>(&std::remove_reference_t<Range>::operator op));                        \
-  template <class Range, bool = can_inspect_member<std::remove_reference_t<Range>>, class = void>                                               \
+  using get_##name##_result_t =                                                                                        \
+        decltype(member_function_invoke_result_v<Range>(&std::remove_reference_t<Range>::operator op));                \
+  template <class Range, bool = can_inspect_member<std::remove_reference_t<Range>>, class = void>                      \
   constexpr inline bool has_##name##_v = false;                                                                        \
   template <class Range>                                                                                               \
   constexpr inline bool has_##name##_v<Range, true, std::void_t<get_##name##_result_t<Range>>> = true;
@@ -102,6 +122,20 @@ namespace range_member_traits {
   HAS_MEMBER_OPERATOR_NO_ARG(increment_op, ++)
   HAS_MEMBER_OPERATOR_NO_ARG(decrement_op, --)
 #undef HAS_MEMBER_OPERATOR_NO_ARG
+
+
+#define HAS_MEMBER_OPERATOR_ONE_ARG(name, op)                                                                          \
+  template <class Range, class Arg>                                                                                    \
+  using get_##name##_result_t =                                                                                        \
+        decltype(member_function_invoke_result_v<Range, void, Arg>(&std::remove_reference_t<Range>::operator op));     \
+  template <class Range, class Arg, bool = can_inspect_member<std::remove_reference_t<Range>>, class = void>           \
+  constexpr inline bool has_##name##_v = false;                                                                        \
+  template <class Range, class Arg>                                                                                    \
+  constexpr inline bool has_##name##_v<Range, Arg, true, std::void_t<get_##name##_result_t<Range, Arg>>> = true;
+
+  HAS_MEMBER_OPERATOR_ONE_ARG(subscript_op, [])
+
+#undef HAS_MEMBER_OPERATOR_ONE_ARG
 
 #define HAS_MEMBER_TYPE(name)                                                                                          \
   template <class Range>                                                                                               \
@@ -140,15 +174,25 @@ namespace range_member_traits {
   TYPE_OR_GETTER(hasher, hash_function)
 #undef TYPE_OR_GETTER
 
+  template <class Range, class Op, bool = can_inspect_member<std::remove_reference_t<Range>>, class = void>
+  constexpr inline bool has_conversion_v = false;
+  template <class Range, class Op>
+  constexpr inline bool
+        has_conversion_v<Range,
+                         Op,
+                         true,
+                         std::void_t<decltype(member_function_invoke_result_v<Range>(&Range::operator Op))>> = true;
+
   template <class, class, bool, class = void, class...>
   constexpr inline bool has_try_emplace = false;
   template <class Range, class KeyType, class... Args>
-  constexpr inline bool has_try_emplace<Range,
-                                        KeyType,
-                                        true,
-                                        std::void_t<decltype(member_function_invoke_result_v<Range, KeyType, Args&&...>(
-                                              &Range::template try_emplace<Args&&...>))>,
-                                        Args...> = true;
+  constexpr inline bool
+        has_try_emplace<Range,
+                        KeyType,
+                        true,
+                        std::void_t<decltype(member_function_invoke_result_v<Range, void, KeyType, Args&&...>(
+                              &Range::template try_emplace<Args&&...>))>,
+                        Args...> = true;
 
   template <class Range, class KeyType = const get_key_type_member_t<Range>&, class... Args>
   constexpr inline bool has_try_emplace_v = has_try_emplace<Range, KeyType, can_inspect_member<Range>, void, Args...>;
@@ -160,8 +204,9 @@ namespace range_member_traits {
         has_resize_v<Range,
                      SizeType,
                      true,
-                     std::void_t<decltype(member_function_invoke_result_v<Range, SizeType>(&Range::resize))>> = true;
-} // namespace range_member_traits
+                     std::void_t<decltype(member_function_invoke_result_v<Range, void, SizeType>(&Range::resize))>> =
+              true;
+} // namespace class_member_traits
 } // namespace bxlx::graph::type_classification::detail
 
 #endif //BXLX_GRAPH_MEMBER_TRAITS_HPP
