@@ -213,8 +213,9 @@ void test_type_traits() {
   check_range_type<std::list<int>, int&, std::bidirectional_iterator_tag, detail::storage_type_t::discontinuous,
                    detail::range_type_t::queue_like>();
 
-  check_range_type<std::set<node_prop>, const node_prop&, std::bidirectional_iterator_tag,
-                   detail::storage_type_t::discontinuous, detail::range_type_t::set_like>();
+  check_range_type<std::set<std::pair<int, node_prop>>, const std::pair<int, node_prop>&,
+                   std::bidirectional_iterator_tag, detail::storage_type_t::discontinuous,
+                   detail::range_type_t::set_like>();
 
   check_range_type<std::map<node_prop, int>, std::pair<const node_prop, int>&, std::bidirectional_iterator_tag,
                    detail::storage_type_t::discontinuous, detail::range_type_t::map_like>();

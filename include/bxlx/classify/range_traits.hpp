@@ -281,19 +281,19 @@ namespace associative_traits {
     template <class T>
     constexpr static inline bool has_map_key_type_v = has_map_key_type<T>::value;
 
-    [[maybe_unused]] constexpr static inline bool value =
-          has_map_equal_range_function_v<Impl> &&
-          (has_map_at_function_v<Impl> || has_map_key_type_v<Impl>);
+    [[maybe_unused]] constexpr static inline bool value = has_map_equal_range_function_v<Impl> &&
+                                                          (has_map_at_function_v<Impl> || has_map_key_type_v<Impl>);
   };
 
   template <class T, class ValueType>
   constexpr static inline bool is_map_v = is_map_impl<T, ValueType>::value;
 
+  template <class T, class ValueType, bool = is_map_v<T, ValueType>>
+  constexpr static inline bool is_set_v = false;
+
   template <class T, class ValueType>
-  constexpr static inline bool is_set_v =
-        !is_map_v<T, ValueType> &&
-        detail::class_member_traits::
-              has_equal_range_res_v<T, std::pair<std_begin_t<const T>, std_begin_t<const T>>, const ValueType&>;
+  constexpr static inline bool is_set_v<T, ValueType, false> = detail::class_member_traits::
+        has_equal_range_res_v<T, std::pair<std_begin_t<const T>, std_begin_t<const T>>, const ValueType&>;
 } // namespace associative_traits
 
 template <class T, bool all_defined, class = void>
