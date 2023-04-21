@@ -296,7 +296,7 @@ struct range_traits_impl<T, true, std::enable_if_t<has_begin_end_iterators_v<T>>
 };
 
 
-template <class T, bool r, bool = !is_optional_v<T, r>>
+template <class T, bool, bool = !is_optional_v<T, true>>
 struct range_traits_impl_helper {};
 
 template <class T>
