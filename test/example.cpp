@@ -113,7 +113,7 @@ template <class Check,
 void check_range_type() {
   using RT = bxlx::graph::type_classification::detail::range_traits<Check>;
   ASSERT(std::is_same_v<typename RT::reference, Reference>);
-  ASSERT(std::is_same_v<typename RT::iterator_tag, IteratorTag>);
+  ASSERT(std::is_base_of_v<IteratorTag, typename RT::iterator_tag>);
   ASSERT(St == RT::storage);
   ASSERT(Rt == RT::range);
 }

@@ -45,11 +45,8 @@ enum class range_type_t {
   sequence,
   string_like, /* has .length() */
   queue_like,  /* has .push_front() and .push_back() */
-  map_like,    /* has .equal_range(tuple_element<0, value_type>) and any of
-             * - at(tuple_element<0, value_type>)
-             * - key_type
-             * */
-  set_like     /* has .equal_range(value_type) and not map */
+  map_like,    /* has key_type, equal to value_type first component */
+  set_like     /* has key_type, equal to value_type */
 };
 
 template <class T,
@@ -257,43 +254,20 @@ struct iterator_traits_impl<It,
 
 
 namespace associative_traits {
-  template <class Impl, class Val, bool = is_tuple_v<Val>, class = void>
-  struct is_map_impl : std::false_type {};
-  template <class Impl, class Val>
-  struct is_map_impl<Impl, Val, true, std::enable_if_t<std::tuple_size_v<Val> == 2>> {
-    template <class T>
-    constexpr static inline bool has_map_equal_range_function_v =
-          class_member_traits::has_equal_range_res_v<const T,
-                                                     std::pair<std_begin_t<const T>, std_begin_t<const T>>,
-                                                     std::tuple_element_t<0, Val> const&>;
-
-    template <class T>
-    constexpr static inline bool has_map_at_function_v =
-          class_member_traits::has_at_v<const T, std::tuple_element_t<0, Val> const&>;
-
-    template <class T, class = void>
-    struct has_map_key_type : std::false_type {};
-
-    template <class T>
-    struct has_map_key_type<T, std::enable_if_t<std::is_same_v<typename T::key_type, std::tuple_element_t<0, Val>>>>
-          : std::true_type {};
-
-    template <class T>
-    constexpr static inline bool has_map_key_type_v = has_map_key_type<T>::value;
-
-    [[maybe_unused]] constexpr static inline bool value = has_map_equal_range_function_v<Impl> &&
-                                                          (has_map_at_function_v<Impl> || has_map_key_type_v<Impl>);
-  };
-
+  template <class T, class ValueType, bool =
+                                            class_member_traits::has_key_type_type_v<T> &&
+                                                  is_tuple_v<ValueType>, class = void>
+  constexpr static inline bool is_map_v = false;
   template <class T, class ValueType>
-  constexpr static inline bool is_map_v = is_map_impl<T, ValueType>::value;
+  constexpr static inline bool is_map_v<T, ValueType, true,
+                                        std::enable_if_t<std::tuple_size_v<ValueType> == 2>> =
+        std::is_same_v<class_member_traits::get_key_type_member_t<T>, std::remove_cv_t<std::tuple_element_t<0, ValueType>>>;
 
-  template <class T, class ValueType, bool = is_map_v<T, ValueType>>
+  template <class T, class ValueType, bool = class_member_traits::has_key_type_type_v<T>>
   constexpr static inline bool is_set_v = false;
-
   template <class T, class ValueType>
-  constexpr static inline bool is_set_v<T, ValueType, false> = detail::class_member_traits::
-        has_equal_range_res_v<T, std::pair<std_begin_t<const T>, std_begin_t<const T>>, const ValueType&>;
+  constexpr static inline bool is_set_v<T, ValueType, true> =
+        std::is_same_v<class_member_traits::get_key_type_member_t<T>, std::remove_cv_t<ValueType>>;
 } // namespace associative_traits
 
 template <class T, bool all_defined, class = void>
