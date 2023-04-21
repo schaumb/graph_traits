@@ -61,7 +61,7 @@ struct optional_traits_impl<T,
   using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
 };
 
-template <class T, bool, bool = !is_range_v<T, true>>
+template <class T, bool r, bool = !is_range_v<T, r>>
 struct optional_traits_impl_helper {};
 
 template <class T>
