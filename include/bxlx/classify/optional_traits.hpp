@@ -8,10 +8,10 @@
 #ifndef BXLX_GRAPH_OPTIONAL_TRAITS_HPP
 #define BXLX_GRAPH_OPTIONAL_TRAITS_HPP
 
-#include <optional>
 #include "type_traits.hpp"
+#include <optional>
 
-namespace bxlx::graph::type_classification::detail {
+namespace bxlx::graph::type_traits::detail {
 
 template <class T,
           class U = std::remove_cv_t<T>,
@@ -73,6 +73,6 @@ struct optional_traits_impl_helper<T, false, true> : optional_traits_impl<T, is_
 template <class T, bool any>
 struct optional_traits<T, any, true> : optional_traits_impl_helper<T, any> {};
 
-} // namespace bxlx::graph::type_classification::detail
+} // namespace bxlx::graph::type_traits::detail
 
 #endif //BXLX_GRAPH_OPTIONAL_TRAITS_HPP

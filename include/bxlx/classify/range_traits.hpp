@@ -35,12 +35,8 @@
 #  define BXLX_GRAPH_RANGE_TRAITS_RANGES_NEEDED 1
 #endif
 
-namespace bxlx::graph::type_classification::detail {
+namespace bxlx::graph::type_traits::detail {
 
-enum class storage_type_t {
-  discontinuous,
-  continuous /* has .data() */
-};
 enum class range_type_t {
   sequence,
   string_like, /* has .length() */
@@ -78,9 +74,9 @@ struct range_traits<std::array<M, S>, any, false /* it is a tuple */> {
   using value_type   = M;
   using iterator_tag = std::random_access_iterator_tag;
 
-  constexpr static bool           defined = is_defined_v<M>;
-  constexpr static storage_type_t storage = storage_type_t::continuous;
-  constexpr static range_type_t   range   = range_type_t::sequence;
+  constexpr static bool         defined    = is_defined_v<M>;
+  constexpr static bool         continuous = true;
+  constexpr static range_type_t range      = range_type_t::sequence;
 };
 
 template <bool any, class CharT, class... Others>
@@ -89,9 +85,9 @@ struct range_traits<std::basic_string<CharT, Others...>, any, true> {
   using value_type   = CharT;
   using iterator_tag = std::random_access_iterator_tag;
 
-  constexpr static bool           defined = is_defined_v<CharT>;
-  constexpr static storage_type_t storage = storage_type_t::continuous;
-  constexpr static range_type_t   range   = range_type_t::string_like;
+  constexpr static bool         defined    = is_defined_v<CharT>;
+  constexpr static bool         continuous = true;
+  constexpr static range_type_t range      = range_type_t::string_like;
 };
 
 template <bool any, class CharT, class... Others>
@@ -100,9 +96,9 @@ struct range_traits<std::basic_string_view<CharT, Others...>, any, true> {
   using value_type   = CharT;
   using iterator_tag = std::random_access_iterator_tag;
 
-  constexpr static bool           defined = is_defined_v<CharT>;
-  constexpr static storage_type_t storage = storage_type_t::continuous;
-  constexpr static range_type_t   range   = range_type_t::string_like;
+  constexpr static bool         defined    = is_defined_v<CharT>;
+  constexpr static bool         continuous = true;
+  constexpr static range_type_t range      = range_type_t::string_like;
 };
 
 #ifdef BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED
@@ -113,9 +109,9 @@ struct range_traits<std::deque<M, Others...>, any, true> {
   using value_type   = M;
   using iterator_tag = std::random_access_iterator_tag;
 
-  constexpr static bool           defined = is_defined_v<M>;
-  constexpr static storage_type_t storage = storage_type_t::discontinuous;
-  constexpr static range_type_t   range   = range_type_t::queue_like;
+  constexpr static bool         defined    = is_defined_v<M>;
+  constexpr static bool         continuous = false;
+  constexpr static range_type_t range      = range_type_t::queue_like;
 };
 #endif
 
@@ -127,9 +123,9 @@ struct range_traits<std::match_results<M, Others...>, any, true> {
   using value_type   = std::sub_match<M>;
   using iterator_tag = std::random_access_iterator_tag;
 
-  constexpr static bool           defined = is_defined_v<M>;
-  constexpr static storage_type_t storage = storage_type_t::discontinuous;
-  constexpr static range_type_t   range   = range_type_t::sequence;
+  constexpr static bool         defined    = is_defined_v<M>;
+  constexpr static bool         continuous = false;
+  constexpr static range_type_t range      = range_type_t::sequence;
 };
 #endif
 
@@ -141,9 +137,9 @@ struct range_traits<std::unordered_set<M, Others...>, any, true> {
   using value_type   = const M;
   using iterator_tag = std::forward_iterator_tag;
 
-  constexpr static bool           defined = is_defined_v<M>;
-  constexpr static storage_type_t storage = storage_type_t::discontinuous;
-  constexpr static range_type_t   range   = range_type_t::set_like;
+  constexpr static bool         defined    = is_defined_v<M>;
+  constexpr static bool         continuous = false;
+  constexpr static range_type_t range      = range_type_t::set_like;
 };
 template <bool any, class M, class... Others>
 struct range_traits<std::unordered_multiset<M, Others...>, any, true> {
@@ -151,9 +147,9 @@ struct range_traits<std::unordered_multiset<M, Others...>, any, true> {
   using value_type   = const M;
   using iterator_tag = std::forward_iterator_tag;
 
-  constexpr static bool           defined = is_defined_v<M>;
-  constexpr static storage_type_t storage = storage_type_t::discontinuous;
-  constexpr static range_type_t   range   = range_type_t::set_like;
+  constexpr static bool         defined    = is_defined_v<M>;
+  constexpr static bool         continuous = false;
+  constexpr static range_type_t range      = range_type_t::set_like;
 };
 #endif
 
@@ -165,9 +161,9 @@ struct range_traits<std::unordered_map<K, V, Others...>, any, true> {
   using value_type   = std::pair<const K, V>;
   using iterator_tag = std::forward_iterator_tag;
 
-  constexpr static bool           defined = is_defined_v<K> && is_defined_v<V>;
-  constexpr static storage_type_t storage = storage_type_t::discontinuous;
-  constexpr static range_type_t   range   = range_type_t::map_like;
+  constexpr static bool         defined    = is_defined_v<K> && is_defined_v<V>;
+  constexpr static bool         continuous = false;
+  constexpr static range_type_t range      = range_type_t::map_like;
 };
 template <bool any, class K, class V, class... Others>
 struct range_traits<std::unordered_multimap<K, V, Others...>, any, true> {
@@ -175,9 +171,9 @@ struct range_traits<std::unordered_multimap<K, V, Others...>, any, true> {
   using value_type   = std::pair<const K, V>;
   using iterator_tag = std::forward_iterator_tag;
 
-  constexpr static bool           defined = is_defined_v<K> && is_defined_v<V>;
-  constexpr static storage_type_t storage = storage_type_t::discontinuous;
-  constexpr static range_type_t   range   = range_type_t::map_like;
+  constexpr static bool         defined    = is_defined_v<K> && is_defined_v<V>;
+  constexpr static bool         continuous = false;
+  constexpr static range_type_t range      = range_type_t::map_like;
 };
 #endif
 
@@ -255,10 +251,8 @@ struct iterator_traits_impl<It,
 
 namespace associative_traits {
   template <class T, class Val>
-  constexpr static inline bool has_value_equal_range_function_v =
-        class_member_traits::has_equal_range_res_v<const T,
-                                                   std::pair<std_begin_t<const T>, std_begin_t<const T>>,
-                                                   Val const&>;
+  constexpr static inline bool has_value_equal_range_function_v = class_member_traits::
+        has_equal_range_res_v<const T, std::pair<std_begin_t<const T>, std_begin_t<const T>>, Val const&>;
 
 
   template <class Impl, class Val, bool = class_member_traits::has_key_type_type_v<Impl>, class = void>
@@ -273,14 +267,15 @@ namespace associative_traits {
     constexpr static inline bool has_map_at_function_v =
           class_member_traits::has_at_v<const T, std::tuple_element_t<0, Val> const&>;
 
-    [[maybe_unused]] constexpr static inline bool value = has_map_equal_range_function_v<Impl> &&
-                                                          (!has_value_equal_range_function_v<Impl, Val> ||
-                                                           has_map_at_function_v<Impl>);
+    [[maybe_unused]] constexpr static inline bool value =
+          has_map_equal_range_function_v<Impl> &&
+          (!has_value_equal_range_function_v<Impl, Val> || has_map_at_function_v<Impl>);
   };
   template <class Impl, class Val>
   struct is_map_impl<Impl, Val, true> {
-    [[maybe_unused]] constexpr static inline bool value = std::is_same_v<class_member_traits::get_key_type_member_t<Impl>,
-          std::remove_cv_t<std::tuple_element_t<0, Val>>>;
+    [[maybe_unused]] constexpr static inline bool value =
+          std::is_same_v<class_member_traits::get_key_type_member_t<Impl>,
+                         std::remove_cv_t<std::tuple_element_t<0, Val>>>;
   };
 
   template <class T, class ValueType, bool = is_tuple_v<ValueType>, class = void>
@@ -292,7 +287,8 @@ namespace associative_traits {
   template <class T, class ValueType, bool = class_member_traits::has_key_type_type_v<T>>
   constexpr static inline bool is_set_v = !is_map_v<T, ValueType> && has_value_equal_range_function_v<T, ValueType>;
   template <class T, class ValueType>
-  constexpr static inline bool is_set_v<T, ValueType, true> = std::is_same_v<class_member_traits::get_key_type_member_t<T>, std::remove_cv_t<ValueType>>;
+  constexpr static inline bool is_set_v<T, ValueType, true> =
+        std::is_same_v<class_member_traits::get_key_type_member_t<T>, std::remove_cv_t<ValueType>>;
 } // namespace associative_traits
 
 template <class T, bool all_defined, class = void>
@@ -305,9 +301,8 @@ struct range_traits_impl<T, true, std::enable_if_t<has_begin_end_iterators_v<T>>
   using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
   using iterator_tag                = typename it_traits::category;
 
-  constexpr static bool           defined = true;
-  constexpr static storage_type_t storage = has_std_data_v<T> ? storage_type_t::continuous
-                                                              : storage_type_t::discontinuous;
+  constexpr static bool defined    = true;
+  constexpr static bool continuous = has_std_data_v<T>;
 
   constexpr static range_type_t range =
         class_member_traits::has_length_v<T> ? range_type_t::string_like
@@ -334,7 +329,13 @@ struct range_traits_impl_helper<T, false, true> : range_traits_impl<T, is_define
 template <class M, bool any>
 struct range_traits<M, any, true> : range_traits_impl_helper<M, any> {};
 
-} // namespace bxlx::graph::type_classification::detail
+template <class T>
+struct is_string<T, false> : std::false_type {};
+
+template <class T>
+struct is_string<T, true> : std::bool_constant<range_traits<T>::range == range_type_t::string_like> {};
+
+} // namespace bxlx::graph::type_traits::detail
 
 
 #endif //BXLX_GRAPH_RANGE_TRAITS_HPP

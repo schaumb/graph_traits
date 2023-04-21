@@ -11,6 +11,7 @@
 #include <forward_list>
 #include <list>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -54,16 +55,15 @@ void test_example_graph_representations() { /*
 }
 
 template <class T>
-using templates = typename bxlx::graph::type_classification::detail::template_inspect<T>::types;
+using templates = typename bxlx::graph::type_traits::detail::template_inspect<T>::types;
 
 template <class Check, bool is_range = false>
 void check_is_tuple() {
-  using namespace bxlx::graph::type_classification;
+  using namespace bxlx::graph::type_traits;
   ASSERT(is_tuple_v<Check>);
   ASSERT(!is_optional_v<Check>);
   ASSERT(is_range == is_range_v<Check>);
   ASSERT(!is_bool_v<Check>);
-  ASSERT(!is_char_v<Check>);
   ASSERT(!is_index_v<Check>);
   ASSERT(!is_bitset_v<Check>);
 }
@@ -71,58 +71,50 @@ void check_is_tuple() {
 
 template <class Check>
 void check_is_optional() {
-  using namespace bxlx::graph::type_classification;
+  using namespace bxlx::graph::type_traits;
   ASSERT(!is_tuple_v<Check>);
   ASSERT(is_optional_v<Check>);
   ASSERT(!is_range_v<Check>);
   ASSERT(!is_bool_v<Check>);
-  ASSERT(!is_char_v<Check>);
   ASSERT(!is_index_v<Check>);
   ASSERT(!is_bitset_v<Check>);
 }
 
 template <class Check>
 void check_is_range() {
-  using namespace bxlx::graph::type_classification;
+  using namespace bxlx::graph::type_traits;
   ASSERT(!is_tuple_v<Check>);
   ASSERT(!is_optional_v<Check>);
   ASSERT(is_range_v<Check>);
   ASSERT(!is_bool_v<Check>);
-  ASSERT(!is_char_v<Check>);
   ASSERT(!is_index_v<Check>);
   ASSERT(!is_bitset_v<Check>);
 }
 
 template <class Check, bool is_range = false>
 void check_is_bitset() {
-  using namespace bxlx::graph::type_classification;
+  using namespace bxlx::graph::type_traits;
   ASSERT(!is_tuple_v<Check>);
   ASSERT(!is_optional_v<Check>);
   ASSERT(is_range == is_range_v<Check>);
   ASSERT(!is_bool_v<Check>);
-  ASSERT(!is_char_v<Check>);
   ASSERT(!is_index_v<Check>);
   ASSERT(is_bitset_v<Check>);
 }
 
-template <class Check,
-          class Reference,
-          class IteratorTag,
-          bxlx::graph::type_classification::detail::storage_type_t St,
-          bxlx::graph::type_classification::detail::range_type_t   Rt>
+template <class Check, class Reference, class IteratorTag, bool St, bxlx::graph::type_traits::range_type_t Rt>
 void check_range_type() {
-  using namespace bxlx::graph::type_classification;
+  using namespace bxlx::graph::type_traits;
   ASSERT(is_range_v<Check>);
-  using RT = bxlx::graph::type_classification::detail::range_traits<Check>;
-  ASSERT(std::is_same_v<typename RT::reference, Reference>);
-  ASSERT(std::is_base_of_v<IteratorTag, typename RT::iterator_tag>);
-  ASSERT(St == RT::storage);
-  ASSERT(Rt == RT::range);
+  ASSERT(std::is_same_v<range_reference_t<Check>, Reference>);
+  ASSERT(std::is_base_of_v<IteratorTag, range_iterator_tag_t<Check>>);
+  ASSERT(St == range_is_continuous_v<Check>);
+  ASSERT(Rt == range_type_v<Check>);
 }
 
 
 void test_type_traits() {
-  using namespace bxlx::graph::type_classification;
+  using namespace bxlx::graph::type_traits;
   check_is_tuple<tuple<int>>();
   check_is_tuple<tuple<int, float, edge_prop>>();
   check_is_tuple<pair<int, edge_prop>>();
@@ -146,22 +138,27 @@ void test_type_traits() {
   ASSERT(is_same_v<templates<edge_prop>, tuple<>>);
   ASSERT(is_same_v<templates<int[10]>, tuple<>>);
 
-  ASSERT(!detail::is_defined_v<edge_prop>);
-  ASSERT(!detail::is_defined_v<node_prop*>);
-  ASSERT(!detail::is_defined_v<optional<node_prop>>);
-  ASSERT(!detail::is_defined_v<tuple<int, node_prop, double>>);
-  ASSERT(!detail::is_defined_v<pair<int, node_prop>>);
+  ASSERT(!is_defined_v<edge_prop>);
+  ASSERT(!is_defined_v<node_prop*>);
+  ASSERT(!is_defined_v<optional<node_prop>>);
+  ASSERT(!is_defined_v<tuple<int, node_prop, double>>);
+  ASSERT(!is_defined_v<pair<int, node_prop>>);
 
-  ASSERT(detail::is_defined_v<vector<edge_prop>>);
+  ASSERT(is_defined_v<vector<edge_prop>>);
 
   // These are different on platforms
-  // ASSERT(detail::is_defined_v<deque<edge_prop>>);
-  // ASSERT(!detail::is_defined_v<unordered_map<int, edge_prop>>);
+  // ASSERT(is_defined_v<deque<edge_prop>>);
+  // ASSERT(!is_defined_v<unordered_map<int, edge_prop>>);
 
   check_is_optional<optional<node_prop>>();
   check_is_optional<node_prop*>();
   check_is_optional<const volatile node_prop* const>();
   check_is_optional<const std::optional<int>>();
+
+  class A;
+  check_is_optional<std::unique_ptr<A>>();
+  check_is_optional<std::shared_ptr<A>>();
+  // check_is_optional<std::shared_ptr<A[]>>();
   ASSERT(!is_optional_v<int[10]>);
   ASSERT(!is_optional_v<int[]>);
   ASSERT(!is_optional_v<node_prop[]>);
@@ -183,9 +180,6 @@ void test_type_traits() {
   ASSERT(!is_bool_v<std::reference_wrapper<bool>>);
   ASSERT(!is_bool_v<std::atomic<bool>>);
 
-  ASSERT(is_char_v<volatile wchar_t>);
-  ASSERT(!is_char_v<std::uint8_t>);
-
   enum ASDASD {};
   ASSERT(is_index_v<std::size_t>);
   ASSERT(is_index_v<std::atomic<int>>);
@@ -203,33 +197,30 @@ void test_type_traits() {
   ASSERT(!is_bitset_v<unordered_map<int, edge_prop>>);
 
 
-  check_range_type<std::vector<edge_prop>, edge_prop&, std::random_access_iterator_tag,
-                   detail::storage_type_t::continuous, detail::range_type_t::sequence>();
+  check_range_type<std::vector<edge_prop>, edge_prop&, std::random_access_iterator_tag, true, range_type_t::sequence>();
 
-  check_range_type<const std::deque<edge_prop>, const edge_prop&, std::random_access_iterator_tag,
-                   detail::storage_type_t::discontinuous, detail::range_type_t::queue_like>();
+  check_range_type<const std::deque<edge_prop>, const edge_prop&, std::random_access_iterator_tag, false,
+                   range_type_t::queue_like>();
 
-  check_range_type<std::forward_list<edge_prop>, edge_prop&, std::forward_iterator_tag,
-                   detail::storage_type_t::discontinuous, detail::range_type_t::sequence>();
+  check_range_type<std::forward_list<edge_prop>, edge_prop&, std::forward_iterator_tag, false,
+                   range_type_t::sequence>();
 
-  check_range_type<std::list<int>, int&, std::bidirectional_iterator_tag, detail::storage_type_t::discontinuous,
-                   detail::range_type_t::queue_like>();
+  check_range_type<std::list<int>, int&, std::bidirectional_iterator_tag, false, range_type_t::queue_like>();
 
   check_range_type<std::set<std::pair<int, node_prop>>, const std::pair<int, node_prop>&,
-                   std::bidirectional_iterator_tag, detail::storage_type_t::discontinuous,
-                   detail::range_type_t::set_like>();
+                   std::bidirectional_iterator_tag, false, range_type_t::set_like>();
 
-  check_range_type<std::map<node_prop, int>, std::pair<const node_prop, int>&, std::bidirectional_iterator_tag,
-                   detail::storage_type_t::discontinuous, detail::range_type_t::map_like>();
+  check_range_type<std::map<node_prop, int>, std::pair<const node_prop, int>&, std::bidirectional_iterator_tag, false,
+                   range_type_t::map_like>();
 
-  check_range_type<std::unordered_set<node_prop>, const node_prop&, std::forward_iterator_tag,
-                   detail::storage_type_t::discontinuous, detail::range_type_t::set_like>();
+  check_range_type<std::unordered_set<node_prop>, const node_prop&, std::forward_iterator_tag, false,
+                   range_type_t::set_like>();
 
   check_range_type<std::unordered_set<std::pair<node_prop, int>>, const std::pair<node_prop, int>&,
-                   std::forward_iterator_tag, detail::storage_type_t::discontinuous, detail::range_type_t::set_like>();
+                   std::forward_iterator_tag, false, range_type_t::set_like>();
 
   check_range_type<std::unordered_map<node_prop, int>, std::pair<const node_prop, int>&, std::forward_iterator_tag,
-                   detail::storage_type_t::discontinuous, detail::range_type_t::map_like>();
+                   false, range_type_t::map_like>();
 }
 int main() {
   // test_example_graph_representations();

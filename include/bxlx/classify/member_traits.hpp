@@ -10,7 +10,7 @@
 
 #include <type_traits>
 
-namespace bxlx::graph::type_classification::detail {
+namespace bxlx::graph::type_traits::detail {
 
 template <class Type, class ResDed, class = void, class... Args>
 struct member_function_invoke_result {
@@ -207,6 +207,6 @@ namespace class_member_traits {
                      std::void_t<decltype(member_function_invoke_result_v<Range, void, SizeType>(&Range::resize))>> =
               true;
 } // namespace class_member_traits
-} // namespace bxlx::graph::type_classification::detail
+} // namespace bxlx::graph::type_traits::detail
 
 #endif //BXLX_GRAPH_MEMBER_TRAITS_HPP

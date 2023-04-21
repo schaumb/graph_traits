@@ -14,7 +14,7 @@
 
 #include "member_traits.hpp"
 
-namespace bxlx::graph::type_classification {
+namespace bxlx::graph::type_traits {
 
 template <class, class = void>
 constexpr inline bool is_tuple_v = false;
@@ -87,6 +87,8 @@ namespace detail {
 
   template <class T, bool is_defined = false, bool = !is_tuple_v<T>, class = void>
   struct range_traits;
+
+  enum class range_type_t;
 
   template <class, bool = false, class = void>
   constexpr inline bool is_range_v = false;
@@ -176,6 +178,18 @@ namespace detail {
   constexpr inline bool has_subscript_operator_v = false;
   template <class T>
   constexpr inline bool has_subscript_operator_v<T, std::void_t<subscript_operator_return_t<T>>> = true;
+
+  template <class CVT, class T = std::remove_cv_t<CVT>>
+  constexpr inline bool is_char_v = std::is_same_v<T, char> || std::is_same_v<T, char16_t> ||
+                                    std::is_same_v<T, char32_t> || std::is_same_v<T, wchar_t> ||
+                                    std::is_same_v<T, decltype(u8'\0')>;
+  // C++17 -> u8'\0' is same type as char, but C++20 it is char8_t, which is different from char
+
+  template <class T, bool = is_range_v<T>>
+  struct is_string;
+
+  template <class T>
+  constexpr inline bool is_string_v = is_string<T>::value;
 } // namespace detail
 
 template <class T>
@@ -190,25 +204,27 @@ template <class T>
 using range_value_t = typename detail::range_traits<T>::value_type;
 template <class T>
 using range_reference_t = typename detail::range_traits<T>::reference;
+template <class T>
+using range_iterator_tag_t = typename detail::range_traits<T>::iterator_tag;
+
+using detail::range_type_t;
 
 template <class T>
-constexpr inline bool is_range_v = detail::is_range_v<T>;
+constexpr inline range_type_t range_type_v = detail::range_traits<T>::range;
+
+template <class T>
+constexpr inline bool range_is_continuous_v = detail::range_traits<T>::continuous;
+
+template <class T>
+constexpr inline bool is_range_v = detail::is_range_v<T> && !detail::is_string_v<T>;
 
 template <class T>
 [[maybe_unused]] constexpr inline bool is_bool_v =
       std::is_same_v<std::remove_cv_t<T>, bool> || detail::is_bool_ref_v<T>;
 
-
-template <class CVT, class T = std::remove_cv_t<CVT>>
-constexpr inline bool is_char_v = std::is_same_v<T, char> || std::is_same_v<T, char16_t> ||
-                                  std::is_same_v<T, char32_t> || std::is_same_v<T, wchar_t> ||
-                                  std::is_same_v<T, decltype(u8'\0')>;
-// C++17 -> u8'\0' is same type as char, but C++20 it is char8_t, which is different from char
-
-
 template <class T>
 [[maybe_unused]] constexpr inline bool is_index_v =
-      !std::is_same_v<bool, std::remove_cv_t<T>> && !is_char_v<T> &&
+      !std::is_same_v<bool, std::remove_cv_t<T>> && !detail::is_char_v<T> &&
       (std::is_integral_v<T> || detail::is_size_t_v<T> || std::is_enum_v<T>);
 
 
@@ -220,7 +236,9 @@ constexpr inline bool is_bitset_v = false;
 template <class T>
 constexpr inline bool is_bitset_v<T, true, std::enable_if_t<detail::is_bool_ref_v<bitset_reference_t<T>>>> = true;
 
+template <class T>
+constexpr inline bool is_defined_v = detail::is_defined_v<T>;
 
-} // namespace bxlx::graph::type_classification
+} // namespace bxlx::graph::type_traits
 
 #endif //BXLX_GRAPH_TYPE_TRAITS_HPP
