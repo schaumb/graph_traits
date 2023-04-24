@@ -10,10 +10,6 @@
 
 #include "type_traits.hpp"
 
-#if defined(_MSC_VER)
-#include <array>
-#endif
-
 namespace bxlx::graph::type_traits::detail {
 
 enum class range_type_t {
@@ -47,18 +43,6 @@ struct known_range<const enable_if_is_known_range<T>> : known_range<T> {
                                                           orig_reference>>;
 };
 
-#if defined(_MSC_VER)
-template <class M, std::size_t S>
-struct known_range<std::array<M, S>> {
-  using reference    = M&;
-  using value_type   = M;
-  using iterator_tag = std::random_access_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<M>;
-  constexpr static bool         continuous = true;
-  constexpr static range_type_t range      = range_type_t::sequence;
-};
-#endif
 
 template <class T, bool any>
 struct range_traits<T, any, std::enable_if_t<is_known_range_v<T>>> : known_range<T> {};
