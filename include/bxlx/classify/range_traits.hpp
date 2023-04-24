@@ -48,19 +48,19 @@ enum class range_type_t {
 template <class T,
           class U = std::remove_cv_t<T>,
           class   = std::enable_if_t<std::is_same_v<T, U>>,
-          class   = typename range_traits<T>::value_type>
-using enable_if_is_range = T;
+          class   = typename known_range<T>::value_type>
+using enable_if_is_known_range = T;
 
-template <class T, bool any, bool any2>
-struct range_traits<volatile enable_if_is_range<T>, any, any2> : range_traits<T> {};
+template <class T>
+struct known_range<volatile enable_if_is_known_range<T>> : known_range<T> {};
 
-template <class T, bool any, bool any2>
-struct range_traits<const volatile enable_if_is_range<const T>, any, any2> : range_traits<const T> {};
+template <class T>
+struct known_range<const volatile enable_if_is_known_range<const T>> : known_range<const T> {};
 
-template <class T, bool any>
-struct range_traits<const enable_if_is_range<T>, any, true> : range_traits<T> {
-  using value_type     = std::add_const_t<typename range_traits<T>::value_type>;
-  using orig_reference = typename range_traits<T>::reference;
+template <class T>
+struct known_range<const enable_if_is_known_range<T>> : known_range<T> {
+  using value_type     = std::add_const_t<typename known_range<T>::value_type>;
+  using orig_reference = typename known_range<T>::reference;
   using reference      = std::conditional_t<std::is_lvalue_reference_v<orig_reference>,
                                        std::add_lvalue_reference_t<value_type>,
                                        std::conditional_t<std::is_rvalue_reference_v<orig_reference>,
@@ -68,8 +68,8 @@ struct range_traits<const enable_if_is_range<T>, any, true> : range_traits<T> {
                                                           orig_reference>>;
 };
 
-template <bool any, class M, std::size_t S>
-struct range_traits<std::array<M, S>, any, false /* it is a tuple */> {
+template <class M, std::size_t S>
+struct known_range<std::array<M, S>> {
   using reference    = M&;
   using value_type   = M;
   using iterator_tag = std::random_access_iterator_tag;
@@ -79,8 +79,8 @@ struct range_traits<std::array<M, S>, any, false /* it is a tuple */> {
   constexpr static range_type_t range      = range_type_t::sequence;
 };
 
-template <bool any, class CharT, class... Others>
-struct range_traits<std::basic_string<CharT, Others...>, any, true> {
+template <class CharT, class... Others>
+struct known_range<std::basic_string<CharT, Others...>> {
   using reference    = CharT&;
   using value_type   = CharT;
   using iterator_tag = std::random_access_iterator_tag;
@@ -90,8 +90,8 @@ struct range_traits<std::basic_string<CharT, Others...>, any, true> {
   constexpr static range_type_t range      = range_type_t::string_like;
 };
 
-template <bool any, class CharT, class... Others>
-struct range_traits<std::basic_string_view<CharT, Others...>, any, true> {
+template <class CharT, class... Others>
+struct known_range<std::basic_string_view<CharT, Others...>> {
   using reference    = CharT&;
   using value_type   = CharT;
   using iterator_tag = std::random_access_iterator_tag;
@@ -103,8 +103,8 @@ struct range_traits<std::basic_string_view<CharT, Others...>, any, true> {
 
 #ifdef BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED
 #  undef BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED
-template <bool any, class M, class... Others>
-struct range_traits<std::deque<M, Others...>, any, true> {
+template <class M, class... Others>
+struct known_range<std::deque<M, Others...>> {
   using reference    = M&;
   using value_type   = M;
   using iterator_tag = std::random_access_iterator_tag;
@@ -117,8 +117,8 @@ struct range_traits<std::deque<M, Others...>, any, true> {
 
 #ifdef BXLX_GRAPH_RANGE_TRAITS_REGEX_NEEDED
 #  undef BXLX_GRAPH_RANGE_TRAITS_REGEX_NEEDED
-template <bool any, class M, class... Others>
-struct range_traits<std::match_results<M, Others...>, any, true> {
+template <class M, class... Others>
+struct known_range<std::match_results<M, Others...>> {
   using reference    = const std::sub_match<M>&;
   using value_type   = std::sub_match<M>;
   using iterator_tag = std::random_access_iterator_tag;
@@ -131,8 +131,8 @@ struct range_traits<std::match_results<M, Others...>, any, true> {
 
 #ifdef BXLX_GRAPH_RANGE_TRAITS_UNORDERED_SET_NEEDED
 #  undef BXLX_GRAPH_RANGE_TRAITS_UNORDERED_SET_NEEDED
-template <bool any, class M, class... Others>
-struct range_traits<std::unordered_set<M, Others...>, any, true> {
+template <class M, class... Others>
+struct known_range<std::unordered_set<M, Others...>> {
   using reference    = const M&;
   using value_type   = const M;
   using iterator_tag = std::forward_iterator_tag;
@@ -141,8 +141,8 @@ struct range_traits<std::unordered_set<M, Others...>, any, true> {
   constexpr static bool         continuous = false;
   constexpr static range_type_t range      = range_type_t::set_like;
 };
-template <bool any, class M, class... Others>
-struct range_traits<std::unordered_multiset<M, Others...>, any, true> {
+template <class M, class... Others>
+struct known_range<std::unordered_multiset<M, Others...>> {
   using reference    = const M&;
   using value_type   = const M;
   using iterator_tag = std::forward_iterator_tag;
@@ -155,8 +155,8 @@ struct range_traits<std::unordered_multiset<M, Others...>, any, true> {
 
 #ifdef BXLX_GRAPH_RANGE_TRAITS_UNORDERED_MAP_NEEDED
 #  undef BXLX_GRAPH_RANGE_TRAITS_UNORDERED_MAP_NEEDED
-template <bool any, class K, class V, class... Others>
-struct range_traits<std::unordered_map<K, V, Others...>, any, true> {
+template <class K, class V, class... Others>
+struct known_range<std::unordered_map<K, V, Others...>> {
   using reference    = std::pair<const K, V>&;
   using value_type   = std::pair<const K, V>;
   using iterator_tag = std::forward_iterator_tag;
@@ -165,8 +165,8 @@ struct range_traits<std::unordered_map<K, V, Others...>, any, true> {
   constexpr static bool         continuous = false;
   constexpr static range_type_t range      = range_type_t::map_like;
 };
-template <bool any, class K, class V, class... Others>
-struct range_traits<std::unordered_multimap<K, V, Others...>, any, true> {
+template <class K, class V, class... Others>
+struct known_range<std::unordered_multimap<K, V, Others...>> {
   using reference    = std::pair<const K, V>&;
   using value_type   = std::pair<const K, V>;
   using iterator_tag = std::forward_iterator_tag;
@@ -181,12 +181,14 @@ struct range_traits<std::unordered_multimap<K, V, Others...>, any, true> {
 #  undef BXLX_GRAPH_RANGE_TRAITS_RANGES_NEEDED
 // probably it is not necessary this whole if.
 /*
-template <class M, bool any, bool any2>
-      struct range_traits < M,
-      any, any2, std::enable_if_t<std::is_base_of_v<std::ranges::view_interface<M>, M>>;
+template <class M>
+      struct known_range < M, std::enable_if_t<std::is_base_of_v<std::ranges::view_interface<M>, M>>;
 */
 #endif
 
+
+template <class T, bool any>
+struct range_traits<T, any, std::enable_if_t<is_known_range_v<T>>> : known_range<T> {};
 
 template <class T>
 using std_begin_t = decltype(std::begin(std::declval<T&>()));
@@ -306,9 +308,9 @@ struct range_traits_impl<T, true, std::enable_if_t<has_begin_end_iterators_v<T>>
 
   constexpr static range_type_t range =
         class_member_traits::has_length_v<T> ? range_type_t::string_like
-        : class_member_traits::has_push_front_v<std::remove_const_t<T>, std::add_rvalue_reference_t<value_type>> &&
+        : class_member_traits::has_push_front_v<std::remove_const_t<T>, std::add_rvalue_reference_t<std::remove_const_t<value_type>>> &&
                     class_member_traits::has_push_back_v<std::remove_const_t<T>,
-                                                         std::add_rvalue_reference_t<value_type>>
+                                                         std::add_rvalue_reference_t<std::remove_const_t<value_type>>>
               ? range_type_t::queue_like
         : associative_traits::is_map_v<T, value_type> ? range_type_t::map_like
         : associative_traits::is_set_v<T, value_type> ? range_type_t::set_like
@@ -316,18 +318,8 @@ struct range_traits_impl<T, true, std::enable_if_t<has_begin_end_iterators_v<T>>
 };
 
 
-template <class T, bool, bool = !is_optional_v<T, true>>
-struct range_traits_impl_helper {};
-
-template <class T>
-struct range_traits_impl_helper<T, true, true> : range_traits_impl<T, true> {};
-
-template <class T>
-struct range_traits_impl_helper<T, false, true> : range_traits_impl<T, is_defined_v<T>> {};
-
-
-template <class M, bool any>
-struct range_traits<M, any, true> : range_traits_impl_helper<M, any> {};
+template <class M>
+struct range_traits<M, true, std::enable_if_t<!is_known_range_v<M>>> : range_traits_impl<M, !is_known_optional_v<M>> {};
 
 template <class T>
 struct is_string<T, false> : std::false_type {};

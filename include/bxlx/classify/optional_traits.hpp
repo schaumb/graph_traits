@@ -14,41 +14,45 @@
 namespace bxlx::graph::type_traits::detail {
 
 template <class T,
-          class U = std::remove_cv_t<T>,
+          class U = std::remove_volatile_t<T>,
           class   = std::enable_if_t<std::is_same_v<T, U>>,
-          class   = typename optional_traits<T>::value_type>
-using enable_if_is_optional = T;
+          class   = typename known_optional<T>::value_type>
+using enable_if_is_known_optional = T;
 
-template <class T, bool any, bool any2>
-struct optional_traits<volatile enable_if_is_optional<T>, any, any2> : optional_traits<T> {};
+template <class T>
+struct known_optional<volatile enable_if_is_known_optional<T>> : known_optional<T> {};
 
-template <class T, bool any, bool any2>
-struct optional_traits<const volatile enable_if_is_optional<const T>, any, any2> : optional_traits<const T> {};
+template <class T>
+struct known_optional<const volatile enable_if_is_known_optional<const T>> : known_optional<const T> {};
 
 
-template <class V, bool any>
-struct optional_traits<std::optional<V>, any, true> {
+template <class V>
+struct known_optional<std::optional<V>> {
   using value_type = V;
   using reference  = V&;
 };
 
-template <class V, bool any>
-struct optional_traits<const std::optional<V>, any, true> {
+template <class V>
+struct known_optional<const std::optional<V>> {
   using value_type = V const;
   using reference  = V const&;
 };
 
-template <class V, bool any>
-struct optional_traits<V*, any, true> {
+template <class V>
+struct known_optional<V*, std::enable_if_t<!std::is_void_v<V>>> {
   using value_type = V;
   using reference  = V&;
 };
 
-template <class V, bool any>
-struct optional_traits<V* const, any, true> {
+template <class V>
+struct known_optional<V* const, std::enable_if_t<!std::is_void_v<V>>> {
   using value_type = V;
   using reference  = V&;
 };
+
+template <class T, bool any>
+struct optional_traits<T, any, std::enable_if_t<is_known_optional_v<T>>> : known_optional<T> {};
+
 
 template <class T, bool all_defined, class = void>
 struct optional_traits_impl {};
@@ -61,17 +65,8 @@ struct optional_traits_impl<T,
   using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
 };
 
-template <class T, bool r, bool = !is_range_v<T, r>>
-struct optional_traits_impl_helper {};
-
 template <class T>
-struct optional_traits_impl_helper<T, true, true> : optional_traits_impl<T, true> {};
-
-template <class T>
-struct optional_traits_impl_helper<T, false, true> : optional_traits_impl<T, is_defined_v<T>> {};
-
-template <class T, bool any>
-struct optional_traits<T, any, true> : optional_traits_impl_helper<T, any> {};
+struct optional_traits<T, true, std::enable_if_t<!is_known_optional_v<T>>> : optional_traits_impl<T, !is_known_range_v<T>> {};
 
 } // namespace bxlx::graph::type_traits::detail
 

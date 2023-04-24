@@ -70,34 +70,53 @@ namespace detail {
   template <class T>
   struct is_defined<T, std::enable_if_t<std::is_array_v<T>>> : is_defined<std::remove_extent_t<T>> {};
 
+  template <class, class = void>
+  struct known_optional;
+
+  template <class, class = void>
+  constexpr inline bool is_known_optional_v = false;
+  template <class T>
+  constexpr inline bool is_known_optional_v<T, std::void_t<typename known_optional<T>::value_type>> =
+        true;
+
   template <class T,
-            bool /* is_defined check */ = false,
-            bool = !is_tuple_v<T> && !std::is_array_v<T> && !std::is_void_v<std::remove_pointer_t<T>>>
+            bool = !is_tuple_v<T> && !std::is_array_v<T> && !std::is_void_v<std::remove_pointer_t<T>>,
+            class = void>
   struct optional_traits;
 
-  template <class, bool = false, class = void>
+  template <class, class = void>
   constexpr inline bool is_optional_v = false;
-  template <class T, bool is_defined>
-  constexpr inline bool is_optional_v<T, is_defined, std::void_t<typename optional_traits<T, is_defined>::value_type>> =
+  template <class T>
+  constexpr inline bool is_optional_v<T, std::void_t<typename optional_traits<T>::value_type>> =
         true;
 
   template <class T>
-  struct is_defined<T, std::enable_if_t<is_optional_v<T, true>>>
-        : is_defined<typename optional_traits<T, true>::value_type> {};
+  struct is_defined<T, std::enable_if_t<is_optional_v<T>>>
+        : is_defined<typename optional_traits<T>::value_type> {};
 
-  template <class T, bool is_defined = false, bool = !is_tuple_v<T>, class = void>
+
+  template <class, class = void>
+  struct known_range;
+
+  template <class, class = void>
+  constexpr inline bool is_known_range_v = false;
+  template <class T>
+  constexpr inline bool is_known_range_v<T, std::void_t<typename known_range<T>::value_type>> =
+        true;
+
+  template <class T, bool = !is_tuple_v<T>, class = void>
   struct range_traits;
 
   enum class range_type_t;
 
-  template <class, bool = false, class = void>
+  template <class, class = void>
   constexpr inline bool is_range_v = false;
-  template <class T, bool is_defined>
-  constexpr inline bool is_range_v<T, is_defined, std::void_t<typename range_traits<T, is_defined>::value_type>> = true;
+  template <class T>
+  constexpr inline bool is_range_v<T, std::void_t<typename range_traits<T>::value_type>> = true;
 
   template <class T>
-  struct is_defined<T, std::enable_if_t<is_range_v<T, true> && !is_tuple_v<T>>>
-        : std::bool_constant<range_traits<T, true>::defined> {};
+  struct is_defined<T, std::enable_if_t<is_range_v<T> && !is_tuple_v<T>>>
+        : std::bool_constant<range_traits<T>::defined> {};
 
   template <class From, class To, bool IsConvertible = std::is_convertible_v<From, To>>
   struct is_nothrow_convertible_impl : std::false_type {};
