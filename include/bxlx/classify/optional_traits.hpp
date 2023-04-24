@@ -68,8 +68,8 @@ struct optional_traits_impl<T,
 
 struct defined_optional_value {};
 
-template <template <class> class Opt, class O>
-struct optional_traits_impl<Opt<O>,
+template <template <class, class...> class Opt, class O, class...Oth>
+struct optional_traits_impl<Opt<O, Oth...>,
                             true,
                             false,
                             std::enable_if_t<!is_defined_v<O> && is_optional_v<Opt<defined_optional_value>>>> {

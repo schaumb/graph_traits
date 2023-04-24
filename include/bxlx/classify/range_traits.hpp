@@ -438,15 +438,25 @@ struct undef_if_false<true, Classes...> {
   constexpr static bool value = true;
 };
 
+template <class R, bool = two_required_templated_class<R>::value>
+struct replaced_is_range {
+  using type = R;
+};
+template <template <class, class, class...> class Range, class K, class M, class... Other>
+struct replaced_is_range<Range<K, M, Other...>, true> {
+  using type = Range<std::conditional_t<is_defined_v<K>, K, defined_range_key>,
+                     std::conditional_t<is_defined_v<M>, M, defined_range_value>>;
+
+  constexpr static bool value = is_range_v<type>;
+};
+
+
 template <template <class, class, class...> class Range, class K, class M, class... Other>
 struct range_traits_impl<
       Range<K, M, Other...>,
       true,
       false,
-      std::enable_if_t<(!is_defined_v<K> ||
-                        !is_defined_v<M>)&&!one_required_templated_class<Range<K, M, Other...>>::value &&
-                       is_range_v<Range<std::conditional_t<is_defined_v<K>, K, defined_range_key>,
-                                        std::conditional_t<is_defined_v<M>, M, defined_range_value>>>>> {
+      std::enable_if_t<(!is_defined_v<K> || !is_defined_v<M>)&&replaced_is_range<Range<K, M, Other...>>::value>> {
   using the_range = Range<std::conditional_t<is_defined_v<K>, K, defined_range_key>,
                           std::conditional_t<is_defined_v<M>, M, defined_range_value>>;
   using rref      = range_reference_t<the_range>;
