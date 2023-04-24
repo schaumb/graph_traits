@@ -25,19 +25,6 @@ struct known_optional<volatile enable_if_is_known_optional<T>> : known_optional<
 template <class T>
 struct known_optional<const volatile enable_if_is_known_optional<const T>> : known_optional<const T> {};
 
-
-template <class V>
-struct known_optional<std::optional<V>> {
-  using value_type = V;
-  using reference  = V&;
-};
-
-template <class V>
-struct known_optional<const std::optional<V>> {
-  using value_type = V const;
-  using reference  = V const&;
-};
-
 template <class V>
 struct known_optional<V*, std::enable_if_t<!std::is_void_v<V>>> {
   using value_type = V;

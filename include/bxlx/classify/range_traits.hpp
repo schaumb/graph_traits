@@ -9,8 +9,6 @@
 #define BXLX_GRAPH_RANGE_TRAITS_HPP
 
 #include <array>
-#include <string>
-#include <string_view>
 
 #include "type_traits.hpp"
 
@@ -18,21 +16,6 @@
 #if defined(_MSC_VER) || defined(__APPLE__)
 #  include <deque>
 #  define BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED 1
-#  include <regex>
-#  define BXLX_GRAPH_RANGE_TRAITS_REGEX_NEEDED 1
-#endif
-
-#if (defined(__clang__) /* && __clang_major__ < 15 */) ||                                                              \
-      (!defined(__clang__) && defined(__GNUC__) /* && __GNUC__ < 12 */)
-#  include <unordered_set>
-#  define BXLX_GRAPH_RANGE_TRAITS_UNORDERED_SET_NEEDED 1
-#  include <unordered_map>
-#  define BXLX_GRAPH_RANGE_TRAITS_UNORDERED_MAP_NEEDED 1
-#endif
-
-#ifdef __cpp_lib_ranges
-#  include <ranges>
-#  define BXLX_GRAPH_RANGE_TRAITS_RANGES_NEEDED 1
 #endif
 
 namespace bxlx::graph::type_traits::detail {
@@ -79,28 +62,6 @@ struct known_range<std::array<M, S>> {
   constexpr static range_type_t range      = range_type_t::sequence;
 };
 
-template <class CharT, class... Others>
-struct known_range<std::basic_string<CharT, Others...>> {
-  using reference    = CharT&;
-  using value_type   = CharT;
-  using iterator_tag = std::random_access_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<CharT>;
-  constexpr static bool         continuous = true;
-  constexpr static range_type_t range      = range_type_t::string_like;
-};
-
-template <class CharT, class... Others>
-struct known_range<std::basic_string_view<CharT, Others...>> {
-  using reference    = CharT&;
-  using value_type   = CharT;
-  using iterator_tag = std::random_access_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<CharT>;
-  constexpr static bool         continuous = true;
-  constexpr static range_type_t range      = range_type_t::string_like;
-};
-
 #ifdef BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED
 #  undef BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED
 template <class M, class... Others>
@@ -113,77 +74,6 @@ struct known_range<std::deque<M, Others...>> {
   constexpr static bool         continuous = false;
   constexpr static range_type_t range      = range_type_t::queue_like;
 };
-#endif
-
-#ifdef BXLX_GRAPH_RANGE_TRAITS_REGEX_NEEDED
-#  undef BXLX_GRAPH_RANGE_TRAITS_REGEX_NEEDED
-template <class M, class... Others>
-struct known_range<std::match_results<M, Others...>> {
-  using reference    = const std::sub_match<M>&;
-  using value_type   = std::sub_match<M>;
-  using iterator_tag = std::random_access_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<M>;
-  constexpr static bool         continuous = false;
-  constexpr static range_type_t range      = range_type_t::sequence;
-};
-#endif
-
-#ifdef BXLX_GRAPH_RANGE_TRAITS_UNORDERED_SET_NEEDED
-#  undef BXLX_GRAPH_RANGE_TRAITS_UNORDERED_SET_NEEDED
-template <class M, class... Others>
-struct known_range<std::unordered_set<M, Others...>> {
-  using reference    = const M&;
-  using value_type   = const M;
-  using iterator_tag = std::forward_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<M>;
-  constexpr static bool         continuous = false;
-  constexpr static range_type_t range      = range_type_t::set_like;
-};
-template <class M, class... Others>
-struct known_range<std::unordered_multiset<M, Others...>> {
-  using reference    = const M&;
-  using value_type   = const M;
-  using iterator_tag = std::forward_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<M>;
-  constexpr static bool         continuous = false;
-  constexpr static range_type_t range      = range_type_t::set_like;
-};
-#endif
-
-#ifdef BXLX_GRAPH_RANGE_TRAITS_UNORDERED_MAP_NEEDED
-#  undef BXLX_GRAPH_RANGE_TRAITS_UNORDERED_MAP_NEEDED
-template <class K, class V, class... Others>
-struct known_range<std::unordered_map<K, V, Others...>> {
-  using reference    = std::pair<const K, V>&;
-  using value_type   = std::pair<const K, V>;
-  using iterator_tag = std::forward_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<K> && is_defined_v<V>;
-  constexpr static bool         continuous = false;
-  constexpr static range_type_t range      = range_type_t::map_like;
-};
-template <class K, class V, class... Others>
-struct known_range<std::unordered_multimap<K, V, Others...>> {
-  using reference    = std::pair<const K, V>&;
-  using value_type   = std::pair<const K, V>;
-  using iterator_tag = std::forward_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<K> && is_defined_v<V>;
-  constexpr static bool         continuous = false;
-  constexpr static range_type_t range      = range_type_t::map_like;
-};
-#endif
-
-#ifdef BXLX_GRAPH_RANGE_TRAITS_RANGES_NEEDED
-#  undef BXLX_GRAPH_RANGE_TRAITS_RANGES_NEEDED
-// probably it is not necessary this whole if.
-/*
-template <class M>
-      struct known_range < M, std::enable_if_t<std::is_base_of_v<std::ranges::view_interface<M>, M>>;
-*/
 #endif
 
 
