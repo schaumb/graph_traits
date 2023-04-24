@@ -16,18 +16,18 @@ jobs:
         - { cc: "gcc-11",     cxx: "g++-11"      }
         # - { cc: "gcc-12",     cxx: "g++-12"      }
         # - { cc: "clang-5.0",  cxx: "clang++-5.0" }
-        - { cc: "clang-6.0",  cxx: "clang++-6.0" }
-        - { cc: "clang-7",    cxx: "clang++-7"   }
-        - { cc: "clang-8",    cxx: "clang++-8"   }
-        - { cc: "clang-9",    cxx: "clang++-9"   }
-        - { cc: "clang-10",   cxx: "clang++-10"  }
-        - { cc: "clang-11",   cxx: "clang++-11"  }
-        - { cc: "clang-12",   cxx: "clang++-12"  }
-        - { cc: "clang-13",   cxx: "clang++-13"  }
-        - { cc: "clang-14",   cxx: "clang++-14"  }
-        - { cc: "clang-15",   cxx: "clang++-15"  }
-        - { cc: "clang-16",   cxx: "clang++-16"  }
-        - { cc: "clang-17",   cxx: "clang++-17"  }
+        - { cc: "clang-6.0",  cxx: "clang++-6.0", repo_suffix: "" }
+        - { cc: "clang-7",    cxx: "clang++-7", repo_suffix: ""   }
+        - { cc: "clang-8",    cxx: "clang++-8", repo_suffix: ""   }
+        - { cc: "clang-9",    cxx: "clang++-9", repo_suffix: "-9"   }
+        - { cc: "clang-10",   cxx: "clang++-10", repo_suffix: "-10"  }
+        - { cc: "clang-11",   cxx: "clang++-11", repo_suffix: "-11"  }
+        - { cc: "clang-12",   cxx: "clang++-12", repo_suffix: "-12"  }
+        - { cc: "clang-13",   cxx: "clang++-13", repo_suffix: "-13"  }
+        - { cc: "clang-14",   cxx: "clang++-14", repo_suffix: "-14"  }
+        - { cc: "clang-15",   cxx: "clang++-15", repo_suffix: "-15"  }
+        - { cc: "clang-16",   cxx: "clang++-16", repo_suffix: "-16"  }
+        - { cc: "clang-17",   cxx: "clang++-17", repo_suffix: ""  }
 
     name: "${{matrix.compiler.cc}}"
     steps:
@@ -37,15 +37,7 @@ jobs:
       run: |
         if [[ "${{matrix.compiler.cc}}" == "clang"* ]]; then
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-9 main"
-          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-10 main"
-          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main"
-          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main"
-          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main"
-          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-14 main"
-          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-15 main"
-          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-16 main"
-          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal main"
+          sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal${{matrix.compiler.repo_suffix}} main"
           sudo apt update
           sudo apt install ${{matrix.compiler.cc}} -y
         fi

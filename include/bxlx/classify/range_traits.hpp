@@ -20,33 +20,6 @@ enum class range_type_t {
   set_like     /* has key_type, equal to value_type */
 };
 
-template <class T,
-          class U = std::remove_volatile_t<T>,
-          class   = std::enable_if_t<std::is_same_v<T, U>>,
-          class   = typename known_range<T>::value_type>
-using enable_if_is_known_range = T;
-
-template <class T>
-struct known_range<volatile enable_if_is_known_range<T>> : known_range<T> {};
-
-template <class T>
-struct known_range<const volatile enable_if_is_known_range<const T>> : known_range<const T> {};
-
-template <class T>
-struct known_range<const enable_if_is_known_range<T>> : known_range<T> {
-  using value_type     = std::add_const_t<typename known_range<T>::value_type>;
-  using orig_reference = typename known_range<T>::reference;
-  using reference      = std::conditional_t<std::is_lvalue_reference_v<orig_reference>,
-                                       std::add_lvalue_reference_t<value_type>,
-                                       std::conditional_t<std::is_rvalue_reference_v<orig_reference>,
-                                                          std::add_rvalue_reference_t<orig_reference>,
-                                                          orig_reference>>;
-};
-
-
-template <class T, bool any>
-struct range_traits<T, any, std::enable_if_t<is_known_range_v<T>>> : known_range<T> {};
-
 template <class T>
 using std_begin_t = decltype(std::begin(std::declval<T&>()));
 template <class T>
@@ -401,11 +374,11 @@ struct range_traits_impl<
 };
 
 template <class M>
-struct range_traits<M, true, std::enable_if_t<!is_known_range_v<M> && required_template_arguments_defined_v<M>>>
-      : range_traits_impl<M, !is_known_optional_v<M>, true> {};
+struct range_traits<M, true, std::enable_if_t<required_template_arguments_defined_v<M>>>
+      : range_traits_impl<M, true, true> {};
 
 template <class M>
-struct range_traits<M, true, std::enable_if_t<!is_known_range_v<M> && !required_template_arguments_defined_v<M>>>
+struct range_traits<M, true, std::enable_if_t<!required_template_arguments_defined_v<M>>>
       : range_traits_impl<M, !is_optional_v<M>, false> {};
 
 template <class T>

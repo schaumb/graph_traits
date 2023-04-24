@@ -13,22 +13,6 @@
 
 namespace bxlx::graph::type_traits::detail {
 
-template <class T,
-          class U = std::remove_volatile_t<T>,
-          class   = std::enable_if_t<std::is_same_v<T, U>>,
-          class   = typename known_optional<T>::value_type>
-using enable_if_is_known_optional = T;
-
-template <class T>
-struct known_optional<volatile enable_if_is_known_optional<T>> : known_optional<T> {};
-
-template <class T>
-struct known_optional<const volatile enable_if_is_known_optional<const T>> : known_optional<const T> {};
-
-template <class T, bool any>
-struct optional_traits<T, any, std::enable_if_t<is_known_optional_v<T>>> : known_optional<T> {};
-
-
 template <class T, bool possibly_optional, bool all_template_defined, class = void>
 struct optional_traits_impl {};
 
@@ -69,12 +53,12 @@ struct optional_traits_impl<Opt<O, Oth...>,
 };
 
 template <class T>
-struct optional_traits<T, true, std::enable_if_t<!is_known_optional_v<T> && required_template_arguments_defined_v<T>>>
+struct optional_traits<T, true, std::enable_if_t<required_template_arguments_defined_v<T>>>
       : optional_traits_impl<T, !is_range_v<T>, true> {};
 
 template <class T>
-struct optional_traits<T, true, std::enable_if_t<!is_known_optional_v<T> && !required_template_arguments_defined_v<T>>>
-      : optional_traits_impl<T, !is_known_range_v<T>, false> {};
+struct optional_traits<T, true, std::enable_if_t<!required_template_arguments_defined_v<T>>>
+      : optional_traits_impl<T, true, false> {};
 
 } // namespace bxlx::graph::type_traits::detail
 
