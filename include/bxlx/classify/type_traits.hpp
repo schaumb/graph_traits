@@ -145,6 +145,9 @@ namespace detail {
   template <class T, class = void>
   constexpr bool required_template_arguments_defined_v = all_template_defined<T>::value;
 
+  template<class T, T val>
+  constexpr bool required_template_arguments_defined_v<std::integral_constant<T, val>> = true;
+
   template <class T>
   constexpr bool required_template_arguments_defined_v<T, std::enable_if_t<one_required_templated_class<T>::value>> =
         one_required_templated_class<T>::is_defined;
