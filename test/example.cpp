@@ -3,6 +3,7 @@
 #include <bxlx/classify/type_traits.hpp>
 #include <bxlx/graph>
 
+#include <functional>
 #include <array>
 #include <atomic>
 #include <bitset>
@@ -159,6 +160,7 @@ void test_type_traits() {
   check_is_optional<std::unique_ptr<A>>();
   check_is_optional<std::shared_ptr<A>>();
   // check_is_optional<std::shared_ptr<A[]>>();
+  ASSERT(!is_optional_v<std::function<void()>>);
   ASSERT(!is_optional_v<int[10]>);
   ASSERT(!is_optional_v<int[]>);
   ASSERT(!is_optional_v<node_prop[]>);

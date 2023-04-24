@@ -66,7 +66,7 @@ struct optional_traits_impl<T,
 };
 
 template <class T>
-struct optional_traits<T, true, std::enable_if_t<!is_known_optional_v<T>>> : optional_traits_impl<T, !is_known_range_v<T>> {};
+struct optional_traits<T, true, std::enable_if_t<!is_known_optional_v<T>>> : optional_traits_impl<T, !is_range_v<T>> {};
 
 } // namespace bxlx::graph::type_traits::detail
 
