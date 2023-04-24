@@ -3,13 +3,25 @@
 #include <bxlx/classify/type_traits.hpp>
 #include <bxlx/graph>
 
-#include <functional>
 #include <array>
 #include <atomic>
 #include <bitset>
+/*
+#include <boost/bimap/bimap.hpp>
+#include <boost/circular_buffer.hpp>
+#include <boost/container/flat_map.hpp>
+#include <boost/container/flat_set.hpp>
+#include <boost/container/static_vector.hpp>
+#include <boost/lockfree/queue.hpp>
+#include <boost/logic/tribool.hpp>
+#include <boost/optional.hpp>
+#include <boost/poly_collection/any_collection.hpp>
+#include <boost/type_erasure/operators.hpp>
+ */
 #include <cassert>
 #include <deque>
 #include <forward_list>
+#include <functional>
 #include <list>
 #include <map>
 #include <memory>
@@ -20,6 +32,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
 
 #define CEXPR_ASSERT_TEST
 #ifdef CEXPR_ASSERT_TEST
@@ -103,10 +116,11 @@ void check_is_bitset() {
   ASSERT(is_bitset_v<Check>);
 }
 
+
 template <class Check, class Reference, class IteratorTag, bool St, bxlx::graph::type_traits::range_type_t Rt>
 void check_range_type() {
   using namespace bxlx::graph::type_traits;
-  ASSERT(is_range_v<Check>);
+  check_is_range<Check>();
   ASSERT(std::is_same_v<range_reference_t<Check>, Reference>);
   ASSERT(std::is_base_of_v<IteratorTag, range_iterator_tag_t<Check>>);
   ASSERT(St == range_is_continuous_v<Check>);
@@ -160,6 +174,7 @@ void test_type_traits() {
   check_is_optional<std::unique_ptr<A>>();
   check_is_optional<std::shared_ptr<A>>();
   // check_is_optional<std::shared_ptr<A[]>>();
+  ASSERT(is_defined_v<void()>);
   ASSERT(!is_optional_v<std::function<void()>>);
   ASSERT(!is_optional_v<int[10]>);
   ASSERT(!is_optional_v<int[]>);
@@ -175,6 +190,7 @@ void test_type_traits() {
   check_is_range<deque<node_prop>>();
   check_is_range<unordered_map<int, edge_prop>>();
   check_is_range<map<edge_prop, node_prop>>();
+  check_is_range<map<edge_prop, int>>();
 
   ASSERT(is_bool_v<bool>);
   ASSERT(is_bool_v<bitset<10>::reference>);
@@ -223,7 +239,49 @@ void test_type_traits() {
 
   check_range_type<std::unordered_map<node_prop, int>, std::pair<const node_prop, int>&, std::forward_iterator_tag,
                    false, range_type_t::map_like>();
+  /*
+   * #include <boost/optional.hpp>
+#include <boost/bimap/bimap.hpp>
+#include <boost/circular_buffer.hpp>
+#include <boost/container/flat_map.hpp>
+#include <boost/container/flat_set.hpp>
+#include <boost/container/static_vector.hpp>
+#include <boost/lockfree/queue.hpp>
+#include <boost/logic/tribool.hpp>
+#include <boost/poly_collection/any_collection.hpp>
+  struct undef;
+  check_is_optional<boost::optional<undef>>();
+  ASSERT(!is_bool_v<boost::logic::tribool>);
+  ASSERT(!is_index_v<boost::logic::tribool>);
+  using renderable      = boost::type_erasure::ostreamable<>;
+  using poly_collection = boost::poly_collection::any_collection<renderable>;
+  check_range_type<poly_collection, typename poly_collection::reference, std::forward_iterator_tag, false,
+                   range_type_t::sequence>();
+
+  check_range_type<boost::container::flat_set<undef>, undef&, std::random_access_iterator_tag, true,
+                   range_type_t::set_like>();
+  check_range_type<boost::container::flat_multimap<undef, undef>, std::pair<undef, undef>&,
+                   std::random_access_iterator_tag,
+                   false, // this need to be true
+                   range_type_t::map_like>();
+
+  check_range_type<boost::container::static_vector<undef, 10>, undef&, std::random_access_iterator_tag, true,
+                   range_type_t::sequence>();
+
+  using need_ref = boost::bimaps::relation::mutant_relation<
+        boost::bimaps::tags::tagged<const undef, boost::bimaps::relation::member_at::left>,
+        boost::bimaps::tags::tagged<const undef, boost::bimaps::relation::member_at::right>, mpl_::na, false>;
+
+  check_range_type<boost::bimaps::bimap<undef, undef>, need_ref&, std::bidirectional_iterator_tag, false,
+                   range_type_t::set_like>();
+
+  static_assert(!is_range_v<boost::lockfree::queue<undef>>);
+
+  check_range_type<boost::circular_buffer<undef>, undef&, std::random_access_iterator_tag, false,
+                   range_type_t::queue_like>();
+*/
 }
+
 int main() {
   // test_example_graph_representations();
   test_type_traits();

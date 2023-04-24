@@ -201,6 +201,9 @@ template <class, class = void>
 constexpr inline bool has_std_data_v = false;
 template <class T>
 constexpr inline bool has_std_data_v<T, std::void_t<std_data_t<T>>> = true;
+template <class T>
+constexpr inline bool has_std_data_v<T, std::enable_if_t<class_member_traits::has_container_type_type_v<T>>> =
+      has_std_data_v<class_member_traits::get_container_type_member_t<T>>;
 
 
 template <class, class = void>
@@ -293,11 +296,21 @@ namespace associative_traits {
         std::is_same_v<class_member_traits::get_key_type_member_t<T>, std::remove_cv_t<ValueType>>;
 } // namespace associative_traits
 
-template <class T, bool all_defined, class = void>
+struct defined_range_key {
+  constexpr bool operator<(const defined_range_key&) const { return false; }
+  constexpr bool operator==(const defined_range_key&) const { return false; }
+};
+
+struct defined_range_value {
+  constexpr bool operator<(const defined_range_value&) const { return false; }
+  constexpr bool operator==(const defined_range_value&) const { return false; }
+};
+
+template <class T, bool possible_range, bool all_defined, class = void>
 struct range_traits_impl {};
 
 template <class T>
-struct range_traits_impl<T, true, std::enable_if_t<has_begin_end_iterators_v<T>>> {
+struct range_traits_impl<T, true, true, std::enable_if_t<has_begin_end_iterators_v<T>>> {
   using it_traits                   = iterator_traits_impl<std_begin_t<T>>;
   using reference [[maybe_unused]]  = typename it_traits::reference;
   using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
@@ -308,7 +321,8 @@ struct range_traits_impl<T, true, std::enable_if_t<has_begin_end_iterators_v<T>>
 
   constexpr static range_type_t range =
         class_member_traits::has_length_v<T> ? range_type_t::string_like
-        : class_member_traits::has_push_front_v<std::remove_const_t<T>, std::add_rvalue_reference_t<std::remove_const_t<value_type>>> &&
+        : class_member_traits::has_push_front_v<std::remove_const_t<T>,
+                                                std::add_rvalue_reference_t<std::remove_const_t<value_type>>> &&
                     class_member_traits::has_push_back_v<std::remove_const_t<T>,
                                                          std::add_rvalue_reference_t<std::remove_const_t<value_type>>>
               ? range_type_t::queue_like
@@ -317,17 +331,164 @@ struct range_traits_impl<T, true, std::enable_if_t<has_begin_end_iterators_v<T>>
                                                       : range_type_t::sequence;
 };
 
+template <class Type, class From, class To>
+struct replace_all_type_recursively {
+  using type = Type;
+};
+
+template <class Type, class From, class To>
+struct replace_all_type_recursively<Type&, From, To> {
+  using type = typename replace_all_type_recursively<Type, From, To>::type&;
+};
+
+template <class Type, class From, class To>
+struct replace_all_type_recursively<Type&&, From, To> {
+  using type = typename replace_all_type_recursively<Type, From, To>::type&&;
+};
+
+template <class Type, class From, class To>
+struct replace_all_type_recursively<const Type, From, To> {
+  using type = const typename replace_all_type_recursively<Type, From, To>::type;
+};
+
+template <class Type, class From, class To>
+struct replace_all_type_recursively<volatile Type, From, To> {
+  using type = volatile typename replace_all_type_recursively<Type, From, To>::type;
+};
+
+template <class From, class To>
+struct replace_all_type_recursively<From, From, To> {
+  using type = To;
+};
+
+template <template <class...> class Typeof, class From, class To, class... Types>
+struct replace_all_type_recursively<Typeof<Types...>, From, To> {
+  using type = Typeof<typename replace_all_type_recursively<Types, From, To>::type...>;
+};
+
+template <template <class, auto> class Typeof, class From, class To, class Type, auto Val>
+struct replace_all_type_recursively<Typeof<Type, Val>, From, To> {
+  using type = Typeof<typename replace_all_type_recursively<Type, From, To>::type, Val>;
+};
+
+template <template <class, class, auto> class Typeof, class From, class To, class Type, class Type2, auto Val>
+struct replace_all_type_recursively<Typeof<Type, Type2, Val>, From, To> {
+  using type = Typeof<typename replace_all_type_recursively<Type, From, To>::type,
+                      typename replace_all_type_recursively<Type2, From, To>::type,
+                      Val>;
+};
+template <template <class, class, class, auto> class Typeof,
+          class From,
+          class To,
+          class Type,
+          class Type2,
+          class Type3,
+          auto Val>
+struct replace_all_type_recursively<Typeof<Type, Type2, Type3, Val>, From, To> {
+  using type = Typeof<typename replace_all_type_recursively<Type, From, To>::type,
+                      typename replace_all_type_recursively<Type2, From, To>::type,
+                      typename replace_all_type_recursively<Type3, From, To>::type,
+                      Val>;
+};
+
+
+template <template <class, class...> class Range, class O, class... Other>
+struct range_traits_impl<Range<O, Other...>,
+                         true,
+                         false,
+                         std::enable_if_t<!is_defined_v<O> && one_required_templated_class<Range<O, Other...>>::value &&
+                                          is_range_v<Range<defined_range_value>>>> {
+  using reference [[maybe_unused]] =
+        typename replace_all_type_recursively<range_reference_t<Range<defined_range_value>>, defined_range_value, O>::
+              type;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+  using iterator_tag                = range_iterator_tag_t<Range<defined_range_value>>;
+
+  constexpr static bool defined    = true;
+  constexpr static bool continuous = range_is_continuous_v<Range<defined_range_value>>;
+
+  constexpr static range_type_t range = range_type_v<Range<defined_range_value>>;
+};
+
+template <template <class, auto, class...> class Range, class O, auto S, class... Other>
+struct range_traits_impl<
+      Range<O, S, Other...>,
+      true,
+      false,
+      std::enable_if_t<!is_defined_v<O> && array_like_required_template_class<Range<O, S, Other...>>::value &&
+                       is_range_v<Range<defined_range_value, S>>>> {
+  using reference
+        [[maybe_unused]] = typename replace_all_type_recursively<range_reference_t<Range<defined_range_value, S>>,
+                                                                 defined_range_value,
+                                                                 O>::type;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+  using iterator_tag                = range_iterator_tag_t<Range<defined_range_value, S>>;
+
+  constexpr static bool defined    = true;
+  constexpr static bool continuous = range_is_continuous_v<Range<defined_range_value, S>>;
+
+  constexpr static range_type_t range = range_type_v<Range<defined_range_value, S>>;
+};
+
+template <bool, class...>
+struct undef_if_false;
+
+template <class... Classes>
+struct undef_if_false<true, Classes...> {
+  constexpr static bool value = true;
+};
+
+template <template <class, class, class...> class Range, class K, class M, class... Other>
+struct range_traits_impl<
+      Range<K, M, Other...>,
+      true,
+      false,
+      std::enable_if_t<(!is_defined_v<K> ||
+                        !is_defined_v<M>)&&!one_required_templated_class<Range<K, M, Other...>>::value &&
+                       is_range_v<Range<std::conditional_t<is_defined_v<K>, K, defined_range_key>,
+                                        std::conditional_t<is_defined_v<M>, M, defined_range_value>>>>> {
+  using the_range = Range<std::conditional_t<is_defined_v<K>, K, defined_range_key>,
+                          std::conditional_t<is_defined_v<M>, M, defined_range_value>>;
+  using rref      = range_reference_t<the_range>;
+
+  using reference [[maybe_unused]] =
+        typename replace_all_type_recursively<typename replace_all_type_recursively<rref, defined_range_key, K>::type,
+                                              defined_range_value,
+                                              M>::type;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+  using iterator_tag                = range_iterator_tag_t<the_range>;
+
+  constexpr static bool defined    = true;
+  constexpr static bool continuous = range_is_continuous_v<the_range>;
+
+  constexpr static range_type_t range = range_type_v<the_range>;
+};
 
 template <class M>
-struct range_traits<M, true, std::enable_if_t<!is_known_range_v<M>>> : range_traits_impl<M, !is_known_optional_v<M>> {};
+struct range_traits<M, true, std::enable_if_t<!is_known_range_v<M> && required_template_arguments_defined_v<M>>>
+      : range_traits_impl<M, !is_known_optional_v<M>, true> {};
+
+template <class M>
+struct range_traits<M, true, std::enable_if_t<!is_known_range_v<M> && !required_template_arguments_defined_v<M>>>
+      : range_traits_impl<M, !is_optional_v<M>, false> {};
 
 template <class T>
 struct is_string<T, false> : std::false_type {};
 
 template <class T>
-struct is_string<T, true> : std::bool_constant<range_traits<T>::range == range_type_t::string_like> {};
+struct is_string<T, true> : std::bool_constant<range_type_v<T> == range_type_t::string_like> {};
 
 } // namespace bxlx::graph::type_traits::detail
 
+namespace std {
+template <>
+struct hash<bxlx::graph::type_traits::detail::defined_range_key> {
+  constexpr std::size_t operator()(const bxlx::graph::type_traits::detail::defined_range_key&) const { return {}; }
+};
+template <>
+struct hash<bxlx::graph::type_traits::detail::defined_range_value> {
+  constexpr std::size_t operator()(const bxlx::graph::type_traits::detail::defined_range_value&) const { return {}; }
+};
+} // namespace std
 
 #endif //BXLX_GRAPH_RANGE_TRAITS_HPP

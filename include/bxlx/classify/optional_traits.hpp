@@ -54,19 +54,37 @@ template <class T, bool any>
 struct optional_traits<T, any, std::enable_if_t<is_known_optional_v<T>>> : known_optional<T> {};
 
 
-template <class T, bool all_defined, class = void>
+template <class T, bool possibly_optional, bool all_template_defined, class = void>
 struct optional_traits_impl {};
 
 template <class T>
 struct optional_traits_impl<T,
+                            true,
                             true,
                             std::void_t<decltype(static_cast<bool>(std::declval<T>())), decltype(*std::declval<T>())>> {
   using reference [[maybe_unused]]  = decltype(*std::declval<T&>());
   using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
 };
 
+struct defined_optional_value {};
+
+template <template <class> class Opt, class O>
+struct optional_traits_impl<Opt<O>,
+                            true,
+                            false,
+                            std::enable_if_t<!is_defined_v<O> && is_optional_v<Opt<defined_optional_value>>>> {
+  static_assert(std::is_same_v<std::remove_cv_t<optional_value_t<Opt<defined_optional_value>>>, defined_optional_value>,
+                "Defined optional, but optional value is different than first template argument");
+  using reference [[maybe_unused]]  = copy_cvref_t<optional_reference_t<Opt<defined_optional_value>>, O>;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+};
 template <class T>
-struct optional_traits<T, true, std::enable_if_t<!is_known_optional_v<T>>> : optional_traits_impl<T, !is_range_v<T>> {};
+struct optional_traits<T, true, std::enable_if_t<!is_known_optional_v<T> && required_template_arguments_defined_v<T>>>
+      : optional_traits_impl<T, !is_range_v<T>, true> {};
+
+template <class T>
+struct optional_traits<T, true, std::enable_if_t<!is_known_optional_v<T> && !required_template_arguments_defined_v<T>>>
+      : optional_traits_impl<T, !is_known_range_v<T>, false> {};
 
 } // namespace bxlx::graph::type_traits::detail
 

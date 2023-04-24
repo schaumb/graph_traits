@@ -107,6 +107,7 @@ namespace class_member_traits {
   HAS_MEMBER_FUNCTION_NO_ARG(key_comp)
   HAS_MEMBER_FUNCTION_NO_ARG(key_eq)
   HAS_MEMBER_FUNCTION_NO_ARG(hash_function)
+  HAS_MEMBER_FUNCTION_NO_ARG(extract)
 #undef HAS_MEMBER_FUNCTION_NO_ARG
 
 #define HAS_MEMBER_OPERATOR_NO_ARG(name, op)                                                                           \
@@ -151,6 +152,7 @@ namespace class_member_traits {
   HAS_MEMBER_TYPE(key_compare)
   HAS_MEMBER_TYPE(key_equal)
   HAS_MEMBER_TYPE(hasher)
+  HAS_MEMBER_TYPE(container_type)
 #undef HAS_MEMBER_TYPE
 
 #define TYPE_OR_GETTER(type_name, getter)                                                                              \
