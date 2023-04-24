@@ -83,7 +83,7 @@ namespace detail {
   constexpr inline bool is_defined_v = is_defined<T>::value;
 
   template <class T,
-            class TL = typename template_inspect<T>::types,
+            class TL = typename template_inspect<std::remove_cv_t<T>>::types,
             class    = std::make_index_sequence<std::tuple_size_v<TL>>>
   struct all_template_defined : std::true_type {
     static_assert(std::tuple_size_v<TL> == 0);
@@ -94,20 +94,32 @@ namespace detail {
         : std::conjunction<is_defined<std::tuple_element_t<ix, TL>>...> {};
 
 
-  template <class T, class = void>
+  template <class T, bool = !is_tuple_v<T>, class = void>
   struct one_required_templated_class : std::false_type {};
 
   template <template <class, class...> class T, class U, class... Vs>
-  struct one_required_templated_class<T<U, Vs...>, std::void_t<T<U>>> : std::true_type {
+  struct one_required_templated_class<T<U, Vs...>, true, std::void_t<T<U>>> : std::true_type {
     constexpr static bool is_defined = is_defined_v<U>;
   };
 
-  template <class T, class = void>
+  template <template <class, class...> class T, class U, class... Vs>
+  struct one_required_templated_class<const T<U, Vs...>, true, std::void_t<T<U>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
+  template <class T, bool = !is_tuple_v<T>, class = void>
   struct two_required_templated_class : std::false_type {};
 
   template <template <class, class, class...> class T, class U, class V, class... Vs>
   struct two_required_templated_class<
-        T<U, V, Vs...>,
+        T<U, V, Vs...>, true,
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U> && is_defined_v<V>;
+  };
+
+  template <template <class, class, class...> class T, class U, class V, class... Vs>
+  struct two_required_templated_class<
+        const T<U, V, Vs...>, true,
         std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
     constexpr static bool is_defined = is_defined_v<U> && is_defined_v<V>;
   };
@@ -122,9 +134,16 @@ namespace detail {
     constexpr static bool is_defined = is_defined_v<U>;
   };
 
+  template <template <class, auto, class...> class T, class U, auto V, class... Vs>
+  struct array_like_required_template_class<
+        const T<U, V, Vs...>,
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
 
   template <class T, class = void>
-  constexpr bool required_template_arguments_defined_v = true;
+  constexpr bool required_template_arguments_defined_v = all_template_defined<T>::value;
 
   template <class T>
   constexpr bool required_template_arguments_defined_v<T, std::enable_if_t<one_required_templated_class<T>::value>> =
@@ -176,7 +195,7 @@ namespace detail {
   template <class T>
   constexpr inline bool is_known_range_v<T, std::void_t<typename known_range<T>::value_type>> = true;
 
-  template <class T, bool = !is_tuple_v<T>, class = void>
+  template <class T, bool = true, class = void>
   struct range_traits;
 
   enum class range_type_t;

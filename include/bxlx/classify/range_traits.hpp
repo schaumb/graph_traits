@@ -8,15 +8,7 @@
 #ifndef BXLX_GRAPH_RANGE_TRAITS_HPP
 #define BXLX_GRAPH_RANGE_TRAITS_HPP
 
-#include <array>
-
 #include "type_traits.hpp"
-
-
-#if defined(_MSC_VER) || defined(__APPLE__)
-#  include <deque>
-#  define BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED 1
-#endif
 
 namespace bxlx::graph::type_traits::detail {
 
@@ -29,7 +21,7 @@ enum class range_type_t {
 };
 
 template <class T,
-          class U = std::remove_cv_t<T>,
+          class U = std::remove_volatile_t<T>,
           class   = std::enable_if_t<std::is_same_v<T, U>>,
           class   = typename known_range<T>::value_type>
 using enable_if_is_known_range = T;
@@ -50,31 +42,6 @@ struct known_range<const enable_if_is_known_range<T>> : known_range<T> {
                                                           std::add_rvalue_reference_t<orig_reference>,
                                                           orig_reference>>;
 };
-
-template <class M, std::size_t S>
-struct known_range<std::array<M, S>> {
-  using reference    = M&;
-  using value_type   = M;
-  using iterator_tag = std::random_access_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<M>;
-  constexpr static bool         continuous = true;
-  constexpr static range_type_t range      = range_type_t::sequence;
-};
-
-#ifdef BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED
-#  undef BXLX_GRAPH_RANGE_TRAITS_DEQUE_NEEDED
-template <class M, class... Others>
-struct known_range<std::deque<M, Others...>> {
-  using reference    = M&;
-  using value_type   = M;
-  using iterator_tag = std::random_access_iterator_tag;
-
-  constexpr static bool         defined    = is_defined_v<M>;
-  constexpr static bool         continuous = false;
-  constexpr static range_type_t range      = range_type_t::queue_like;
-};
-#endif
 
 
 template <class T, bool any>
@@ -300,6 +267,24 @@ struct range_traits_impl<Range<O, Other...>,
   constexpr static range_type_t range = range_type_v<Range<defined_range_value>>;
 };
 
+template <template <class, class...> class Range, class O, class... Other>
+struct range_traits_impl<const Range<O, Other...>,
+                         true,
+                         false,
+                         std::enable_if_t<!is_defined_v<O> && one_required_templated_class<const Range<O, Other...>>::value &&
+                                          is_range_v<const Range<defined_range_value>>>> {
+  using reference [[maybe_unused]] =
+        typename replace_all_type_recursively<range_reference_t<const Range<defined_range_value>>, defined_range_value, O>::
+              type;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+  using iterator_tag                = range_iterator_tag_t<const Range<defined_range_value>>;
+
+  constexpr static bool defined    = true;
+  constexpr static bool continuous = range_is_continuous_v<const Range<defined_range_value>>;
+
+  constexpr static range_type_t range = range_type_v<const Range<defined_range_value>>;
+};
+
 template <template <class, auto, class...> class Range, class O, auto S, class... Other>
 struct range_traits_impl<
       Range<O, S, Other...>,
@@ -318,6 +303,27 @@ struct range_traits_impl<
   constexpr static bool continuous = range_is_continuous_v<Range<defined_range_value, S>>;
 
   constexpr static range_type_t range = range_type_v<Range<defined_range_value, S>>;
+};
+
+
+template <template <class, auto, class...> class Range, class O, auto S, class... Other>
+struct range_traits_impl<
+      const Range<O, S, Other...>,
+      true,
+      false,
+      std::enable_if_t<!is_defined_v<O> && array_like_required_template_class<const Range<O, S, Other...>>::value &&
+                       is_range_v<const Range<defined_range_value, S>>>> {
+  using reference
+        [[maybe_unused]] = typename replace_all_type_recursively<range_reference_t<const Range<defined_range_value, S>>,
+                                                                 defined_range_value,
+                                                                 O>::type;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+  using iterator_tag                = range_iterator_tag_t<const Range<defined_range_value, S>>;
+
+  constexpr static bool defined    = true;
+  constexpr static bool continuous = range_is_continuous_v<const Range<defined_range_value, S>>;
+
+  constexpr static range_type_t range = range_type_v<const Range<defined_range_value, S>>;
 };
 
 template <bool, class...>
@@ -339,6 +345,13 @@ struct replaced_is_range<Range<K, M, Other...>, true> {
 
   constexpr static bool value = is_range_v<type>;
 };
+template <template <class, class, class...> class Range, class K, class M, class... Other>
+struct replaced_is_range<const Range<K, M, Other...>, true> {
+  using type = const Range<std::conditional_t<is_defined_v<K>, K, defined_range_key>,
+                     std::conditional_t<is_defined_v<M>, M, defined_range_value>>;
+
+  constexpr static bool value = is_range_v<type>;
+};
 
 
 template <template <class, class, class...> class Range, class K, class M, class... Other>
@@ -348,6 +361,29 @@ struct range_traits_impl<
       false,
       std::enable_if_t<(!is_defined_v<K> || !is_defined_v<M>)&&replaced_is_range<Range<K, M, Other...>>::value>> {
   using the_range = Range<std::conditional_t<is_defined_v<K>, K, defined_range_key>,
+                          std::conditional_t<is_defined_v<M>, M, defined_range_value>>;
+  using rref      = range_reference_t<the_range>;
+
+  using reference [[maybe_unused]] =
+        typename replace_all_type_recursively<typename replace_all_type_recursively<rref, defined_range_key, K>::type,
+                                              defined_range_value,
+                                              M>::type;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+  using iterator_tag                = range_iterator_tag_t<the_range>;
+
+  constexpr static bool defined    = true;
+  constexpr static bool continuous = range_is_continuous_v<the_range>;
+
+  constexpr static range_type_t range = range_type_v<the_range>;
+};
+
+template <template <class, class, class...> class Range, class K, class M, class... Other>
+struct range_traits_impl<
+      const Range<K, M, Other...>,
+      true,
+      false,
+      std::enable_if_t<(!is_defined_v<K> || !is_defined_v<M>)&&replaced_is_range<const Range<K, M, Other...>>::value>> {
+  using the_range = const Range<std::conditional_t<is_defined_v<K>, K, defined_range_key>,
                           std::conditional_t<is_defined_v<M>, M, defined_range_value>>;
   using rref      = range_reference_t<the_range>;
 

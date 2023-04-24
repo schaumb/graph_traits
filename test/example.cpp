@@ -134,6 +134,7 @@ void test_type_traits() {
   check_is_tuple<tuple<int, float, edge_prop>>();
   check_is_tuple<pair<int, edge_prop>>();
   check_is_tuple<array<int, 10>, true>();
+  check_is_tuple<const array<int, 10>, true>();
   ASSERT(!is_tuple_v<tuple<>>);
   ASSERT(!is_tuple_v<array<int, 0>>);
   ASSERT(!is_tuple_v<unordered_map<int, int>>);
@@ -169,6 +170,7 @@ void test_type_traits() {
   check_is_optional<node_prop*>();
   check_is_optional<const volatile node_prop* const>();
   check_is_optional<const std::optional<int>>();
+  check_is_optional<const std::optional<struct undef>>();
 
   class A;
   check_is_optional<std::unique_ptr<A>>();
@@ -185,11 +187,11 @@ void test_type_traits() {
   ASSERT(is_same_v<optional_reference_t<const volatile node_prop* const>, const volatile node_prop&>);
 
   check_is_range<vector<int>>();
-  check_is_range<vector<node_prop>>();
+  check_is_range<const vector<node_prop>>();
   check_is_range<deque<bool>>();
   check_is_range<deque<node_prop>>();
   check_is_range<unordered_map<int, edge_prop>>();
-  check_is_range<map<edge_prop, node_prop>>();
+  check_is_range<const map<edge_prop, node_prop>>();
   check_is_range<map<edge_prop, int>>();
 
   ASSERT(is_bool_v<bool>);
@@ -240,7 +242,7 @@ void test_type_traits() {
   check_range_type<std::unordered_map<node_prop, int>, std::pair<const node_prop, int>&, std::forward_iterator_tag,
                    false, range_type_t::map_like>();
   /*
-   * #include <boost/optional.hpp>
+#include <boost/optional.hpp>
 #include <boost/bimap/bimap.hpp>
 #include <boost/circular_buffer.hpp>
 #include <boost/container/flat_map.hpp>
@@ -265,7 +267,7 @@ void test_type_traits() {
                    false, // this need to be true
                    range_type_t::map_like>();
 
-  check_range_type<boost::container::static_vector<undef, 10>, undef&, std::random_access_iterator_tag, true,
+  check_range_type<const boost::container::static_vector<undef, 10>, const undef&, std::random_access_iterator_tag, true,
                    range_type_t::sequence>();
 
   using need_ref = boost::bimaps::relation::mutant_relation<
