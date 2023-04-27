@@ -18,6 +18,7 @@ enum class type {
   indeterminate,
   pre_declared,
   bitset,
+  map_like,
   range,
   tuple_like,
   optional,
@@ -27,6 +28,7 @@ enum class type {
 
 template <class Class>
 constexpr inline type classify = type_traits::is_bitset_v<Class>     ? type::bitset
+                                 : type_traits::is_map_v<Class>      ? type::map_like
                                  : type_traits::is_range_v<Class>    ? type::range
                                  : type_traits::is_tuple_v<Class>    ? type::tuple_like
                                  : type_traits::is_optional_v<Class> ? type::optional

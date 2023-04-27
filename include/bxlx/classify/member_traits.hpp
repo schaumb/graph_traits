@@ -84,6 +84,7 @@ namespace class_member_traits {
   template <class Range, class... Args>                                                                                \
   constexpr inline bool has_##name##_v = has_##name<Range, can_inspect_member<Range>, void, Args...>;
 
+  HAS_MEMBER_FUNCTION_VARARG(equal_range)
   HAS_MEMBER_FUNCTION_VARARG(erase)
   HAS_MEMBER_FUNCTION_VARARG(erase_after)
   HAS_MEMBER_FUNCTION_VARARG(at)
@@ -91,6 +92,7 @@ namespace class_member_traits {
   HAS_MEMBER_FUNCTION_VARARG(insert_after)
   HAS_MEMBER_FUNCTION_VARARG(push_back)
   HAS_MEMBER_FUNCTION_VARARG(push_front)
+  HAS_MEMBER_FUNCTION_VARARG(resize)
 #undef HAS_MEMBER_FUNCTION_VARARG
 
 #define HAS_MEMBER_FUNCTION_NO_ARG(name)                                                                               \
@@ -176,7 +178,7 @@ namespace class_member_traits {
   TYPE_OR_GETTER(hasher, hash_function)
 #undef TYPE_OR_GETTER
 
-  template <class Range, class Op, bool = can_inspect_member<std::remove_reference_t<Range>>, class = void>
+  template <class Range, class, bool = can_inspect_member<Range>, class = void>
   constexpr inline bool has_conversion_v = false;
   template <class Range, class Op>
   constexpr inline bool
@@ -199,15 +201,6 @@ namespace class_member_traits {
   template <class Range, class KeyType = const get_key_type_member_t<Range>&, class... Args>
   constexpr inline bool has_try_emplace_v = has_try_emplace<Range, KeyType, can_inspect_member<Range>, void, Args...>;
 
-  template <class Range, class = get_size_type_member_t<Range>, bool = can_inspect_member<Range>, class = void>
-  constexpr inline bool has_resize_v = false;
-  template <class Range, class SizeType>
-  constexpr inline bool
-        has_resize_v<Range,
-                     SizeType,
-                     true,
-                     std::void_t<decltype(member_function_invoke_result_v<Range, void, SizeType>(&Range::resize))>> =
-              true;
 } // namespace class_member_traits
 } // namespace bxlx::graph::type_traits::detail
 

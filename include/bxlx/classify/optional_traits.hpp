@@ -35,9 +35,7 @@ struct optional_traits_impl<const Opt<O, Oth...>,
                             true,
                             false,
                             std::enable_if_t<!is_defined_v<O> && is_optional_v<const Opt<defined_optional_value>>>> {
-  static_assert(std::is_same_v<std::remove_cv_t<optional_value_t<const Opt<defined_optional_value>>>, defined_optional_value>,
-                "Defined optional, but optional value is different than first template argument");
-  using reference [[maybe_unused]]  = copy_cvref_t<optional_reference_t<const Opt<defined_optional_value>>, O>;
+  using reference [[maybe_unused]]  = typename replace_all_type_recursively<optional_reference_t<const Opt<defined_optional_value>>, defined_optional_value, O>::type;
   using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
 };
 
@@ -46,9 +44,7 @@ struct optional_traits_impl<Opt<O, Oth...>,
                             true,
                             false,
                             std::enable_if_t<!is_defined_v<O> && is_optional_v<Opt<defined_optional_value>>>> {
-  static_assert(std::is_same_v<std::remove_cv_t<optional_value_t<Opt<defined_optional_value>>>, defined_optional_value>,
-                "Defined optional, but optional value is different than first template argument");
-  using reference [[maybe_unused]]  = copy_cvref_t<optional_reference_t<Opt<defined_optional_value>>, O>;
+  using reference [[maybe_unused]]  = typename replace_all_type_recursively<optional_reference_t<Opt<defined_optional_value>>, defined_optional_value, O>::type;
   using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
 };
 

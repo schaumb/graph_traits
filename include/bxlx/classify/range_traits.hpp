@@ -161,67 +161,6 @@ struct range_traits_impl<T, true, true, std::enable_if_t<has_begin_end_iterators
                                                       : range_type_t::sequence;
 };
 
-template <class Type, class From, class To>
-struct replace_all_type_recursively {
-  using type = Type;
-};
-
-template <class Type, class From, class To>
-struct replace_all_type_recursively<Type&, From, To> {
-  using type = typename replace_all_type_recursively<Type, From, To>::type&;
-};
-
-template <class Type, class From, class To>
-struct replace_all_type_recursively<Type&&, From, To> {
-  using type = typename replace_all_type_recursively<Type, From, To>::type&&;
-};
-
-template <class Type, class From, class To>
-struct replace_all_type_recursively<const Type, From, To> {
-  using type = const typename replace_all_type_recursively<Type, From, To>::type;
-};
-
-template <class Type, class From, class To>
-struct replace_all_type_recursively<volatile Type, From, To> {
-  using type = volatile typename replace_all_type_recursively<Type, From, To>::type;
-};
-
-template <class From, class To>
-struct replace_all_type_recursively<From, From, To> {
-  using type = To;
-};
-
-template <template <class...> class Typeof, class From, class To, class... Types>
-struct replace_all_type_recursively<Typeof<Types...>, From, To> {
-  using type = Typeof<typename replace_all_type_recursively<Types, From, To>::type...>;
-};
-
-template <template <class, auto> class Typeof, class From, class To, class Type, auto Val>
-struct replace_all_type_recursively<Typeof<Type, Val>, From, To> {
-  using type = Typeof<typename replace_all_type_recursively<Type, From, To>::type, Val>;
-};
-
-template <template <class, class, auto> class Typeof, class From, class To, class Type, class Type2, auto Val>
-struct replace_all_type_recursively<Typeof<Type, Type2, Val>, From, To> {
-  using type = Typeof<typename replace_all_type_recursively<Type, From, To>::type,
-                      typename replace_all_type_recursively<Type2, From, To>::type,
-                      Val>;
-};
-template <template <class, class, class, auto> class Typeof,
-          class From,
-          class To,
-          class Type,
-          class Type2,
-          class Type3,
-          auto Val>
-struct replace_all_type_recursively<Typeof<Type, Type2, Type3, Val>, From, To> {
-  using type = Typeof<typename replace_all_type_recursively<Type, From, To>::type,
-                      typename replace_all_type_recursively<Type2, From, To>::type,
-                      typename replace_all_type_recursively<Type3, From, To>::type,
-                      Val>;
-};
-
-
 template <template <class, class...> class Range, class O, class... Other>
 struct range_traits_impl<Range<O, Other...>,
                          true,
@@ -387,6 +326,11 @@ struct is_string<T, false> : std::false_type {};
 template <class T>
 struct is_string<T, true> : std::bool_constant<range_type_v<T> == range_type_t::string_like> {};
 
+template <class T>
+struct is_map<T, false> : std::false_type {};
+
+template <class T>
+struct is_map<T, true> : std::bool_constant<range_type_v<T> == range_type_t::map_like> {};
 } // namespace bxlx::graph::type_traits::detail
 
 namespace std {

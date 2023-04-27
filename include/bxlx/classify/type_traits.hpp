@@ -22,6 +22,9 @@ template <class T>
 constexpr inline bool is_tuple_v<T, std::void_t<decltype(std::tuple_size<T>::value)>> = std::tuple_size_v<T>;
 
 namespace detail {
+  //////////////////////////////////////////////////////////////
+  ////////////////////// TEMPLATE_INSPECT //////////////////////
+  //////////////////////////////////////////////////////////////
   template <class T>
   struct template_inspect {
     using types = std::tuple<>;
@@ -41,6 +44,75 @@ namespace detail {
   struct template_inspect<TT<T, U, Oth...>> {
     using types = std::tuple<T, std::integral_constant<decltype(U), U>, Oth...>;
   };
+
+  //////////////////////////////////////////////////////////////
+  //////////////// REPLACE_ALL_TYPE_RECURSIVELY ////////////////
+  //////////////////////////////////////////////////////////////
+
+  template <class Type, class From, class To>
+  struct replace_all_type_recursively {
+    using type = Type;
+  };
+
+  template <class Type, class From, class To>
+  struct replace_all_type_recursively<Type&, From, To> {
+    using type = typename replace_all_type_recursively<Type, From, To>::type&;
+  };
+
+  template <class Type, class From, class To>
+  struct replace_all_type_recursively<Type&&, From, To> {
+    using type = typename replace_all_type_recursively<Type, From, To>::type&&;
+  };
+
+  template <class Type, class From, class To>
+  struct replace_all_type_recursively<const Type, From, To> {
+    using type = const typename replace_all_type_recursively<Type, From, To>::type;
+  };
+
+  template <class Type, class From, class To>
+  struct replace_all_type_recursively<volatile Type, From, To> {
+    using type = volatile typename replace_all_type_recursively<Type, From, To>::type;
+  };
+
+  template <class From, class To>
+  struct replace_all_type_recursively<From, From, To> {
+    using type = To;
+  };
+
+  template <template <class...> class Typeof, class From, class To, class... Types>
+  struct replace_all_type_recursively<Typeof<Types...>, From, To> {
+    using type = Typeof<typename replace_all_type_recursively<Types, From, To>::type...>;
+  };
+
+  template <template <class, auto> class Typeof, class From, class To, class Type, auto Val>
+  struct replace_all_type_recursively<Typeof<Type, Val>, From, To> {
+    using type = Typeof<typename replace_all_type_recursively<Type, From, To>::type, Val>;
+  };
+
+  template <template <class, class, auto> class Typeof, class From, class To, class Type, class Type2, auto Val>
+  struct replace_all_type_recursively<Typeof<Type, Type2, Val>, From, To> {
+    using type = Typeof<typename replace_all_type_recursively<Type, From, To>::type,
+                        typename replace_all_type_recursively<Type2, From, To>::type,
+                        Val>;
+  };
+  template <template <class, class, class, auto> class Typeof,
+            class From,
+            class To,
+            class Type,
+            class Type2,
+            class Type3,
+            auto Val>
+  struct replace_all_type_recursively<Typeof<Type, Type2, Type3, Val>, From, To> {
+    using type = Typeof<typename replace_all_type_recursively<Type, From, To>::type,
+                        typename replace_all_type_recursively<Type2, From, To>::type,
+                        typename replace_all_type_recursively<Type3, From, To>::type,
+                        Val>;
+  };
+
+
+  //////////////////////////////////////////////////////////////
+  ///////////////////////// COPY_ * _T /////////////////////////
+  //////////////////////////////////////////////////////////////
 
   template <class From, class To>
   using copy_reference_t =
@@ -216,7 +288,7 @@ namespace detail {
   template <class From, class To>
   [[maybe_unused]] constexpr inline auto is_nothrow_convertible_v = is_nothrow_convertible_impl<From, To>::value;
 
-  template <class T, class, bool = std::is_class_v<std::remove_reference_t<T>>&& is_defined_v<T>, class = void>
+  template <class T, class, bool = is_defined_v<T>, class = void>
   constexpr static auto has_conversion_operator_v = false;
   template <class T, class U>
   constexpr static auto
@@ -227,23 +299,23 @@ namespace detail {
         has_conversion_operator_v<T, U> || has_conversion_operator_v<T, U&> || has_conversion_operator_v<T, const U&> ||
         has_conversion_operator_v<T, U&&> || has_conversion_operator_v<T, const U&&>;
 
-  template <class T, bool = detail::is_defined_v<T> && !is_range_v<T> && !is_optional_v<T>>
+  template <class T, bool = is_defined_v<T> && !is_range_v<T> && !is_optional_v<T>>
   constexpr inline bool is_bool_ref_v = false;
   template <class T>
-  constexpr inline bool is_bool_ref_v<T, true> =          // type must be defined
-        std::is_class_v<T> &&                             // bool ref can be only classes, whose
-        detail::is_nothrow_convertible_v<T, bool> &&      // can convert to bool
-        detail::has_any_conversion_operator_v<T, bool> && // with bool conversion operator
-        !std::is_constructible_v<T, bool&>;               // cannot construct from bool&
+  constexpr inline bool is_bool_ref_v<T, true> =  // type must be defined
+        std::is_class_v<T> &&                     // bool ref can be only classes, whose
+        is_nothrow_convertible_v<T, bool> &&      // can convert to bool
+        has_any_conversion_operator_v<T, bool> && // with bool conversion operator
+        !std::is_constructible_v<T, bool&>;       // cannot construct from bool&
 
-  template <class T, bool = detail::is_defined_v<T> && !is_range_v<T> && !is_optional_v<T>>
+  template <class T, bool = is_defined_v<T> && !is_range_v<T> && !is_optional_v<T>>
   constexpr inline bool is_size_t_v = false;
   template <class T>
-  constexpr inline bool is_size_t_v<T, true> =              // type must be defined
-        std::is_class_v<T> &&                               // size_t wrapper can be only classes, whose
-        detail::is_nothrow_convertible_v<T, std::size_t> && // can convert to size_t
-        !detail::has_any_conversion_operator_v<T, bool> &&  // but not with operator bool. accept char-s
-        detail::is_nothrow_convertible_v<std::size_t, T>;   // can convert from size_t
+  constexpr inline bool is_size_t_v<T, true> =      // type must be defined
+        std::is_class_v<T> &&                       // size_t wrapper can be only classes, whose
+        is_nothrow_convertible_v<T, std::size_t> && // can convert to size_t
+        !has_any_conversion_operator_v<T, bool> &&  // but not with operator bool. accept char-s
+        is_nothrow_convertible_v<std::size_t, T>;   // can convert from size_t
 
   template <class T>
   using std_size_t = decltype(std::size(std::declval<T&>()));
@@ -258,7 +330,7 @@ namespace detail {
   template <class T>
   struct subscript_operator_traits<T, void, true> : subscript_operator_traits<T, std_size_t<T>> {};
   template <class T>
-  struct subscript_operator_traits<T, void, false> : subscript_operator_traits<T, std::size_t, is_defined_v<T>> {};
+  struct subscript_operator_traits<T, void, false> : subscript_operator_traits<T, std::size_t> {};
   template <class T, class With, bool has_size>
   struct subscript_operator_traits<
         T,
@@ -276,7 +348,7 @@ namespace detail {
   template <class T>
   constexpr inline bool has_subscript_operator_v<T, std::void_t<subscript_operator_return_t<T>>> = true;
 
-  template <class T, bool = detail::has_std_size_v<T>, class = void>
+  template <class T, bool = has_std_size_v<T>, class = void>
   struct bitset_traits {};
 
   template <class T>
@@ -295,6 +367,12 @@ namespace detail {
 
   template <class T>
   constexpr inline bool is_string_v = is_string<T>::value;
+
+  template <class T, bool = is_range_v<T>>
+  struct is_map;
+
+  template <class T>
+  constexpr inline bool is_map_v = is_map<T>::value;
 } // namespace detail
 
 template <class T>
@@ -322,6 +400,14 @@ constexpr inline bool range_is_continuous_v = detail::range_traits<T>::continuou
 
 template <class T>
 constexpr inline bool is_range_v = detail::is_range_v<T> && !detail::is_string_v<T>;
+
+using detail::is_map_v;
+
+template <class T>
+using map_key_t = std::remove_cv_t<std::tuple_element<0, range_value_t<T>>>;
+
+template <class T>
+using map_value_ref_t = detail::copy_cvref_t<range_reference_t<T>, std::tuple_element_t<1, range_value_t<T>>>;
 
 template <class T>
 [[maybe_unused]] constexpr inline bool is_bool_v =
