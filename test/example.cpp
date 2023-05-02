@@ -198,12 +198,12 @@ void test_type_traits() {
   ASSERT(is_bool_v<bitset<10>::reference>);
   ASSERT(is_bool_v<vector<bool>::reference>);
   ASSERT(!is_bool_v<std::reference_wrapper<bool>>);
-  ASSERT(!is_bool_v<std::atomic<bool>>);
+  ASSERT(is_bool_v<std::atomic<bool>>);
 
   enum ASDASD {};
   ASSERT(is_index_v<std::size_t>);
   ASSERT(is_index_v<std::atomic<int>>);
-  ASSERT(is_index_v<ASDASD>);
+  ASSERT(!is_index_v<ASDASD>);
 
   ASSERT(!is_index_v<int&>);
   ASSERT(!is_index_v<char>);
@@ -241,6 +241,16 @@ void test_type_traits() {
 
   check_range_type<std::unordered_map<node_prop, int>, std::pair<const node_prop, int>&, std::forward_iterator_tag,
                    false, range_type_t::map_like>();
+
+  ASSERT(!is_associative_multi_v<std::set<node_prop>>);
+  ASSERT(!is_associative_multi_v<std::map<node_prop, int>>);
+  ASSERT(!is_associative_multi_v<std::unordered_set<node_prop>>);
+  ASSERT(!is_associative_multi_v<std::unordered_map<node_prop, int>>);
+
+  ASSERT(is_associative_multi_v<std::multiset<node_prop>>);
+  ASSERT(is_associative_multi_v<std::multimap<node_prop, int>>);
+  ASSERT(is_associative_multi_v<std::unordered_multiset<node_prop>>);
+  ASSERT(is_associative_multi_v<std::unordered_multimap<node_prop, int>>);
   /*
 #include <boost/optional.hpp>
 #include <boost/bimap/bimap.hpp>
@@ -266,6 +276,12 @@ void test_type_traits() {
                    std::random_access_iterator_tag,
                    false, // this need to be true
                    range_type_t::map_like>();
+
+  ASSERT(!is_associative_multi_v<boost::container::flat_set<undef>>);
+  ASSERT(!is_associative_multi_v<boost::container::flat_map<undef, undef>>);
+
+  ASSERT(is_associative_multi_v<boost::container::flat_multiset<undef>>);
+  ASSERT(is_associative_multi_v<boost::container::flat_multimap<undef, undef>>);
 
   check_range_type<const boost::container::static_vector<undef, 10>, const undef&, std::random_access_iterator_tag, true,
                    range_type_t::sequence>();

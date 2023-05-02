@@ -124,6 +124,23 @@ namespace associative_traits {
   template <class T, class ValueType>
   constexpr static inline bool is_set_v<T, ValueType, true> =
         std::is_same_v<class_member_traits::get_key_type_member_t<T>, std::remove_cv_t<ValueType>>;
+
+  template <class T, class ValueType = std::remove_reference_t<range_value_t<T>>,
+            bool = is_map_v<T, ValueType> || is_set_v<T, ValueType>,
+            bool = class_member_traits::has_emplace_v<T, ValueType&&>,
+            bool = class_member_traits::has_emplace_v<T, ValueType const&>,
+            bool = class_member_traits::has_emplace_v<T>>
+  constexpr static inline bool is_multi_v = false;
+
+  template <class T, class ValueType, bool any, bool any2>
+  constexpr static inline bool is_multi_v<T, ValueType, true, true, any, any2> = std::is_same_v<std_begin_t<T>, class_member_traits::get_emplace_result_t<T, ValueType&&>>;
+
+  template <class T, class ValueType, bool any>
+  constexpr static inline bool is_multi_v<T, ValueType, true, false, true, any> = std::is_same_v<std_begin_t<T>, class_member_traits::get_emplace_result_t<T, ValueType const&>>;
+
+  template <class T, class ValueType>
+  constexpr static inline bool is_multi_v<T, ValueType, true, false, false, true> = std::is_same_v<std_begin_t<T>, class_member_traits::get_emplace_result_t<T>>;
+
 } // namespace associative_traits
 
 struct defined_range_key {
@@ -159,6 +176,8 @@ struct range_traits_impl<T, true, true, std::enable_if_t<has_begin_end_iterators
         : associative_traits::is_map_v<T, value_type> ? range_type_t::map_like
         : associative_traits::is_set_v<T, value_type> ? range_type_t::set_like
                                                       : range_type_t::sequence;
+
+  constexpr static bool is_multi = associative_traits::is_multi_v<std::remove_cv_t<T>, std::remove_cv_t<value_type>>;
 };
 
 template <template <class, class...> class Range, class O, class... Other>
@@ -177,6 +196,8 @@ struct range_traits_impl<Range<O, Other...>,
   constexpr static bool continuous = range_is_continuous_v<Range<defined_range_value>>;
 
   constexpr static range_type_t range = range_type_v<Range<defined_range_value>>;
+
+  constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value>>;
 };
 
 template <template <class, class...> class Range, class O, class... Other>
@@ -195,6 +216,8 @@ struct range_traits_impl<const Range<O, Other...>,
   constexpr static bool continuous = range_is_continuous_v<const Range<defined_range_value>>;
 
   constexpr static range_type_t range = range_type_v<const Range<defined_range_value>>;
+
+  constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value>>;
 };
 
 template <template <class, auto, class...> class Range, class O, auto S, class... Other>
@@ -215,6 +238,8 @@ struct range_traits_impl<
   constexpr static bool continuous = range_is_continuous_v<Range<defined_range_value, S>>;
 
   constexpr static range_type_t range = range_type_v<Range<defined_range_value, S>>;
+
+  constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value, S>>;
 };
 
 
@@ -236,6 +261,8 @@ struct range_traits_impl<
   constexpr static bool continuous = range_is_continuous_v<const Range<defined_range_value, S>>;
 
   constexpr static range_type_t range = range_type_v<const Range<defined_range_value, S>>;
+
+  constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value, S>>;
 };
 
 template <bool, class...>
@@ -287,6 +314,8 @@ struct range_traits_impl<
   constexpr static bool continuous = range_is_continuous_v<the_range>;
 
   constexpr static range_type_t range = range_type_v<the_range>;
+
+  constexpr static bool is_multi = associative_traits::is_multi_v<the_range>;
 };
 
 template <template <class, class, class...> class Range, class K, class M, class... Other>
@@ -310,6 +339,8 @@ struct range_traits_impl<
   constexpr static bool continuous = range_is_continuous_v<the_range>;
 
   constexpr static range_type_t range = range_type_v<the_range>;
+
+  constexpr static bool is_multi = associative_traits::is_multi_v<std::remove_const_t<the_range>>;
 };
 
 template <class M>

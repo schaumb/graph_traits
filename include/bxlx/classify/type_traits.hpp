@@ -309,6 +309,15 @@ namespace detail {
         !std::is_constructible_v<T, bool&>;       // cannot construct from bool&
 
   template <class T, bool = is_defined_v<T> && !is_range_v<T> && !is_optional_v<T>>
+  constexpr inline bool is_bool_t_v = false;
+  template <class T>
+  constexpr inline bool is_bool_t_v<T, true> =
+        std::is_class_v<T> &&
+        is_nothrow_convertible_v<T, bool> &&
+        has_any_conversion_operator_v<T, bool> &&
+        is_nothrow_convertible_v<bool, T>;
+
+  template <class T, bool = is_defined_v<T> && !is_range_v<T> && !is_optional_v<T>>
   constexpr inline bool is_size_t_v = false;
   template <class T>
   constexpr inline bool is_size_t_v<T, true> =      // type must be defined
@@ -373,6 +382,9 @@ namespace detail {
 
   template <class T>
   constexpr inline bool is_map_v = is_map<T>::value;
+
+  template <class T>
+  constexpr inline bool is_associative_multi_v = range_traits<T>::is_multi;
 } // namespace detail
 
 template <class T>
@@ -409,14 +421,16 @@ using map_key_t = std::remove_cv_t<std::tuple_element<0, range_value_t<T>>>;
 template <class T>
 using map_value_ref_t = detail::copy_cvref_t<range_reference_t<T>, std::tuple_element_t<1, range_value_t<T>>>;
 
+using detail::is_associative_multi_v;
+
 template <class T>
 [[maybe_unused]] constexpr inline bool is_bool_v =
-      std::is_same_v<std::remove_cv_t<T>, bool> || detail::is_bool_ref_v<T>;
+      std::is_same_v<std::remove_cv_t<T>, bool> || detail::is_bool_t_v<T> || detail::is_bool_ref_v<T>;
 
 template <class T>
 [[maybe_unused]] constexpr inline bool is_index_v =
       !std::is_same_v<bool, std::remove_cv_t<T>> && !detail::is_char_v<T> &&
-      (std::is_integral_v<T> || detail::is_size_t_v<T> || std::is_enum_v<T>);
+      (std::is_integral_v<T> || detail::is_size_t_v<T>);
 
 template <class T>
 using bitset_reference_t = typename detail::bitset_traits<T>::reference;
