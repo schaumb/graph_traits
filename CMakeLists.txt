@@ -18,18 +18,16 @@ set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
 add_library(${PROJECT_NAME} INTERFACE)
 
 target_sources(${PROJECT_NAME} INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/graph>
-    $<INSTALL_INTERFACE:include/bxlx/graph>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/classify/range_traits.hpp>
-    $<INSTALL_INTERFACE:include/bxlx/classify/range_traits.hpp>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/classify/optional_traits.hpp>
-    $<INSTALL_INTERFACE:include/bxlx/classify/optional_traits.hpp>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/classify/type_traits.hpp>
-    $<INSTALL_INTERFACE:include/bxlx/classify/type_traits.hpp>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/classify/member_traits.hpp>
-    $<INSTALL_INTERFACE:include/bxlx/classify/member_traits.hpp>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/bxlx/classify/classify.hpp>
-    $<INSTALL_INTERFACE:include/bxlx/classify/classify.hpp>
+        include/bxlx/graph
+        include/bxlx/classify/range_traits.hpp
+        include/bxlx/classify/optional_traits.hpp
+        include/bxlx/classify/type_traits.hpp
+        include/bxlx/classify/member_traits.hpp
+        include/bxlx/classify/classify.hpp
+        include/bxlx/recognize/assert_types.hpp
+        include/bxlx/recognize/graph_traits.hpp
+        include/bxlx/recognize/properties.hpp
+        include/bxlx/recognize/recognize.hpp
 )
 
 add_library(bxlx::graph ALIAS ${PROJECT_NAME})

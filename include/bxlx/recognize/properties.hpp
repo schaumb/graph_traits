@@ -25,19 +25,16 @@ struct Value {
 template <>
 struct Value<undefined> {
   constexpr operator bool() const { return false; }
-
 };
 
-constexpr Value<undefined> operator||(Value<undefined>const&, Value<undefined> const&) {
-  return {};
-}
+constexpr Value<undefined> operator||(Value<undefined> const&, Value<undefined> const&) { return {}; }
 
-template<class T>
+template <class T>
 constexpr Value<T> operator||(Value<T> const&, Value<undefined> const&) {
   return {};
 }
 
-template<class T>
+template <class T>
 constexpr Value<T> operator||(Value<undefined> const&, Value<T> const&) {
   return {};
 }
@@ -78,7 +75,7 @@ struct properties {
 };
 
 
-template<class K, class V>
+template <class K, class V>
 constexpr inline properties<property<K, V>> property_v{};
 
 constexpr inline properties<> empty_property_v{};

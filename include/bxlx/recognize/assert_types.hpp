@@ -11,26 +11,26 @@
 #include <type_traits>
 
 namespace bxlx {
-template<class Why>
+template <class Why>
 struct why_not_graph {
   static_assert(Why::value, "Not a graph, see under/below the reason");
 };
 
 
-template<class Reason, class ...>
+template <class Reason, class...>
 struct reason : std::false_type {};
 
 
-template<auto e, class ...>
+template <auto e, class...>
 struct expected;
 
-template<auto type, class ...>
+template <auto type, class...>
 struct got;
 
-template<class ...>
+template <class...>
 struct at;
 
-template<class ...>
+template <class...>
 struct input;
 
 struct expected_tuple;
@@ -50,7 +50,7 @@ namespace graph::assert_types {
   using bxlx::got;
   using bxlx::at;
   using bxlx::input;
-}
-}
+} // namespace graph::assert_types
+} // namespace bxlx
 
 #endif //BXLX_GRAPH_ASSERT_TYPES_HPP
