@@ -66,7 +66,7 @@ using merge_properties_t = typename merge_properties<Ts...>::type;
 template <class... Ts>
 struct properties {
   template <class T>
-  constexpr static auto has_property_v = typename get_dominant_value<typename Ts::template value_if_key<T>...>::type{};
+  constexpr static typename get_dominant_value<typename Ts::template value_if_key<T>...>::type has_property_v{};
 
   template <class T, class V>
   constexpr static bool is_valid_v = !has_property_v<T>() || std::is_same_v<std::decay_t<decltype(has_property_v<T>)>, Value<V>>;

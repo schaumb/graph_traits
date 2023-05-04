@@ -442,23 +442,30 @@ namespace state_machine {
     using properties [[maybe_unused]] = Properties;
   };
 
-  template<class T, class Props, class = void, class... NextStates>
+  template<class T, class Props, class... NextStates>
   struct apply_properties {
     using type = valid_props<Props>;
   };
 
   template<class T, class Props, class... NextStates>
-  using apply_properties_t = typename apply_properties<T, Props, void, NextStates...>::type;
+  using apply_properties_t = typename apply_properties<T, Props, NextStates...>::type;
+
+  template<class, class T, class Props, class State, class...NextStates>
+  struct apply_properties_impl;
 
   template<class T, class Props, class State, class...NextStates>
-  struct apply_properties<T, Props, std::enable_if_t<State::template valid<T, Props>()>, State, NextStates...> {
+  struct apply_properties_impl<std::true_type, T, Props, State, NextStates...> {
     using type = apply_properties_t<T, typename decltype(State::template valid<T, Props>())::properties,
                                     NextStates...>;
   };
   template<class T, class Props, class State, class...NextStates>
-  struct apply_properties<T, Props, std::enable_if_t<!State::template valid<T, Props>().value>, State, NextStates...> {
+  struct apply_properties_impl<std::false_type, T, Props, State, NextStates...> {
     using type = decltype(State::template valid<T, Props>());
   };
+
+  template<class T, class Props, class State, class...NextStates>
+  struct apply_properties<T, Props, State, NextStates...> :
+        apply_properties_impl<std::bool_constant<(State::template valid<T, Props>())>, T, Props, State, NextStates...> {};
 
 
   template <class TypeFilter = any, auto* Conditions = no, auto* Properties = empty, class... NextStates>
@@ -479,14 +486,13 @@ namespace state_machine {
       return TypeFilter::template valid<T>();
     }
 
-    template <class T, class Props = properties::empty_t, std::enable_if_t<valid_type<T>()>* = nullptr>
+    template <class T, class Props = properties::empty_t>
     constexpr static auto valid_conditions() {
-      return Conditions->template valid<T, Props>();
-    }
-
-    template <class T, class Props = properties::empty_t, std::enable_if_t<!valid_type<T>()>* = nullptr>
-    constexpr static auto valid_conditions() {
-      return valid_type<T>();
+      if constexpr (valid_type<T>()) {
+        return Conditions->template valid<T, Props>();
+      } else {
+        return valid_type<T>();
+      }
     }
   };
 
