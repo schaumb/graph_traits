@@ -373,9 +373,9 @@ namespace state_machine {
                                                                                          >,
                                                                       properties::property_t<CRTP, T>
                                                                       >>;
-      constexpr bool valid_states = ((States::template valid<T, Props>().value) + ...);
-      constexpr bool valid_types = ((States::template valid_type<T>().value) + ...);
-      constexpr bool valid_conditions = ((States::template valid_conditions<T, Props>().value) + ...);
+      constexpr std::size_t valid_states = ((States::template valid<T, Props>().value) + ...);
+      constexpr std::size_t valid_types = ((States::template valid_type<T>().value) + ...);
+      constexpr std::size_t valid_conditions = ((States::template valid_conditions<T, Props>().value) + ...);
       if constexpr (valid_states == 1) {
         return std::tuple_element_t<
               0, decltype(std::tuple_cat(
