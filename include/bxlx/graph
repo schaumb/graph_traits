@@ -9,16 +9,24 @@
 #define BXLX_GRAPH_INCLUDED
 
 #include <type_traits>
+#include <string_view>
+#include "recognize/graph_traits.hpp"
 
 namespace bxlx::graph {
-enum class representation_t {
-  adjacency_list = 1,
-  adjacency_matrix,
-  edge_list,
-};
+constexpr std::string_view version = "1.0.0";
 
-template <class>
-[[maybe_unused]] constexpr representation_t representation = [] { return representation_t{}; }();
+constexpr std::size_t major_version = 1;
+constexpr std::size_t minor_version = 0;
+constexpr std::size_t patch_version = 0;
+
+using traits::is_graph_v;
+using traits::it_is_a_graph_v;
+using traits::representation_t;
+using traits::representation_v;
+using traits::graph_traits;
+
+
+
 } // namespace bxlx::graph
 
 #endif //BXLX_GRAPH_INCLUDED

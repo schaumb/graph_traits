@@ -1,6 +1,7 @@
 #include <bxlx/classify/optional_traits.hpp>
 #include <bxlx/classify/range_traits.hpp>
 #include <bxlx/classify/type_traits.hpp>
+#include <bxlx/recognize/recognize.hpp>
 #include <bxlx/graph>
 
 #include <array>
@@ -57,15 +58,15 @@ constexpr auto adjacency_list   = representation_t::adjacency_list;
 constexpr auto adjacency_matrix = representation_t::adjacency_matrix;
 constexpr auto edge_list        = representation_t::edge_list;
 
-void test_example_graph_representations() { /*
-  ASSERT(representation<vector<vector<int>>> == adjacency_list);
+void test_example_graph_representations() {
+  ASSERT(representation_v<vector<vector<int>>> == adjacency_list);
 
-  ASSERT(representation<bool[10][10]> == adjacency_matrix);
+  ASSERT(representation_v<bool[10][10]> == adjacency_matrix);
 
-  ASSERT(representation<list<tuple<int, int, int>>> == edge_list);
+  ASSERT(representation_v<list<tuple<int, int, int>>> == edge_list);
 
-  using Mat = tuple<vector<pair<list<optional<edge_prop>>, node_prop>>, graph_prop>;
-  ASSERT(representation<Mat> == adjacency_matrix);*/
+  using Mat = tuple<vector<pair<vector<optional<edge_prop>>, node_prop>>, graph_prop>;
+  ASSERT(representation_v<Mat> == adjacency_matrix);
 }
 
 template <class T>
@@ -301,6 +302,6 @@ void test_type_traits() {
 }
 
 int main() {
-  // test_example_graph_representations();
+  test_example_graph_representations();
   test_type_traits();
 }

@@ -10,7 +10,6 @@
 
 #include "../classify/classify.hpp"
 #include "assert_types.hpp"
-#include "graph_traits.hpp"
 #include "properties.hpp"
 #include <algorithm>
 #include <functional>
@@ -21,7 +20,7 @@ namespace type_filter {
   template <class Check = std::greater<>, std::size_t Size = 0, class Reason = empty_tuple>
   struct tuple_t {
     template <class T, class = std::enable_if_t<classification::classify<T> != classification::type::tuple_like>>
-    constexpr static assert_types::reason<expected_tuple, T> valid() {
+    constexpr static assert_types::reason<expected_tuple, assert_types::got<classification::classify<T>>> valid() {
       return {};
     }
 
@@ -30,7 +29,7 @@ namespace type_filter {
       if constexpr (Check{}(std::tuple_size_v<T>, Size)) {
         return std::true_type{};
       } else {
-        return assert_types::reason<Reason, T>{};
+        return assert_types::reason<Reason, assert_types::got<std::tuple_size_v<T>>>{};
       }
     }
   };
@@ -53,7 +52,7 @@ namespace type_filter {
     constexpr static std::conditional_t<
           classification::classify<T> == t,
           std::true_type,
-          assert_types::reason<assert_types::expected<t, assert_types::got<classification::classify<T>, T>>>>
+          assert_types::reason<assert_types::expected<t, assert_types::got<classification::classify<T>>>>>
     valid() {
       return {};
     }
@@ -68,13 +67,19 @@ namespace type_filter {
 } // namespace type_filter
 
 namespace next_type {
-  template <class T, class U = std::make_index_sequence<std::tuple_size_v<T> - 1>>
+  template <class T, class U = std::make_index_sequence<std::tuple_size_v<T> - 1>, class = void>
   struct split_tuple_last;
 
   template <template <class...> class T, class... Types, std::size_t... Ix>
-  struct split_tuple_last<T<Types...>, std::index_sequence<Ix...>> {
+  struct split_tuple_last<T<Types...>, std::index_sequence<Ix...>, std::enable_if_t<(sizeof...(Ix) > 1)>> {
     using First [[maybe_unused]]    = std::tuple_element_t<0, T<Types...>>;
     using DropLast [[maybe_unused]] = T<std::tuple_element_t<Ix, T<Types...>>...>;
+    using Last [[maybe_unused]]     = std::tuple_element_t<sizeof...(Ix), T<Types...>>;
+  };
+
+  template <template <class...> class T, class... Types, std::size_t... Ix>
+  struct split_tuple_last<T<Types...>, std::index_sequence<Ix...>, std::enable_if_t<sizeof...(Ix) == 1>> {
+    using First [[maybe_unused]]    = std::tuple_element_t<0, T<Types...>>;
     using Last [[maybe_unused]]     = std::tuple_element_t<sizeof...(Ix), T<Types...>>;
   };
 
@@ -118,7 +123,7 @@ namespace conditions {
     constexpr static std::conditional_t<
           classification::classify<Tr<T>> != classification::type::range,
           std::true_type,
-          assert_types::reason<assert_types::got<classification::type::range, Tr<T>>, not_expected>>
+          assert_types::reason<assert_types::got<classification::type::range>, not_expected>>
     valid() {
       return {};
     }
@@ -133,7 +138,7 @@ namespace conditions {
     constexpr static std::conditional_t<
           std::is_base_of_v<std::random_access_iterator_tag, type_traits::range_iterator_tag_t<T>>,
           std::true_type,
-          assert_types::reason<assert_types::input<type_traits::range_iterator_tag_t<T>, T>, not_random_access_range>>
+          assert_types::reason<assert_types::input<type_traits::range_iterator_tag_t<T>>, not_random_access_range>>
     valid() {
       return {};
     }
@@ -146,7 +151,7 @@ namespace conditions {
     constexpr static std::conditional_t<
           type_traits::is_associative_multi_v<T>,
           std::true_type,
-          assert_types::reason<assert_types::input<T>, expected<true, struct is_associative>>>
+          assert_types::reason<expected<true, struct is_associative>>>
     valid() {
       return {};
     }
@@ -172,7 +177,7 @@ namespace conditions {
                              type_traits::detail::std_begin_t<std::add_const_t<std::tuple_element_t<1, T>>>>) {
           return std::true_type{};
         } else {
-          return assert_types::reason<struct iterator, std::tuple_element_t<0, T>>{};
+          return assert_types::reason<struct iterator>{};
         }
       } else {
         return assert_types::reason<separator_of_t, struct not_range>{};
@@ -211,12 +216,10 @@ namespace conditions {
         , condition_t {
     template <class, class Props>
     constexpr static auto valid() {
-      if constexpr (Props{}.is_valid(properties::property<K, V>{})) {
+      if constexpr (Props::template is_valid_v<K, V>) {
         return std::true_type{};
       } else {
-        return assert_types::reason<assert_types::expected<&properties::property_v<K, V>>,
-                                    assert_types::got<&properties::property_v<
-                                          K, typename decltype(Props{}.template has_property<K>())::type>>>{};
+        return assert_types::reason<struct wrong_property_for_key, K>{};
       }
     }
   };
@@ -227,10 +230,8 @@ namespace conditions {
         , condition_t {
     template <class, class Props>
     constexpr static auto valid() {
-      if constexpr (Props{}.template has_property<K>()) {
-        return assert_types::reason<already_contains_property, assert_types::expected<no, K>,
-                                    assert_types::got<&properties::property_v<
-                                          K, typename decltype(Props{}.template has_property<K>())::type>>>{};
+      if constexpr (Props::template has_property_v<K>) {
+        return assert_types::reason<already_contains_property, K>{};
       } else {
         return std::true_type{};
       }
@@ -261,7 +262,7 @@ namespace props {
         : crtp_address_to_nullptr<empty_t>
         , property_t {
     template <class>
-    using type = properties::properties<>;
+    using type = properties::empty_t;
   } constexpr* empty{};
 
   template <class K, template <class> class Tr>
@@ -270,16 +271,14 @@ namespace props {
         , property_t
         , conditions::condition_t {
     template <class V>
-    using type = properties::properties<properties::property<K, Tr<V>>>;
+    using type = properties::property_t<K, Tr<V>>;
 
     template <class T, class Props>
     constexpr static auto valid() {
-      if constexpr (Props{}.is_valid(properties::property<K, Tr<T>>{})) {
+      if constexpr (Props::template is_valid_v<K, Tr<T>>) {
         return std::true_type{};
       } else {
-        return assert_types::reason<assert_types::expected<&properties::property_v<K, Tr<T>>>,
-                                    assert_types::got<&properties::property_v<
-                                          K, typename decltype(Props{}.template has_property<K>())::type>>>{};
+        return assert_types::reason<struct cannot_set_key, K>{};
       }
     }
   };
@@ -289,13 +288,13 @@ namespace props {
         : crtp_address_to_nullptr<fix_t<K, V>>
         , property_t {
     template <class>
-    using type = properties::properties<properties::property<K, V>>;
+    using type = properties::property_t<K, V>;
   };
 
   template <class... Ts>
   struct multi {
     template <class T>
-    using type = decltype((std::declval<typename Ts::template type<T>>() + ...));
+    using type = properties::merge_properties_t<typename Ts::template type<T>...>;
   };
 
   template <class T, class U>
@@ -311,18 +310,12 @@ namespace props {
   }
 
   template <class PreProp, auto* V, class T>
-  using add_properties = decltype(PreProp{} + typename std::remove_reference_t<decltype(*V)>::template type<T>{});
+  using add_properties = properties::merge_properties_t<PreProp, typename std::remove_reference_t<decltype(*V)>::template type<T>>;
 } // namespace props
 
 namespace collect_values {
   struct na_t {
   } constexpr na{};
-  struct adj_list_t {
-  } constexpr adj_list_v{};
-  struct adj_mat_t {
-  } constexpr adj_mat_v{};
-  struct edge_list_t {
-  } constexpr edge_list_v{};
   constexpr std::true_type  t{};
   constexpr std::false_type f{};
 } // namespace collect_values
@@ -357,11 +350,6 @@ namespace collect_props {
 
   constexpr settable_prop<struct user_edge_t, collect_values::na_t, std::true_type, std::false_type> user_edge{};
   constexpr settable_prop<struct user_node_t, std::true_type, std::false_type>                       user_node{};
-  constexpr settable_prop<struct type_t,
-                          collect_values::adj_list_t,
-                          collect_values::adj_mat_t,
-                          collect_values::edge_list_t>
-                                                                                type{};
   constexpr settable_prop<struct in_edges_t, std::true_type, std::false_type>   in_edges{};
   constexpr settable_prop<struct multi_edge_t, std::true_type, std::false_type> multi_edge{};
   constexpr settable_prop<struct compressed_t, std::true_type, std::false_type> compressed{};
@@ -369,10 +357,22 @@ namespace collect_props {
 
 namespace state_machine {
 
+  template<class T, std::size_t Index>
+  using indexed_type = std::pair<T, std::integral_constant<std::size_t, Index>>;
+
   template <class CRTP, class... States>
   struct any_of {
-    template <class T, class Props = properties::properties<>>
+    template <class T, class PropsT = properties::empty_t>
     constexpr static auto valid() {
+     using Props =
+            properties::merge_properties_t<PropsT, std::conditional_t<PropsT::template has_property_v<CRTP>,
+                                                                      std::conditional_t<PropsT::template has_property_v<indexed_type<CRTP, 1>>,
+                                                                                         properties::property_t<indexed_type<CRTP, 2>, T>,
+                                                                                         properties::property_t<indexed_type<CRTP, 1>, T>
+                                                                                         >,
+                                                                      properties::property_t<CRTP, T>
+                                                                      >>;
+
       if constexpr ((static_cast<bool>(States::template valid<T, Props>()) + ...) == 1) {
         return std::tuple_element_t<
               0, decltype(std::tuple_cat(
@@ -380,7 +380,7 @@ namespace state_machine {
                                                        std::tuple<>>>()...))>::template valid<T, Props>();
       } else if constexpr ((static_cast<bool>(States::template valid<T, Props>()) + ...) > 1) {
         return assert_types::reason<
-              multiple_good_recognition, assert_types::input<T, Props>, assert_types::at<CRTP>,
+              multiple_good_recognition, assert_types::at<CRTP>,
               decltype(std::tuple_cat(
                     std::declval<std::conditional_t<States::template valid<T, Props>(),
                                                     std::tuple<decltype(States::template valid<T, Props>())>,
@@ -398,7 +398,7 @@ namespace state_machine {
               template valid<T, Props>();
       } else if constexpr ((static_cast<bool>(States::template valid_conditions<T, Props>()) + ...) > 1) {
         return assert_types::reason<
-              no_good_recognition, assert_types::input<T, Props>, assert_types::at<CRTP>,
+              no_good_recognition, assert_types::at<CRTP>,
               assert_types::got<false,
                                 decltype(std::tuple_cat(std::declval<std::conditional_t<
                                                               States::template valid_conditions<T>(),
@@ -406,14 +406,14 @@ namespace state_machine {
                                                               std::tuple<>>>()...))>>{};
       } else if constexpr ((static_cast<bool>(States::template valid_type<T>()) + ...) > 1) {
         return assert_types::reason<
-              no_good_recognition, assert_types::input<T, Props>, assert_types::at<CRTP>,
+              no_good_recognition, assert_types::at<CRTP>,
               assert_types::got<false,
                                 decltype(std::tuple_cat(std::declval<std::conditional_t<
                                                               States::template valid_type<T>(),
                                                               std::tuple<decltype(States::template valid<T, Props>())>,
                                                               std::tuple<>>>()...))>>{};
       } else {
-        return assert_types::reason<no_good_recognition, assert_types::input<T, Props>, assert_types::at<CRTP>>{};
+        return assert_types::reason<no_good_recognition, assert_types::at<CRTP>>{};
       }
     }
   };
@@ -442,49 +442,35 @@ namespace state_machine {
     using properties [[maybe_unused]] = Properties;
   };
 
-  template <class, class Props>
-  struct applier_t {
-    constexpr static valid_props<Props> value{};
+  template<class T, class Props, class = void, class... NextStates>
+  struct apply_properties {
+    using type = valid_props<Props>;
   };
 
-  template <class Fail>
-  struct failed_t {
-    constexpr static Fail value{};
+  template<class T, class Props, class... NextStates>
+  using apply_properties_t = typename apply_properties<T, Props, void, NextStates...>::type;
+
+  template<class T, class Props, class State, class...NextStates>
+  struct apply_properties<T, Props, std::enable_if_t<State::template valid<T, Props>()>, State, NextStates...> {
+    using type = apply_properties_t<T, typename decltype(State::template valid<T, Props>())::properties,
+                                    NextStates...>;
+  };
+  template<class T, class Props, class State, class...NextStates>
+  struct apply_properties<T, Props, std::enable_if_t<!State::template valid<T, Props>().value>, State, NextStates...> {
+    using type = decltype(State::template valid<T, Props>());
   };
 
-  template <class>
-  struct to_apply_t {};
-
-  template <class T, class Props>
-  constexpr static applier_t<T, Props> applier{};
-
-  template <class State>
-  constexpr static to_apply_t<State> to_apply{};
-
-  template <class T, class Props, class State>
-  constexpr auto operator>>(applier_t<T, Props> const&, to_apply_t<State> const&) {
-    if constexpr (State::template valid<T, Props>()) {
-      return applier_t<T, typename decltype(State::template valid<T, Props>())::properties>{};
-    } else {
-      return failed_t<decltype(State::template valid<T, Props>())>{};
-    }
-  }
-
-  template <class Fail, class State>
-  constexpr failed_t<Fail> operator>>(failed_t<Fail> const&, to_apply_t<State> const&) {
-    return {};
-  }
 
   template <class TypeFilter = any, auto* Conditions = no, auto* Properties = empty, class... NextStates>
   struct transition {
-    template <class T, class Props = properties::properties<>>
+    template <class T, class Props = properties::empty_t>
     constexpr static auto valid() {
       if constexpr (!valid_type<T>()) {
         return TypeFilter::template valid<T>();
       } else if constexpr (!valid_conditions<T, Props>()) {
         return Conditions->template valid<T, Props>();
       } else {
-        return (applier<T, add_properties<Props, Properties, T>> >> ... >> to_apply<NextStates>).value;
+        return apply_properties_t<T, add_properties<Props, Properties, T>, NextStates...>{};
       }
     }
 
@@ -493,12 +479,12 @@ namespace state_machine {
       return TypeFilter::template valid<T>();
     }
 
-    template <class T, class Props = properties::properties<>, std::enable_if_t<valid_type<T>()>* = nullptr>
+    template <class T, class Props = properties::empty_t, std::enable_if_t<valid_type<T>()>* = nullptr>
     constexpr static auto valid_conditions() {
       return Conditions->template valid<T, Props>();
     }
 
-    template <class T, class Props = properties::properties<>, std::enable_if_t<!valid_type<T>()>* = nullptr>
+    template <class T, class Props = properties::empty_t, std::enable_if_t<!valid_type<T>()>* = nullptr>
     constexpr static auto valid_conditions() {
       return valid_type<T>();
     }
@@ -528,7 +514,7 @@ namespace state_machine {
         : any_of_r<node<Tr>,
                    Tr,
                    transition<index, user_node == f && node_type<>, &node_type<>>,
-                   transition<any, user_node == t && node_type<>>> {};
+                   transition<any, user_node == t && node_type<>, &node_type<>>> {};
 
   template <template <class> class Tr = T>
   struct edge
@@ -629,15 +615,15 @@ namespace state_machine {
   struct edge_list
         : any_of<edge_list,
                  transition<tuple_eq_2, no, empty, node_container<tup_0>, edge_list_n<tup_N_1>>,
-                 simple_transition<edge_list_n>> {};
+                 transition<any, no, &(user_node = t), edge_list_n<>>> {};
 
   template <template <class> class Tr = T>
   struct graph_ep
         : any_of_r<graph_ep<Tr>,
                    Tr,
-                   transition<any, no, &(type = adj_list_v), adj_list>,
-                   transition<any, no, &(type = adj_mat_v), adj_mat>,
-                   transition<any, no, &(type = edge_list_v), edge_list>> {};
+                   transition<any, no, empty, adj_list>,
+                   transition<any, no, empty, adj_mat>,
+                   transition<any, no, empty, edge_list>> {};
 
   template <template <class> class Tr = T>
   struct graph_p

@@ -28,7 +28,7 @@ static_assert(representation<list<tuple<int, int, int>>> ==
               edge_list); // with bounded edge property
 
 static_assert(representation<
-  tuple<vector<pair<list<optional<edge_prop>>, node_prop>>, graph_prop>
+  tuple<vector<pair<vector<optional<edge_prop>>, node_prop>>, graph_prop>
 > == adjacency_matrix); // it has bounded edge, node and graph properties
 ```
 

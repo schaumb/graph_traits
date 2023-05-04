@@ -17,68 +17,65 @@ struct Key {};
 struct undefined;
 
 template <class T = undefined>
-struct Value {
-  constexpr operator bool() const { return true; }
-  using type = T;
-};
+struct Value : std::true_type {};
 
 template <>
-struct Value<undefined> {
-  constexpr operator bool() const { return false; }
+struct Value<undefined> : std::false_type {};
+
+template<class ... Vals>
+struct get_dominant_value {
+  constexpr static std::size_t index = [] {
+      bool arr[] {Vals::value...};
+      std::size_t r{};
+      for (; r+1 < sizeof...(Vals); ++r)
+        if (arr[r])
+          break;
+      return r;
+  } ();
+  using type = std::tuple_element_t<index, std::tuple<Vals...>>;
 };
-
-constexpr Value<undefined> operator||(Value<undefined> const&, Value<undefined> const&) { return {}; }
-
-template <class T>
-constexpr Value<T> operator||(Value<T> const&, Value<undefined> const&) {
-  return {};
-}
-
-template <class T>
-constexpr Value<T> operator||(Value<undefined> const&, Value<T> const&) {
-  return {};
-}
-
+template<>
+struct get_dominant_value<> {
+  using type = Value<>;
+};
 
 template <class K, class V>
 struct property {
-  template <class Key2, class Value2>
-  constexpr bool operator&&(property<Key2, Value2> const&) const {
-    return !std::is_same_v<K, Key2> || std::is_same_v<V, Value2>;
-  }
 
   template <class T>
-  constexpr std::conditional_t<std::is_same_v<T, K>, Value<V>, Value<>> is_key(Key<T> const& = {}) const {
-    return {};
-  }
+  using value_if_key = std::conditional_t<std::is_same_v<T, K>, Value<V>, Value<>>;
 };
 
+template<class ...Ts>
+struct properties;
+
+template<class, class...>
+struct merge_properties;
+
+template<class ... Ts, class ... Us>
+struct merge_properties<properties<Ts...>, properties<Us...>> {
+  using type = properties<Ts..., Us...>;
+};
+template<class ... Ts, class ... Us, class ... Others>
+struct merge_properties<properties<Ts...>, properties<Us...>, Others...> :
+      merge_properties<properties<Ts..., Us...>, Others...>{};
+
+template<class ...Ts>
+using merge_properties_t = typename merge_properties<Ts...>::type;
 
 template <class... Ts>
 struct properties {
-  template <class Prop>
-  constexpr bool is_valid(Prop const& = {}) const {
-    return ((Prop{} && Ts{}) && ...);
-  }
-
-  constexpr operator bool() const { return (is_valid(Ts{}) && ...); }
-
-  template <class... Us>
-  constexpr properties<Ts..., Us...> operator+(properties<Us...> const&) const {
-    return {};
-  }
-
   template <class T>
-  constexpr auto has_property(Key<T> const& e = {}) const {
-    return (Ts{}.is_key(e) || ...);
-  }
+  constexpr static auto has_property_v = typename get_dominant_value<typename Ts::template value_if_key<T>...>::type{};
+
+  template <class T, class V>
+  constexpr static bool is_valid_v = !has_property_v<T>() || std::is_same_v<std::decay_t<decltype(has_property_v<T>)>, Value<V>>;
 };
 
-
 template <class K, class V>
-constexpr inline properties<property<K, V>> property_v{};
+using property_t = properties<property<K, V>>;
 
-constexpr inline properties<> empty_property_v{};
+using empty_t = properties<>;
 
 } // namespace bxlx::graph::traits::properties
 

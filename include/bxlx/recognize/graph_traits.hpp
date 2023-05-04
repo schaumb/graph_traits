@@ -35,11 +35,11 @@ struct graph_traits<G, V, true> {
   using properties_t = typename V::properties;
 
   constexpr static representation_t representation =
-        properties_t{}.template has_property<state_machine::adj_list>()
+        properties_t::template has_property_v<state_machine::adj_list>
               ? representation_t::adjacency_list :
-        properties_t{}.template has_property<state_machine::adj_mat>()
+        properties_t::template has_property_v<state_machine::adj_mat>
               ? representation_t::adjacency_matrix :
-        properties_t{}.template has_property<state_machine::edge_list>()
+        properties_t::template has_property_v<state_machine::edge_list>
               ? representation_t::edge_list :
         representation_t{};
 
