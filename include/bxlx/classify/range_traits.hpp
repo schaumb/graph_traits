@@ -55,7 +55,7 @@ constexpr inline bool is_iterator_pair_v<
                        class_member_traits::has_star_op_v<It> &&
                        std::is_same_v<class_member_traits::get_increment_op_result_t<It&>, It&>>> = true;
 
-template <class T, bool = std::is_class_v<T>, class = void>
+template <class T, bool = std::is_class_v<T> || std::is_array_v<T>, class = void>
 [[maybe_unused]] constexpr inline bool has_begin_end_iterators_v = false;
 template <class T>
 [[maybe_unused]] constexpr inline bool

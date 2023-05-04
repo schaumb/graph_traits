@@ -236,9 +236,6 @@ namespace detail {
   template <class T>
   struct is_defined<T, std::enable_if_t<is_tuple_v<T>>> : all_template_defined<T, T> {};
 
-  template <class T>
-  struct is_defined<T, std::enable_if_t<std::is_array_v<T>>> : is_defined<std::remove_extent_t<T>> {};
-
   template <class T,
             bool = !is_tuple_v<T> && !std::is_array_v<T> && !std::is_void_v<std::remove_pointer_t<T>> &&
                    !std::is_function_v<T>,
