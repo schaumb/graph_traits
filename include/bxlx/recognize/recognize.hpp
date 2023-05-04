@@ -199,7 +199,8 @@ namespace conditions {
   struct all {
     template <class T, class Props>
     constexpr static auto valid() {
-      if constexpr ((Ts::template valid<T, Props>() && ...)) {
+      constexpr bool all_valid = ((Ts::template valid<T, Props>().value) && ...);
+      if constexpr (all_valid) {
         return std::true_type{};
       } else {
         return std::tuple_element_t<
@@ -372,31 +373,33 @@ namespace state_machine {
                                                                                          >,
                                                                       properties::property_t<CRTP, T>
                                                                       >>;
-
-      if constexpr ((static_cast<bool>(States::template valid<T, Props>()) + ...) == 1) {
+      constexpr bool valid_states = ((States::template valid<T, Props>().value) + ...);
+      constexpr bool valid_types = ((States::template valid_type<T>().value) + ...);
+      constexpr bool valid_conditions = ((States::template valid_conditions<T, Props>().value) + ...);
+      if constexpr (valid_states == 1) {
         return std::tuple_element_t<
               0, decltype(std::tuple_cat(
                        std::declval<std::conditional_t<States::template valid<T, Props>(), std::tuple<States>,
                                                        std::tuple<>>>()...))>::template valid<T, Props>();
-      } else if constexpr ((static_cast<bool>(States::template valid<T, Props>()) + ...) > 1) {
+      } else if constexpr (valid_states > 1) {
         return assert_types::reason<
               multiple_good_recognition, assert_types::at<CRTP>,
               decltype(std::tuple_cat(
                     std::declval<std::conditional_t<States::template valid<T, Props>(),
                                                     std::tuple<decltype(States::template valid<T, Props>())>,
                                                     std::tuple<>>>()...))>{};
-      } else if constexpr ((static_cast<bool>(States::template valid_type<T>()) + ...) == 1) {
+      } else if constexpr (valid_types == 1) {
         return std::tuple_element_t<
               0, decltype(std::tuple_cat(
                        std::declval<std::conditional_t<States::template valid_type<T>(), std::tuple<States>,
                                                        std::tuple<>>>()...))>::template valid<T, Props>();
-      } else if constexpr ((static_cast<bool>(States::template valid_type<T>()) + ...) > 1 &&
-                           (static_cast<bool>(States::template valid_conditions<T, Props>()) + ...) == 1) {
+      } else if constexpr (valid_types > 1 &&
+                           valid_conditions == 1) {
         return std::tuple_element_t<
               0, decltype(std::tuple_cat(std::declval<std::conditional_t<States::template valid_conditions<T, Props>(),
                                                                          std::tuple<States>, std::tuple<>>>()...))>::
               template valid<T, Props>();
-      } else if constexpr ((static_cast<bool>(States::template valid_conditions<T, Props>()) + ...) > 1) {
+      } else if constexpr (valid_conditions > 1) {
         return assert_types::reason<
               no_good_recognition, assert_types::at<CRTP>,
               assert_types::got<false,
@@ -404,7 +407,7 @@ namespace state_machine {
                                                               States::template valid_conditions<T>(),
                                                               std::tuple<decltype(States::template valid<T, Props>())>,
                                                               std::tuple<>>>()...))>>{};
-      } else if constexpr ((static_cast<bool>(States::template valid_type<T>()) + ...) > 1) {
+      } else if constexpr (valid_types > 1) {
         return assert_types::reason<
               no_good_recognition, assert_types::at<CRTP>,
               assert_types::got<false,
