@@ -22,7 +22,7 @@ constexpr bool is_graph_v {V{}};
 
 template <class G, class V = decltype(state_machine::graph::template valid<G>())>
 constexpr bool it_is_a_graph_v = [] () -> bool {
-  return assert_types::why_not_graph<V>::value;
+  return assert_types::why_not_graph<V>{};
 } ();
 
 template <class G, class V = decltype(state_machine::graph::template valid<G>()), bool = V{}>

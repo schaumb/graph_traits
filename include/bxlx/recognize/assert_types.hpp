@@ -12,8 +12,11 @@
 
 namespace bxlx {
 template <class Why>
-struct why_not_graph : std::bool_constant<Why::value> {
+struct why_not_graph {
   static_assert(Why::value, "Not a graph, see under/below the reason");
+  constexpr operator bool() const {
+    return Why::value;
+  }
 };
 
 
