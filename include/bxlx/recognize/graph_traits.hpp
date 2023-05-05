@@ -43,7 +43,7 @@ struct graph_traits<G, V, true> {
 
   constexpr static bool user_defined_node_type = !properties_t::template is_valid_v<state_machine::user_node_t, std::false_type>;
 
-  constexpr static bool has_edge_type = !properties_t::template is_valid_v<state_machine::user_edge_t, state_machine::na_t>.value;
+  constexpr static bool has_edge_type = !properties_t::template is_valid_v<state_machine::user_edge_t, state_machine::na_t>;
 
   constexpr static bool has_node_container = properties_t::template has_property_v<state_machine::node_container<next_type::Dummy>>.value;
   constexpr static bool has_edge_container = properties_t::template has_property_v<state_machine::edge_container<next_type::Dummy>>.value;
