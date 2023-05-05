@@ -74,10 +74,14 @@ constexpr bool it_is_a_graph_v<G, Traits, false> = [] () -> bool {
   return assert_types::why_not_graph<typename Traits::reason_t>{};
 } ();
 
+template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
+[[maybe_unused]] constexpr representation_t representation_v{};
+template <class G, class Traits>
+[[maybe_unused]] constexpr representation_t representation_v<G, Traits, true> = Traits::representation;
+
+/*
 #define BXLX_GRAPH_TRAITS_SIMPLIFY_GETTER(member) Traits::member
 
-template <class G, class Traits = graph_traits<G>>
-[[maybe_unused]] constexpr representation_t representation_v = BXLX_GRAPH_TRAITS_SIMPLIFY_GETTER(representation);
 
 template <class G, class Traits = graph_traits<G>>
 constexpr bool has_graph_property_v = BXLX_GRAPH_TRAITS_SIMPLIFY_GETTER(has_graph_proprety);
@@ -109,7 +113,6 @@ constexpr bool has_in_adjacency_container_v = BXLX_GRAPH_TRAITS_SIMPLIFY_GETTER(
 template<class G, class Traits = graph_traits<G>>
 constexpr bool has_in_edges_v = BXLX_GRAPH_TRAITS_SIMPLIFY_GETTER(has_in_edges);
 
-/*
 template<class G, class Traits = graph_traits<G>>
 constexpr std::size_t max_node_size_v = ...;
 
