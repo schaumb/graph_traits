@@ -74,9 +74,9 @@ constexpr bool it_is_a_graph_v<G, Traits, false> = [] () -> bool {
   return assert_types::why_not_graph<typename Traits::reason_t>{};
 } ();
 
-#define BXLX_GRAPH_TRAITS_SIMPLIFY_GETTER(member) [] { \
-  if constexpr (it_is_a_graph_v<G, Traits>)            \
-    return Traits::member;                             \
+#define BXLX_GRAPH_TRAITS_SIMPLIFY_GETTER(member) [] () -> decltype(Traits::member) { \
+  if constexpr (it_is_a_graph_v<G, Traits>)                                           \
+    return Traits::member;                                                            \
 } ();
 
 template <class G, class Traits = graph_traits<G>>
