@@ -17,7 +17,7 @@ enum class representation_t {
   edge_list,
 };
 
-template <class G, class V = decltype(state_machine::graph::template valid<G>()), bool = V{}>
+template <class G, class V = decltype(state_machine::graph::template valid<G>()), bool = V{}.value>
 struct graph_traits {
   using reason_t = V;
 };
@@ -41,7 +41,7 @@ struct graph_traits<G, V, true> {
   constexpr static bool has_edge_property = properties_t::template has_property_v<state_machine::edge_prop_t>.value;
   constexpr static bool has_node_property = properties_t::template has_property_v<state_machine::node_prop_t>.value;
 
-  constexpr static bool user_defined_node_type = !properties_t::template is_valid_v<state_machine::user_node_t, std::false_type>.value;
+  constexpr static bool user_defined_node_type = !properties_t::template is_valid_v<state_machine::user_node_t, std::false_type>;
 
   constexpr static bool has_edge_type = !properties_t::template is_valid_v<state_machine::user_edge_t, state_machine::na_t>.value;
 
@@ -50,7 +50,7 @@ struct graph_traits<G, V, true> {
 
   constexpr static bool has_adjacency_container = properties_t::template has_property_v<state_machine::adj_list_cont<next_type::Dummy>>.value ||
                                                   properties_t::template has_property_v<state_machine::adj_mat_cont<next_type::Dummy>>.value ||
-                                                  !properties_t::template is_valid_v<state_machine::compressed_t, std::false_type>.value;
+                                                  !properties_t::template is_valid_v<state_machine::compressed_t, std::false_type>;
 
   constexpr static bool has_edge_list_container = representation == representation_t::edge_list;
 
