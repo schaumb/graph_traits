@@ -106,6 +106,9 @@ namespace next_type {
 
   template <class U>
   using T = U;
+
+  template <class U>
+  using Dummy = std::enable_if_t<false, U>;
 } // namespace next_type
 
 template <class T>
@@ -361,11 +364,24 @@ namespace state_machine {
   template<class T, std::size_t Index>
   using indexed_type = std::pair<T, std::integral_constant<std::size_t, Index>>;
 
-  template <class CRTP, class... States>
+  template<class CRTP>
+  struct crtp_transform {
+    using type = CRTP;
+  };
+  template<template<template <class> class> class Base, template <class> class Tr>
+  struct crtp_transform<Base<Tr>> {
+    using type = Base<next_type::Dummy>;
+  };
+
+  template<class T>
+  using crtp_transform_t = typename crtp_transform<T>::type;
+
+  template <class CRTPBase, class... States>
   struct any_of {
     template <class T, class PropsT = properties::empty_t>
     constexpr static auto valid() {
-     using Props =
+      using CRTP = crtp_transform_t<CRTPBase>;
+      using Props =
             properties::merge_properties_t<PropsT, std::conditional_t<PropsT::template has_property_v<CRTP>,
                                                                       std::conditional_t<PropsT::template has_property_v<indexed_type<CRTP, 1>>,
                                                                                          properties::property_t<indexed_type<CRTP, 2>, T>,

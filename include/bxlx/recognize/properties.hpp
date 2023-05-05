@@ -17,7 +17,9 @@ struct Key {};
 struct undefined;
 
 template <class T = undefined>
-struct Value : std::true_type {};
+struct Value : std::true_type {
+  using stored_type = T;
+};
 
 template <>
 struct Value<undefined> : std::false_type {};
@@ -67,6 +69,9 @@ template <class... Ts>
 struct properties {
   template <class T>
   constexpr static typename get_dominant_value<typename Ts::template value_if_key<T>...>::type has_property_v{};
+
+  template <class T>
+  using value_t = typename std::decay_t<decltype(has_property_v<T>)>::stored_type;
 
   template <class T, class V>
   constexpr static bool is_valid_v = !has_property_v<T>() || std::is_same_v<std::decay_t<decltype(has_property_v<T>)>, Value<V>>;

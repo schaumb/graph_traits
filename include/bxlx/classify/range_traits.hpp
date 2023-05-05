@@ -102,13 +102,13 @@ namespace associative_traits {
     constexpr static inline bool has_map_at_function_v =
           class_member_traits::has_at_v<const T, std::tuple_element_t<0, Val> const&>;
 
-    [[maybe_unused]] constexpr static inline bool value =
+    constexpr static inline bool value =
           has_map_equal_range_function_v<Impl> &&
           (!has_value_equal_range_function_v<Impl, Val> || has_map_at_function_v<Impl>);
   };
   template <class Impl, class Val>
   struct is_map_impl<Impl, Val, true> {
-    [[maybe_unused]] constexpr static inline bool value =
+    constexpr static inline bool value =
           std::is_same_v<class_member_traits::get_key_type_member_t<Impl>,
                          std::remove_cv_t<std::tuple_element_t<0, Val>>>;
   };
