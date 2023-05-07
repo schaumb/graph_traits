@@ -251,7 +251,7 @@ namespace detail {
   struct is_defined<T, std::enable_if_t<is_optional_v<T>>> : is_defined<typename optional_traits<T>::value_type> {};
 
 
-  template <class T, bool = true, class = void>
+  template <class T, class = void>
   struct range_traits;
 
   enum class range_type_t;

@@ -5,7 +5,7 @@
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include <bxlx/graph/traits/type_classification.hpp>
+#include <bxlx/classify/classify.hpp>
 
 #include <array>
 #include <type_traits>
@@ -24,14 +24,15 @@
 #include <atomic>
 #include <memory>
 
-using namespace bxlx::detail2;
+using namespace bxlx::graph::classification;
 
-static_assert(!std::is_void_v<typename range_traits<std::array<int, 10>>::value_type>);
-static_assert(classify<std::array<int, 10>> == type_classification::random_access_range);
-static_assert(classify<int[10]> == type_classification::random_access_range);
-static_assert(classify<std::bitset<10>> == type_classification::bitset_like_container);
-static_assert(classify<const std::bitset<10>> == type_classification::bitset_like_container);
-static_assert(classify<std::vector<bool>> == type_classification::bitset_like_container);
+using type_classification = type;
+
+static_assert(classify<std::array<int, 10>> == type_classification::range);
+static_assert(classify<int[10]> == type_classification::range);
+static_assert(classify<std::bitset<10>> == type_classification::bitset);
+static_assert(classify<const std::bitset<10>> == type_classification::bitset);
+static_assert(classify<std::vector<bool>> == type_classification::bitset);
 static_assert(classify<std::string> == type_classification::indeterminate);
 static_assert(classify<std::wstring> == type_classification::indeterminate);
 static_assert(classify<std::basic_string<decltype(u8'\0')>> == type_classification::indeterminate);
@@ -40,17 +41,17 @@ static_assert(classify<std::wstring_view> == type_classification::indeterminate)
 static_assert(classify<std::basic_string_view<decltype(u8'\0')>> == type_classification::indeterminate);
 static_assert(classify<char> == type_classification::indeterminate);
 
-static_assert(classify<std::vector<int>> == type_classification::random_access_range);
-static_assert(classify<std::deque<bool>> == type_classification::random_access_range);
-static_assert(classify<std::map<int, int>> == type_classification::map_like_container);
-static_assert(classify<std::multimap<int, int>> == type_classification::multimap_like_container);
-static_assert(classify<std::unordered_map<int, int>> == type_classification::map_like_container);
-static_assert(classify<std::unordered_multimap<int, int>> == type_classification::multimap_like_container);
-static_assert(classify<std::set<int, int>> == type_classification::set_like_container);
-static_assert(classify<std::multiset<int, int>> == type_classification::multiset_like_container);
-static_assert(classify<std::unordered_set<int, int>> == type_classification::set_like_container);
-static_assert(classify<std::unordered_multiset<int, int>> == type_classification::multiset_like_container);
-static_assert(classify<std::list<int>> == type_classification::sized_range);
+static_assert(classify<std::vector<int>> == type_classification::range);
+static_assert(classify<std::deque<bool>> == type_classification::range);
+static_assert(classify<std::map<int, int>> == type_classification::map_like);
+static_assert(classify<std::multimap<int, int>> == type_classification::map_like);
+static_assert(classify<std::unordered_map<int, int>> == type_classification::map_like);
+static_assert(classify<std::unordered_multimap<int, int>> == type_classification::map_like);
+static_assert(classify<std::set<int, int>> == type_classification::range);
+static_assert(classify<std::multiset<int, int>> == type_classification::range);
+static_assert(classify<std::unordered_set<int, int>> == type_classification::range);
+static_assert(classify<std::unordered_multiset<int, int>> == type_classification::range);
+static_assert(classify<std::list<int>> == type_classification::range);
 static_assert(classify<std::forward_list<int>> == type_classification::range);
 
 static_assert(classify<std::pair<int, int>> == type_classification::tuple_like);
@@ -71,7 +72,7 @@ static_assert(classify<std::atomic<int>> == type_classification::index);
 static_assert(classify<std::atomic<char>> == type_classification::index);
 
 static_assert(classify<std::atomic_flag> == type_classification::indeterminate);
-static_assert(classify<std::atomic<bool>> == type_classification::indeterminate);
+static_assert(classify<std::atomic<bool>> == type_classification::bool_t);
 
 static_assert(classify<std::reference_wrapper<std::size_t>> == type_classification::indeterminate);
 static_assert(classify<std::reference_wrapper<const std::size_t>> == type_classification::indeterminate);
@@ -87,30 +88,31 @@ static_assert(classify<std::atomic_ref<std::size_t>> == type_classification::ind
 
 // predeclared classes
 class A;
-static_assert(classify<A[10]> == type_classification::random_access_range);
-static_assert(classify<std::vector<A>> == type_classification::random_access_range);
-static_assert(classify<std::deque<A>> == type_classification::random_access_range);
-static_assert(classify<std::set<A>> == type_classification::set_like_container);
-static_assert(classify<std::set<std::pair<A, A>>> == type_classification::set_like_container);
-static_assert(classify<std::list<A>> == type_classification::sized_range);
+static_assert(classify<A[10]> == type_classification::range);
+static_assert(classify<std::vector<A>> == type_classification::range);
+static_assert(classify<std::deque<A>> == type_classification::range);
+static_assert(classify<std::set<A>> == type_classification::range);
+static_assert(classify<std::set<std::pair<A, A>>> == type_classification::range);
+static_assert(classify<std::list<A>> == type_classification::range);
 static_assert(classify<std::forward_list<A>> == type_classification::range);
-static_assert(classify<std::map<A, class B>> == type_classification::map_like_container);
-static_assert(classify<std::map<std::pair<A, A>, class B>> == type_classification::map_like_container);
+static_assert(classify<std::map<A, class B>> == type_classification::map_like);
+static_assert(classify<std::map<std::pair<A, A>, class B>> == type_classification::map_like);
 
 static_assert(classify<std::tuple<A, A>> == type_classification::tuple_like);
 static_assert(classify<std::pair<A, A>> == type_classification::tuple_like);
 static_assert(classify<A*> == type_classification::optional);
-static_assert(classify<std::array<A, 10>> == type_classification::random_access_range);
+static_assert(classify<std::array<A, 10>> == type_classification::range);
 static_assert(classify<std::optional<A>> == type_classification::optional);
 static_assert(classify<std::unique_ptr<A>> == type_classification::optional);
 static_assert(classify<std::unique_ptr<A[]>> == type_classification::indeterminate); // no * operator
 static_assert(classify<std::shared_ptr<A>> == type_classification::optional);
-static_assert(classify<std::shared_ptr<A[]>> == type_classification::optional);
+// static_assert(classify<std::shared_ptr<A[]>> == type_classification::optional); C++17 unspecified
 static_assert(classify<std::optional<std::pair<A, A>>> == type_classification::optional);
 static_assert(classify<std::optional<std::optional<A>>> == type_classification::optional);
-static_assert(classify<std::array<std::optional<A>, 10>> == type_classification::random_access_range);
-static_assert(classify<std::optional<A>[10]> == type_classification::random_access_range);
-static_assert(classify<std::map<A, std::pair<A, A>>> == type_classification::map_like_container);
+static_assert(classify<std::array<std::optional<A>, 10>> == type_classification::range);
+static_assert(bxlx::graph::type_traits::detail::is_range_v<std::optional<A>[10]>);
+static_assert(classify<std::optional<A>[10]> == type_classification::range);
+static_assert(classify<std::map<A, std::pair<A, A>>> == type_classification::map_like);
 
 static_assert(classify<std::pair<std::array<A, 10>, std::array<A, 10>>> == type_classification::tuple_like);
 static_assert(classify<std::pair<std::optional<A>, std::optional<A>>> == type_classification::tuple_like);
@@ -176,7 +178,7 @@ struct CTBitset {
     [[nodiscard]] reference operator[](std::size_t ) { return {}; }
 };
 
-static_assert(classify<CTBitset> == type_classification::bitset_like_container);
+static_assert(classify<CTBitset> == type_classification::bitset);
 
 struct Bitset {
     struct reference {
@@ -186,7 +188,7 @@ struct Bitset {
     [[nodiscard]] reference operator[](std::size_t ) { return {}; }
 };
 
-static_assert(classify<Bitset> == type_classification::bitset_like_container);
+static_assert(classify<Bitset> == type_classification::bitset);
 
 struct MyString {
     struct my_iterator {
@@ -212,8 +214,7 @@ struct MyRar {
     [[nodiscard]] std::size_t size() const { return {}; }
 };
 
-static_assert(bxlx::detail2::has_subscript_operator_v<MyRar>);
-static_assert(classify<MyRar> == type_classification::random_access_range);
+static_assert(classify<MyRar> == type_classification::range);
 
 struct MyMap {
     struct Key {};
@@ -222,12 +223,12 @@ struct MyMap {
         my_iterator& operator++() { return *this; }
         bool operator!=(const my_iterator& oth) const { return false; }
     };
-    [[nodiscard]] std::pair<my_iterator, my_iterator> equal_range(Key) const { return {}; }
+    [[nodiscard]] std::pair<my_iterator, my_iterator> equal_range(Key const&) const { return {}; }
     [[nodiscard]] my_iterator begin() const { return {}; }
     [[nodiscard]] my_iterator end() const { return {}; }
     [[nodiscard]] std::size_t size() const { return {}; }
 };
-static_assert(classify<MyMap> == type_classification::map_like_container);
+static_assert(classify<MyMap> == type_classification::map_like);
 
 struct MySet {
     struct Key {};
@@ -241,7 +242,7 @@ struct MySet {
     [[nodiscard]] my_iterator end() const { return {}; }
     [[nodiscard]] std::size_t size() const { return {}; }
 };
-static_assert(classify<MySet> == type_classification::sized_range);
+static_assert(classify<MySet> == type_classification::range);
 
 struct MySizedRange {
     struct Key {};
@@ -254,7 +255,7 @@ struct MySizedRange {
     [[nodiscard]] my_iterator end() const { return {}; }
     [[nodiscard]] std::size_t size() const { return {}; }
 };
-static_assert(classify<MySizedRange> == type_classification::sized_range);
+static_assert(classify<MySizedRange> == type_classification::range);
 
 struct MyRange {
     struct Key {};
@@ -290,74 +291,34 @@ static_assert(classify<MyOptional2<class A>> == type_classification::optional);
 
 
 template<std::size_t I, class T, std::size_t M>
-struct ::std::tuple_element<I, MyArray<T, M>> {
+struct std::tuple_element<I, MyArray<T, M>> {
     using type = std::conditional_t<(I < M), const T&, void>;
 };
 
 template<class T, std::size_t M>
-struct ::std::tuple_size<MyArray<T, M>> : std::integral_constant<std::size_t, M> {};
+struct std::tuple_size<MyArray<T, M>> : std::integral_constant<std::size_t, M> {};
 
 template<std::size_t I>
-struct ::std::tuple_element<I, MyArray2> {
+struct std::tuple_element<I, MyArray2> {
     using type = std::conditional_t<(I < 10), const int&, void>;
 };
 
 template<>
-struct ::std::tuple_size<MyArray2> : std::integral_constant<std::size_t, 10> {};
+struct std::tuple_size<MyArray2> : std::integral_constant<std::size_t, 10> {};
 
 template<std::size_t I, class T>
-struct ::std::tuple_element<I, MyTuple<T>> {
+struct std::tuple_element<I, MyTuple<T>> {
     using type = std::conditional_t<(I < 10), const T&, void>;
 };
 
 template<class T>
-struct ::std::tuple_size<MyTuple<T>> : std::integral_constant<std::size_t, 10> {};
+struct std::tuple_size<MyTuple<T>> : std::integral_constant<std::size_t, 10> {};
 
-static_assert(classify<MyArray<int, 1>> == type_classification::random_access_range);
-static_assert(classify<MyArray2> == type_classification::random_access_range);
+static_assert(classify<MyArray<int, 1>> == type_classification::range);
+static_assert(classify<MyArray2> == type_classification::range);
 static_assert(classify<MyTuple<int>> == type_classification::tuple_like);
 
 
-static_assert(classify<std::map<int, int, std::less<>>> == type_classification::map_like_container);
-static_assert(classify<std::set<std::pair<int, int>, std::less<>>> == type_classification::set_like_container);
-static_assert(classify<std::set<std::tuple<int>, std::less<>>> == type_classification::set_like_container);
-
-
-static_assert(std::is_same_v<get_begin_iterator_t<const std::vector<int>>, std::vector<int>::const_iterator>);
-static_assert(std::is_same_v<range_traits_type<const std::vector<int>>, const int>);
-
-static_assert(std::is_same_v<range_traits_type<const std::array<struct Dimy, 5>>, const struct Dimy>);
-
-static_assert(std::is_same_v<range_traits_type<const std::array<int, 5>>, const int>);
-static_assert(std::is_same_v<range_traits_type<std::initializer_list<int>>, const int>);
-static_assert(std::is_same_v<range_traits_type<const std::initializer_list<int>>, const int>);
-static_assert(std::is_same_v<range_traits_type<const int[6]>, const int>);
-static_assert(std::is_same_v<optional_traits_type<const std::optional<int>>, const int>);
-static_assert(std::is_same_v<optional_traits_type<const std::optional<struct Dimy>>, const struct Dimy>);
-static_assert(std::is_same_v<optional_traits_type<const struct Dimy*>, const struct Dimy>);
-
-static_assert(classify<const bool> == type_classification::bool_t);
-static_assert(classify<const std::map<int, int>> == type_classification::map_like_container);
-static_assert(classify<const std::unordered_map<int, int>> == type_classification::map_like_container);
-
-static_assert(bxlx::detail2::has_subscript_operator_v<std::string_view>);
-static_assert(bxlx::detail2::is_set_like_container_v<std::set<int>>);
-static_assert(bxlx::detail2::is_set_like_container_v<std::set<std::pair<int, int>>>);
-static_assert(bxlx::detail2::is_set_like_container_v<std::set<std::pair<const int, int>>>);
-static_assert(bxlx::detail2::is_set_like_container_v<std::set<int, std::greater<>>>);
-static_assert(bxlx::detail2::is_set_like_container_v<std::multiset<int>>);
-static_assert(!bxlx::detail2::is_set_like_container_v<std::map<int, int>>);
-
-static_assert(!bxlx::detail2::is_multi_v<std::set<int>>);
-static_assert(!bxlx::detail2::is_multi_v<std::set<int, std::less<>>>);
-static_assert(bxlx::detail2::is_multi_v<std::multiset<int>>);
-static_assert(bxlx::detail2::is_multi_v<std::multiset<int, std::less<>>>);
-static_assert(!bxlx::detail2::is_multi_v<std::map<int, int>>);
-static_assert(!bxlx::detail2::is_multi_v<std::map<int, int, std::less<>>>);
-static_assert(bxlx::detail2::is_multi_v<std::multimap<int, int>>);
-static_assert(bxlx::detail2::is_multi_v<std::multimap<int, int, std::less<>>>);
-
-static_assert(bxlx::detail2::is_queue_like_container_v<std::deque<class B>>);
-static_assert(bxlx::detail2::is_queue_like_container_v<std::list<int>>);
-static_assert(!bxlx::detail2::is_queue_like_container_v<std::vector<int>>);
-static_assert(!bxlx::detail2::is_queue_like_container_v<std::forward_list<int>>);
+static_assert(classify<std::map<int, int, std::less<>>> == type_classification::map_like);
+static_assert(classify<std::set<std::pair<int, int>, std::less<>>> == type_classification::range);
+static_assert(classify<std::set<std::tuple<int>, std::less<>>> == type_classification::range);

@@ -344,12 +344,26 @@ struct range_traits_impl<
 };
 
 template <class M>
-struct range_traits<M, true, std::enable_if_t<required_template_arguments_defined_v<M>>>
+struct range_traits<M, std::enable_if_t<required_template_arguments_defined_v<M> && !std::is_array_v<M>>>
       : range_traits_impl<M, true, true> {};
 
 template <class M>
-struct range_traits<M, true, std::enable_if_t<!required_template_arguments_defined_v<M>>>
+struct range_traits<M, std::enable_if_t<!required_template_arguments_defined_v<M> && !std::is_array_v<M>>>
       : range_traits_impl<M, !is_optional_v<M>, false> {};
+
+template <class M, std::size_t N>
+struct range_traits<M[N]> {
+  using reference [[maybe_unused]] = M&;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+  using iterator_tag                = std::random_access_iterator_tag;
+
+  constexpr static bool defined    = false;
+  constexpr static bool continuous = true;
+
+  constexpr static range_type_t range = range_type_t::sequence;
+
+  constexpr static bool is_multi = false;
+};
 
 template <class T>
 struct is_string<T, false> : std::false_type {};

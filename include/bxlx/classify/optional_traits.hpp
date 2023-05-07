@@ -30,12 +30,35 @@ struct defined_optional_value {
   constexpr bool operator==(const defined_optional_value&) const { return false; }
 };
 
+template<class NotDefined>
+struct defined_value {
+  using type = copy_cvref_t<NotDefined, defined_optional_value>;
+};
+
+template<class NotDefined>
+using defined_value_t = typename defined_value<NotDefined>::type;
+
+template<class NotDefined>
+struct defined_value<NotDefined[]> {
+  using type = defined_value_t<NotDefined>[];
+};
+
+template<class NotDefined, std::size_t N>
+struct defined_value<NotDefined[N]> {
+  using type = defined_value_t<NotDefined>[N];
+};
+
+template<class NotDefined>
+struct defined_value<NotDefined*> {
+  using type = defined_value_t<NotDefined>*;
+};
+
 template <template <class, class...> class Opt, class O, class...Oth>
 struct optional_traits_impl<const Opt<O, Oth...>,
                             true,
                             false,
-                            std::enable_if_t<!is_defined_v<O> && is_optional_v<const Opt<defined_optional_value>>>> {
-  using reference [[maybe_unused]]  = typename replace_all_type_recursively<optional_reference_t<const Opt<defined_optional_value>>, defined_optional_value, O>::type;
+                            std::enable_if_t<!is_defined_v<O> && is_optional_v<const Opt<defined_value_t<O>>>>> {
+  using reference [[maybe_unused]]  = typename replace_all_type_recursively<optional_reference_t<const Opt<defined_value_t<O>>>, defined_value_t<O>, O>::type;
   using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
 };
 
@@ -43,8 +66,8 @@ template <template <class, class...> class Opt, class O, class...Oth>
 struct optional_traits_impl<Opt<O, Oth...>,
                             true,
                             false,
-                            std::enable_if_t<!is_defined_v<O> && is_optional_v<Opt<defined_optional_value>>>> {
-  using reference [[maybe_unused]]  = typename replace_all_type_recursively<optional_reference_t<Opt<defined_optional_value>>, defined_optional_value, O>::type;
+                            std::enable_if_t<!is_defined_v<O> && is_optional_v<Opt<defined_value_t<O>>>>> {
+  using reference [[maybe_unused]]  = typename replace_all_type_recursively<optional_reference_t<Opt<defined_value_t<O>>>, defined_value_t<O>, O>::type;
   using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
 };
 

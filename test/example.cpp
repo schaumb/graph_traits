@@ -253,15 +253,6 @@ void test_type_traits() {
   ASSERT(is_associative_multi_v<std::unordered_multiset<node_prop>>);
   ASSERT(is_associative_multi_v<std::unordered_multimap<node_prop, int>>);
   /*
-#include <boost/optional.hpp>
-#include <boost/bimap/bimap.hpp>
-#include <boost/circular_buffer.hpp>
-#include <boost/container/flat_map.hpp>
-#include <boost/container/flat_set.hpp>
-#include <boost/container/static_vector.hpp>
-#include <boost/lockfree/queue.hpp>
-#include <boost/logic/tribool.hpp>
-#include <boost/poly_collection/any_collection.hpp>
   struct undef;
   check_is_optional<boost::optional<undef>>();
   ASSERT(!is_bool_v<boost::logic::tribool>);
