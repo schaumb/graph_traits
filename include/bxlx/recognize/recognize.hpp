@@ -99,7 +99,7 @@ namespace next_type {
   using K = type_traits::map_key_t<T>;
 
   template <class T>
-  using V = type_traits::map_key_t<T>;
+  using V = std::remove_reference_t<type_traits::map_value_ref_t<T>>;
 
   template <class T>
   using O = type_traits::optional_value_t<T>;
@@ -152,9 +152,9 @@ namespace conditions {
         , condition_t {
     template <class T, class>
     constexpr static std::conditional_t<
-          type_traits::is_associative_multi_v<T>,
+          !type_traits::is_associative_multi_v<T>,
           std::true_type,
-          assert_types::reason<expected<true, struct is_associative>>>
+          assert_types::reason<expected<false, struct is_multi>>>
     valid() {
       return {};
     }
@@ -220,7 +220,7 @@ namespace conditions {
         , condition_t {
     template <class, class Props>
     constexpr static auto valid() {
-      if constexpr (Props::template is_valid_v<K, V>) {
+      if constexpr (properties::is_valid_v<Props, K, V>) {
         return std::true_type{};
       } else {
         return assert_types::reason<struct wrong_property_for_key, K>{};
@@ -234,7 +234,7 @@ namespace conditions {
         , condition_t {
     template <class, class Props>
     constexpr static auto valid() {
-      if constexpr (Props::template has_property_v<K>) {
+      if constexpr (properties::has_property_v<Props, K>) {
         return assert_types::reason<already_contains_property, K>{};
       } else {
         return std::true_type{};
@@ -279,7 +279,7 @@ namespace props {
 
     template <class T, class Props>
     constexpr static auto valid() {
-      if constexpr (Props::template is_valid_v<K, Tr<T>>) {
+      if constexpr (properties::is_valid_v<Props, K, Tr<T>>) {
         return std::true_type{};
       } else {
         return assert_types::reason<struct cannot_set_key, K>{};
@@ -381,9 +381,10 @@ namespace state_machine {
     template <class T, class PropsT = properties::empty_t>
     constexpr static auto valid() {
       using CRTP = crtp_transform_t<CRTPBase>;
+      static_assert(!properties::has_property_v<PropsT, indexed_type<CRTP, 2>>);
       using Props =
-            properties::merge_properties_t<PropsT, std::conditional_t<PropsT::template has_property_v<CRTP>,
-                                                                      std::conditional_t<PropsT::template has_property_v<indexed_type<CRTP, 1>>,
+            properties::merge_properties_t<PropsT, std::conditional_t<properties::has_property_v<PropsT, CRTP>,
+                                                                      std::conditional_t<properties::has_property_v<PropsT, indexed_type<CRTP, 1>>,
                                                                                          properties::property_t<indexed_type<CRTP, 2>, T>,
                                                                                          properties::property_t<indexed_type<CRTP, 1>, T>
                                                                                          >,

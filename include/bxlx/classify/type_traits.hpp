@@ -413,7 +413,7 @@ constexpr inline bool is_range_v = detail::is_range_v<T> && !detail::is_string_v
 using detail::is_map_v;
 
 template <class T>
-using map_key_t = std::remove_cv_t<std::tuple_element<0, range_value_t<T>>>;
+using map_key_t = std::remove_cv_t<std::tuple_element_t<0, range_value_t<T>>>;
 
 template <class T>
 using map_value_ref_t = detail::copy_cvref_t<range_reference_t<T>, std::tuple_element_t<1, range_value_t<T>>>;

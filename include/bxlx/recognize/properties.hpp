@@ -65,16 +65,22 @@ struct merge_properties<properties<Ts...>, properties<Us...>, Others...> :
 template<class ...Ts>
 using merge_properties_t = typename merge_properties<Ts...>::type;
 
+template<class Props, class T>
+constexpr static bool has_property_v = Props::template has_property<T>.value;
+
+template<class Props, class T, class V>
+constexpr static bool is_valid_v = Props::template is_valid<T, V>;
+
 template <class... Ts>
 struct properties {
   template <class T>
-  constexpr static typename get_dominant_value<typename Ts::template value_if_key<T>...>::type has_property_v{};
+  constexpr static typename get_dominant_value<typename Ts::template value_if_key<T>...>::type has_property{};
 
   template <class T>
-  using value_t = typename std::decay_t<decltype(has_property_v<T>)>::stored_type;
+  using value_t = typename std::decay_t<decltype(has_property<T>)>::stored_type;
 
   template <class T, class V>
-  constexpr static bool is_valid_v = !has_property_v<T>() || std::is_same_v<std::decay_t<decltype(has_property_v<T>)>, Value<V>>;
+  constexpr static bool is_valid = !has_property<T>() || std::is_same_v<std::decay_t<decltype(has_property<T>)>, Value<V>>;
 };
 
 template <class K, class V>
