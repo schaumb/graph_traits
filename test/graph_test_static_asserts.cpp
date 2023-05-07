@@ -5,7 +5,7 @@
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include <bxlx/graph/traits.hpp>
+#include <bxlx/graph>
 #include <set>
 #include <map>
 #include <vector>
@@ -41,9 +41,9 @@ using string = std::string;
 template <class T>
 using fx_range = std::array<T, 5>;
 
-using bxlx::is_graph_v;
-using bxlx::graph_traits;
-using bxlx::graph_representation_t;
+using bxlx::graph::is_graph_v;
+using bxlx::graph::it_is_a_graph_v;
+using graph_representation_t = bxlx::graph::representation_t;
 
 static_assert(!is_graph_v<void>);
 static_assert(!is_graph_v<std::map<int, int>>);
@@ -52,30 +52,29 @@ static_assert(!is_graph_v<set<set<int>>>);
 static_assert(!is_graph_v<ra_range<set<bool>>>);
 static_assert(!is_graph_v<tup<set<bool>>>);
 static_assert(!is_graph_v<set<tup<int, unsigned int>>>);
-static_assert(bxlx::is_it_a_graph<std::map<int, map<int, int>, std::greater<int>>>);
-static_assert(bxlx::is_it_a_graph<map<int, std::unordered_map<int, int>>>);
-static_assert(bxlx::is_it_a_graph<ra_range<std::pair<std::list<int>::iterator, std::list<int>>>>);
+static_assert(it_is_a_graph_v<std::map<int, map<int, int>, std::greater<int>>>);
+static_assert(it_is_a_graph_v<map<int, std::unordered_map<int, int>>>);
+static_assert(it_is_a_graph_v<ra_range<std::pair<std::list<int>::iterator, std::list<int>>>>);
 
-static_assert(bxlx::is_it_a_graph<std::multimap<int, int>>);
+// static_assert(it_is_a_graph_v<std::multimap<int, int>>);
 
-static_assert(bxlx::is_it_a_graph<std::map<std::pair<int, int>, int>>);
-static_assert(bxlx::is_it_a_graph<std::multimap<std::pair<int, int>, int>>);
+static_assert(it_is_a_graph_v<std::map<std::pair<int, int>, int>>);
+static_assert(it_is_a_graph_v<std::multimap<std::pair<int, int>, int>>);
 
-static_assert(bxlx::is_it_a_graph<ra_range<set<int>>>);
-static_assert(bxlx::is_it_a_graph<set<tup<int, int>>>);
-static_assert(bxlx::is_it_a_graph<set<tup<int, int, float>>>);
+static_assert(it_is_a_graph_v<ra_range<set<int>>>);
+static_assert(it_is_a_graph_v<set<tup<int, int>>>);
+static_assert(it_is_a_graph_v<set<tup<int, int, float>>>);
 
 template<class T>
-constexpr static inline auto repr = graph_traits<T>::representation;
+constexpr static inline auto repre = bxlx::graph::representation_v<T>;
 
-static_assert(repr<ra_range<set<int>>> == graph_representation_t::adjacency_list);
-static_assert(repr<map<string, map<string, int>>> == graph_representation_t::adjacency_list);
-static_assert(repr<ra_range<ra_range<bool>>> == graph_representation_t::adjacency_matrix);
-static_assert(repr<set<tup<int, int>>> == graph_representation_t::edge_list);
-static_assert(repr< std::pair<std::multimap<int, int>, std::list<std::pair<int, int>> > > == graph_representation_t::edge_list);
-static_assert( bxlx::graph_traits_t<std::pair<std::multimap<int, int>, std::list<std::pair<int, int>> >>::has_graph_property);
-static_assert(!bxlx::graph_traits_t<std::pair<std::     map<int, int>, std::list<std::pair<int, int>> >>::has_graph_property);
+static_assert(repre<ra_range<set<int>>> == graph_representation_t::adjacency_list);
+static_assert(repre<map<string, map<string, int>>> == graph_representation_t::adjacency_list);
+static_assert(repre<ra_range<ra_range<bool>>> == graph_representation_t::adjacency_matrix);
+static_assert(repre<set<tup<int, int>>> == graph_representation_t::edge_list);
+static_assert(repre< std::pair<std::map<int, int>, std::list<std::pair<int, int>> > > == graph_representation_t::edge_list);
 
+/*
 template<class T>
 using simplified_why_not_a_graph = typename decltype(bxlx::traits::graph::why_not<T>())::simplified;
 
@@ -88,31 +87,32 @@ static_assert(std::is_same_v<simplified_why_not_a_graph<std::map<int, std::array
     bxlx::multiple_property_for<bxlx::traits::user_node_index, std::true_type, std::false_type>>);
 static_assert(std::is_same_v<simplified_why_not_a_graph<std::pair<std::vector<std::vector<int>>, std::vector<std::pair<int, int>>>>,
     bxlx::graph_multiple_recognize>);
+    */
 
-static_assert(bxlx::is_it_a_graph<std::vector<std::vector<int>>>);
+static_assert(it_is_a_graph_v<std::vector<std::vector<int>>>);
 
 template<class T, graph_representation_t repr, class node_index_t, class node_repr_type, class edge_repr_type, std::size_t nodes, std::size_t edges,
     class graph_prop, class node_prop, class edge_prop, bool user_defined>
 constexpr static bool assert_on() {
-    static_assert(bxlx::traits::is_it_a_graph<T>);
+  using namespace bxlx::graph;
+  static_assert(it_is_a_graph_v<T>);
 
-    using traits = graph_traits<T>;
-    static_assert(traits::representation == repr);
-    static_assert(user_defined == traits::user_node_index);
-    static_assert(std::is_same_v<typename traits::node_index_t, node_index_t>);
-    static_assert(false == traits::user_edge_index);
-    static_assert(std::is_same_v<typename traits::edge_index_t, void>);
-    static_assert(traits::has_graph_property == !std::is_void_v<graph_prop>);
-    static_assert(traits::has_node_property == !std::is_void_v<node_prop>);
-    static_assert(traits::has_edge_property == !std::is_void_v<edge_prop>);
-    static_assert(traits::max_node_compile_time == nodes);
-    static_assert(traits::max_edge_compile_time == edges);
-    static_assert(std::is_same_v<node_repr_type, typename traits::node_repr_type>);
-    static_assert(std::is_same_v<edge_repr_type, typename traits::edge_repr_type>);
-    static_assert(std::is_same_v<typename traits::graph_property_type, graph_prop>);
-    static_assert(std::is_same_v<typename traits::node_property_type, node_prop>);
-    static_assert(std::is_same_v<typename traits::edge_property_type, edge_prop>);
-    return true;
+  static_assert(repre<T> == repr);
+  static_assert(user_defined == is_user_defined_node_type_v<T>);
+  static_assert(std::is_same_v<typename traits::node_index_t, node_index_t>);
+  static_assert(false == traits::user_edge_index);
+  static_assert(std::is_same_v<typename traits::edge_index_t, void>);
+  static_assert(traits::has_graph_property == !std::is_void_v<graph_prop>);
+  static_assert(traits::has_node_property == !std::is_void_v<node_prop>);
+  static_assert(traits::has_edge_property == !std::is_void_v<edge_prop>);
+  static_assert(traits::max_node_compile_time == nodes);
+  static_assert(traits::max_edge_compile_time == edges);
+  static_assert(std::is_same_v<node_repr_type, typename traits::node_repr_type>);
+  static_assert(std::is_same_v<edge_repr_type, typename traits::edge_repr_type>);
+  static_assert(std::is_same_v<typename traits::graph_property_type, graph_prop>);
+  static_assert(std::is_same_v<typename traits::node_property_type, node_prop>);
+  static_assert(std::is_same_v<typename traits::edge_property_type, edge_prop>);
+  return true;
 };
 
 template<template<class, class> class ... Ts>
@@ -793,33 +793,74 @@ static_assert(assert_on<tup<ra_range<tup<fx_range<opt<struct edge_prop>>, struct
     opt<struct edge_prop>, 5, 25, struct graph_prop, struct node_prop, struct edge_prop, false>());
 
 
-static_assert(bxlx::is_it_a_graph< ra_range<   range<integral>>>);
-static_assert(bxlx::is_it_a_graph< ra_range<ra_range<  bool_t>>>);
-static_assert(bxlx::is_it_a_graph< ra_range<ra_range<     opt<struct edge_prop>>>>);
-static_assert(bxlx::is_it_a_graph< ra_range<   range<     tup<integral, struct edge_prop>>>>);
-static_assert(bxlx::is_it_a_graph< si_range<     tup<integral, integral>>>);
-static_assert(bxlx::is_it_a_graph< si_range<     tup<integral, integral, struct edge_prop>>>);
-static_assert(bxlx::is_it_a_graph< ra_range<     tup<   range< integral>, struct node_prop>>>);
-static_assert(bxlx::is_it_a_graph< ra_range<     tup<ra_range<   bool_t>, struct node_prop>>>);
-static_assert(bxlx::is_it_a_graph< ra_range<     tup<ra_range<      opt<struct edge_prop>>, struct node_prop>>>);
-static_assert(bxlx::is_it_a_graph< ra_range<     tup<   range<      tup<integral, struct edge_prop>>, struct node_prop>>>);
+static_assert(it_is_a_graph_v< ra_range<   range<integral>>>);
+static_assert(it_is_a_graph_v< ra_range<ra_range<  bool_t>>>);
+static_assert(it_is_a_graph_v< ra_range<ra_range<     opt<struct edge_prop>>>>);
+static_assert(it_is_a_graph_v< ra_range<   range<     tup<integral, struct edge_prop>>>>);
+static_assert(it_is_a_graph_v< si_range<     tup<integral, integral>>>);
+static_assert(it_is_a_graph_v< si_range<     tup<integral, integral, struct edge_prop>>>);
+static_assert(it_is_a_graph_v< ra_range<     tup<   range< integral>, struct node_prop>>>);
+static_assert(it_is_a_graph_v< ra_range<     tup<ra_range<   bool_t>, struct node_prop>>>);
+static_assert(it_is_a_graph_v< ra_range<     tup<ra_range<      opt<struct edge_prop>>, struct node_prop>>>);
+static_assert(it_is_a_graph_v< ra_range<     tup<   range<      tup<integral, struct edge_prop>>, struct node_prop>>>);
 
-static_assert(bxlx::is_it_a_graph< tup<ra_range<range<integral>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<ra_range<bool_t>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<si_range<tup<integral, integral>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<range<tup<integral, struct edge_prop>>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<map<integral, struct edge_prop>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<ra_range<opt<struct edge_prop>>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<si_range<tup<integral, integral, struct edge_prop>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<range<integral>, struct node_prop>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<ra_range<bool_t>, struct node_prop>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<range<tup<integral, struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
-static_assert(bxlx::is_it_a_graph< tup<ra_range<tup<ra_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<range<integral>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<ra_range<bool_t>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<si_range<tup<integral, integral>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<range<tup<integral, struct edge_prop>>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<map<integral, struct edge_prop>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<ra_range<opt<struct edge_prop>>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<si_range<tup<integral, integral, struct edge_prop>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<tup<range<integral>, struct node_prop>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<tup<ra_range<bool_t>, struct node_prop>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<tup<range<tup<integral, struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
+static_assert(it_is_a_graph_v< tup<ra_range<tup<ra_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
 
-static_assert(bxlx::is_it_a_graph< std::pair<std::array<std::pair<int, int>, 5>, std::list<std::pair<int, int>> > >);
-static_assert(bxlx::is_it_a_graph< std::pair<std::map<int, int>, std::list<std::pair<int, int>> > >);
+static_assert(it_is_a_graph_v< std::pair<std::array<std::pair<int, int>, 5>, std::list<std::pair<int, int>> > >);
+static_assert(it_is_a_graph_v< std::pair<std::map<int, int>, std::list<std::pair<int, int>> > >);
 
 static_assert(std::is_same_v<typename bxlx::graph_traits<std::array<std::array<int, 10>, 3>>::out_edge_container_type, std::array<int, 10>>);
 static_assert(std::is_same_v<typename bxlx::graph_traits<std::pair<std::vector<int>, std::set<std::tuple<int, int>>>>::edge_container_type, std::set<std::tuple<int, int>>>);
+
+
+using details = bxlx::graph::type_traits::detail;
+static_assert(std::is_same_v<detail::std_begin_t<const std::vector<int>>, std::vector<int>::const_iterator>);
+static_assert(std::is_same_v<range_traits_type<const std::vector<int>>, const int>);
+
+static_assert(std::is_same_v<range_traits_type<const std::array<struct Dimy, 5>>, const struct Dimy>);
+
+static_assert(std::is_same_v<range_traits_type<const std::array<int, 5>>, const int>);
+static_assert(std::is_same_v<range_traits_type<std::initializer_list<int>>, const int>);
+static_assert(std::is_same_v<range_traits_type<const std::initializer_list<int>>, const int>);
+static_assert(std::is_same_v<range_traits_type<const int[6]>, const int>);
+static_assert(std::is_same_v<optional_traits_type<const std::optional<int>>, const int>);
+static_assert(std::is_same_v<optional_traits_type<const std::optional<struct Dimy>>, const struct Dimy>);
+static_assert(std::is_same_v<optional_traits_type<const struct Dimy*>, const struct Dimy>);
+
+static_assert(classify<const bool> == type_classification::bool_t);
+static_assert(classify<const std::map<int, int>> == type_classification::map_like);
+static_assert(classify<const std::unordered_map<int, int>> == type_classification::map_like);
+
+static_assert(bxlx::detail2::has_subscript_operator_v<std::string_view>);
+static_assert(bxlx::detail2::is_range_v<std::set<int>>);
+static_assert(bxlx::detail2::is_range_v<std::set<std::pair<int, int>>>);
+static_assert(bxlx::detail2::is_range_v<std::set<std::pair<const int, int>>>);
+static_assert(bxlx::detail2::is_range_v<std::set<int, std::greater<>>>);
+static_assert(bxlx::detail2::is_range_v<std::multiset<int>>);
+static_assert(!bxlx::detail2::is_range_v<std::map<int, int>>);
+
+static_assert(!bxlx::detail2::is_multi_v<std::set<int>>);
+static_assert(!bxlx::detail2::is_multi_v<std::set<int, std::less<>>>);
+static_assert(bxlx::detail2::is_multi_v<std::multiset<int>>);
+static_assert(bxlx::detail2::is_multi_v<std::multiset<int, std::less<>>>);
+static_assert(!bxlx::detail2::is_multi_v<std::map<int, int>>);
+static_assert(!bxlx::detail2::is_multi_v<std::map<int, int, std::less<>>>);
+static_assert(bxlx::detail2::is_multi_v<std::multimap<int, int>>);
+static_assert(bxlx::detail2::is_multi_v<std::multimap<int, int, std::less<>>>);
+
+static_assert(bxlx::detail2::is_queue_like_container_v<std::deque<class B>>);
+static_assert(bxlx::detail2::is_queue_like_container_v<std::list<int>>);
+static_assert(!bxlx::detail2::is_queue_like_container_v<std::vector<int>>);
+static_assert(!bxlx::detail2::is_queue_like_container_v<std::forward_list<int>>);

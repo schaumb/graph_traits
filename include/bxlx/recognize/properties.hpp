@@ -71,6 +71,20 @@ constexpr static bool has_property_v = Props::template has_property<T>.value;
 template<class Props, class T, class V>
 constexpr static bool is_valid_v = Props::template is_valid<T, V>;
 
+template<class Props, class K, class IfNot = undefined, class = void>
+struct get_value : IfNot {};
+
+template<class Props, class K, class IfNot>
+struct get_value<Props, K, IfNot, std::enable_if_t<has_property_v<Props, K>>> {
+  using type = typename Props::template value_t <K>;
+};
+
+template<class Props, class K, class IfNot>
+struct get_value<Props, K, IfNot, std::enable_if_t<!has_property_v<Props, K> && std::is_same_v<undefined, IfNot>>> {};
+
+template<class Props, class K, class Default = undefined>
+using get_value_t = typename get_value<Props, K, Default>::type;
+
 template <class... Ts>
 struct properties {
   template <class T>

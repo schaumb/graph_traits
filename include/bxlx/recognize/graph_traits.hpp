@@ -37,47 +37,39 @@ struct graph_traits<G, V, true> {
 
   static_assert(representation != representation_t{});
 
-  constexpr static bool has_graph_property = properties::has_property_v<properties_t, state_machine::graph_prop_t>;
-  constexpr static bool has_edge_property = properties::has_property_v<properties_t, state_machine::edge_prop_t>;
-  constexpr static bool has_node_property = properties::has_property_v<properties_t, state_machine::node_prop_t>;
+  using graph_property = properties::get_value<properties_t, state_machine::graph_prop_t>;
+  using edge_property = properties::get_value<properties_t, state_machine::edge_prop_t>;
+  using node_property = properties::get_value<properties_t, state_machine::node_prop_t>;
 
-  constexpr static bool user_defined_node_type = !properties::is_valid_v<properties_t, state_machine::user_node_t, std::false_type>;
+  using user_defined_node_t = properties::get_value_t<properties_t, state_machine::user_node_t, std::enable_if<true, std::false_type>>;
+  using user_defined_edge_t = properties::get_value_t<properties_t, state_machine::user_edge_t>;
 
-  constexpr static bool has_edge_type = !properties::is_valid_v<properties_t, state_machine::user_edge_t, state_machine::na_t>;
+  using node_type = properties::get_value<properties_t, state_machine::node_type_t>;
+  using edge_type = properties::get_value<properties_t, state_machine::edge_type_t>;
 
-  constexpr static bool has_node_container = properties::has_property_v<properties_t, state_machine::node_container<next_type::Dummy>>;
-  constexpr static bool has_edge_container = properties::has_property_v<properties_t, state_machine::edge_container<next_type::Dummy>>;
+  using node_container = properties::get_value<properties_t, state_machine::node_container<next_type::Dummy>>;
+  using edge_container = properties::get_value<properties_t, state_machine::edge_container<next_type::Dummy>>;
 
-  constexpr static bool has_adjacency_container = properties::has_property_v<properties_t, state_machine::adj_list_cont<next_type::Dummy>> ||
-                                                  properties::has_property_v<properties_t, state_machine::adj_mat_cont<next_type::Dummy>> ||
-                                                  !properties::is_valid_v<properties_t, state_machine::compressed_t, std::false_type>;
+  using edge_list_container = properties::get_value<properties_t, state_machine::edge_list_n<next_type::Dummy>>;
 
-  constexpr static bool has_edge_list_container = representation == representation_t::edge_list;
+  using adjacency_conatiner = properties::get_value<properties_t, state_machine::indexed_type<state_machine::adj_list_cont<next_type::Dummy>, 1>,
+        properties::get_value<properties_t, state_machine::indexed_type<state_machine::adj_mat_cont<next_type::Dummy>, 1>,
+        properties::get_value<properties_t, state_machine::adj_list_cont<next_type::Dummy>,
+        properties::get_value<properties_t, state_machine::adj_mat_cont<next_type::Dummy>>>>>;
 
-  constexpr static bool has_in_adjacency_container = properties::has_property_v<properties_t, state_machine::indexed_type<state_machine::adj_list_cont<next_type::Dummy>, 1>> ||
-                                                     properties::has_property_v<properties_t, state_machine::indexed_type<state_machine::adj_mat_cont<next_type::Dummy>, 1>>;
+  using in_adjacency_container = std::conditional_t<
+        properties::has_property_v<properties_t, state_machine::indexed_type<state_machine::adj_list_cont<next_type::Dummy>, 1>> ||
+        properties::has_property_v<properties_t, state_machine::indexed_type<state_machine::adj_mat_cont<next_type::Dummy>, 1>>,
+        properties::get_value<properties_t, state_machine::adj_list_cont<next_type::Dummy>,
+                              properties::get_value<properties_t, state_machine::adj_mat_cont<next_type::Dummy>>>,
+        std::enable_if<false>
+        >;
 
-  constexpr static bool has_in_edges = !properties::is_valid_v<properties_t, state_machine::in_edges_t, std::false_type>;
+  using in_edges_t = properties::get_value_t<properties_t, state_machine::in_edges_t, std::enable_if<true, std::false_type>>;
 
-  constexpr static bool compressed_edges = !properties::is_valid_v<properties_t, state_machine::compressed_t, std::false_type>;
+  using multi_edge = properties::get_value<properties_t, state_machine::multi_edge_t>;
+  using compressed_edges = properties::get_value<properties_t, state_machine::compressed_t>;
 };
-
-template <class G, class Traits = graph_traits<G>, class = void>
-constexpr bool is_graph_v = false;
-template <class G, class Traits>
-constexpr bool is_graph_v<G, Traits, std::void_t<decltype(Traits::representation)>> = true;
-
-template <class G, class Traits = graph_traits<G>, bool V = is_graph_v<G, Traits>>
-constexpr bool it_is_a_graph_v = V;
-template <class G, class Traits>
-constexpr bool it_is_a_graph_v<G, Traits, false> = [] () -> bool {
-  return assert_types::why_not_graph<typename Traits::reason_t>{};
-} ();
-
-template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
-[[maybe_unused]] constexpr representation_t representation_v{};
-template <class G, class Traits>
-[[maybe_unused]] constexpr representation_t representation_v<G, Traits, true> = Traits::representation;
 
 /*
 #define BXLX_GRAPH_TRAITS_SIMPLIFY_GETTER(member) Traits::member

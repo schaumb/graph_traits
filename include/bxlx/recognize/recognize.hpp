@@ -83,6 +83,19 @@ namespace next_type {
     using Last [[maybe_unused]]     = std::tuple_element_t<sizeof...(Ix), T<Types...>>;
   };
 
+  template <template <class...> class T, class... Types, std::size_t... Ix>
+  struct split_tuple_last<const T<Types...>, std::index_sequence<Ix...>, std::enable_if_t<(sizeof...(Ix) > 1)>> {
+    using First [[maybe_unused]]    = const std::tuple_element_t<0, T<Types...>>;
+    using DropLast [[maybe_unused]] = const T<std::tuple_element_t<Ix, T<Types...>>...>;
+    using Last [[maybe_unused]]     = const std::tuple_element_t<sizeof...(Ix), T<Types...>>;
+  };
+
+  template <template <class...> class T, class... Types, std::size_t... Ix>
+  struct split_tuple_last<const T<Types...>, std::index_sequence<Ix...>, std::enable_if_t<sizeof...(Ix) == 1>> {
+    using First [[maybe_unused]]    = const std::tuple_element_t<0, T<Types...>>;
+    using Last [[maybe_unused]]     = const std::tuple_element_t<sizeof...(Ix), T<Types...>>;
+  };
+
   template <class T>
   using tup_0 = typename split_tuple_last<T>::First;
 
@@ -177,7 +190,9 @@ namespace conditions {
           }
         } else if constexpr (
               std::is_same_v<std::tuple_element_t<0, T>,
-                             type_traits::detail::std_begin_t<std::add_const_t<std::tuple_element_t<1, T>>>>) {
+                             type_traits::detail::std_begin_t<std::add_const_t<std::tuple_element_t<1, T>>>> ||
+              std::is_same_v<std::tuple_element_t<0, T>,
+                             type_traits::detail::std_begin_t<std::tuple_element_t<1, T>>>) {
           return std::true_type{};
         } else {
           return assert_types::reason<struct iterator>{};
