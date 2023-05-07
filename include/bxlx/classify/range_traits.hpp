@@ -265,6 +265,51 @@ struct range_traits_impl<
   constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value, S>>;
 };
 
+template <template <class, auto> class Range, class O, auto S>
+struct range_traits_impl<
+      Range<O, S>,
+      true,
+      false,
+      std::enable_if_t<!is_defined_v<O> && array_like_required_template_class_2<Range<O, S>>::value &&
+                       is_range_v<Range<defined_range_value, S>>>> {
+  using reference
+        [[maybe_unused]] = typename replace_all_type_recursively<range_reference_t<Range<defined_range_value, S>>,
+                                                                 defined_range_value,
+                                                                 O>::type;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+  using iterator_tag                = range_iterator_tag_t<Range<defined_range_value, S>>;
+
+  constexpr static bool defined    = true;
+  constexpr static bool continuous = range_is_continuous_v<Range<defined_range_value, S>>;
+
+  constexpr static range_type_t range = range_type_v<Range<defined_range_value, S>>;
+
+  constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value, S>>;
+};
+
+
+template <template <class, auto> class Range, class O, auto S>
+struct range_traits_impl<
+      const Range<O, S>,
+      true,
+      false,
+      std::enable_if_t<!is_defined_v<O> && array_like_required_template_class<const Range<O, S>>::value &&
+                       is_range_v<const Range<defined_range_value, S>>>> {
+  using reference
+        [[maybe_unused]] = typename replace_all_type_recursively<range_reference_t<const Range<defined_range_value, S>>,
+                                                                 defined_range_value,
+                                                                 O>::type;
+  using value_type [[maybe_unused]] = std::remove_reference_t<reference>;
+  using iterator_tag                = range_iterator_tag_t<const Range<defined_range_value, S>>;
+
+  constexpr static bool defined    = true;
+  constexpr static bool continuous = range_is_continuous_v<const Range<defined_range_value, S>>;
+
+  constexpr static range_type_t range = range_type_v<const Range<defined_range_value, S>>;
+
+  constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value, S>>;
+};
+
 template <bool, class...>
 struct undef_if_false;
 
