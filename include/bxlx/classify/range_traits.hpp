@@ -265,7 +265,7 @@ struct range_traits_impl<
   constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value, S>>;
 };
 
-template <template <class, auto> class Range, class O, auto S>
+template <template <class, std::size_t> class Range, class O, auto S>
 struct range_traits_impl<
       Range<O, S>,
       true,
@@ -288,7 +288,7 @@ struct range_traits_impl<
 };
 
 
-template <template <class, auto> class Range, class O, auto S>
+template <template <class, std::size_t> class Range, class O, auto S>
 struct range_traits_impl<
       const Range<O, S>,
       true,

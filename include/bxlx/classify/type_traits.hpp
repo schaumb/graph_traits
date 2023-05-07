@@ -199,14 +199,14 @@ namespace detail {
   template <class T, class = void>
   struct array_like_required_template_class_2 : std::false_type {};
 
-  template <template <class, auto> class T, class U, auto V>
+  template <template <class, std::size_t> class T, class U, auto V>
   struct array_like_required_template_class_2<
         T<U, V>,
         std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V>>::value>, T<U, V>>> : std::true_type {
     constexpr static bool is_defined = is_defined_v<U>;
   };
 
-  template <template <class, auto> class T, class U, auto V>
+  template <template <class, std::size_t> class T, class U, auto V>
   struct array_like_required_template_class_2<
         const T<U, V>,
         std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V>>::value>, T<U, V>>> : std::true_type {
