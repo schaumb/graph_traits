@@ -37,25 +37,25 @@ struct graph_traits<G, V, true> {
 
   static_assert(representation != representation_t{});
 
-  constexpr static bool has_graph_property = properties::has_property_v<properties_t, state_machine::graph_prop_t>.value;
-  constexpr static bool has_edge_property = properties::has_property_v<properties_t, state_machine::edge_prop_t>.value;
-  constexpr static bool has_node_property = properties::has_property_v<properties_t, state_machine::node_prop_t>.value;
+  constexpr static bool has_graph_property = properties::has_property_v<properties_t, state_machine::graph_prop_t>;
+  constexpr static bool has_edge_property = properties::has_property_v<properties_t, state_machine::edge_prop_t>;
+  constexpr static bool has_node_property = properties::has_property_v<properties_t, state_machine::node_prop_t>;
 
   constexpr static bool user_defined_node_type = !properties::is_valid_v<properties_t, state_machine::user_node_t, std::false_type>;
 
   constexpr static bool has_edge_type = !properties::is_valid_v<properties_t, state_machine::user_edge_t, state_machine::na_t>;
 
-  constexpr static bool has_node_container = properties::has_property_v<properties_t, state_machine::node_container<next_type::Dummy>>.value;
-  constexpr static bool has_edge_container = properties::has_property_v<properties_t, state_machine::edge_container<next_type::Dummy>>.value;
+  constexpr static bool has_node_container = properties::has_property_v<properties_t, state_machine::node_container<next_type::Dummy>>;
+  constexpr static bool has_edge_container = properties::has_property_v<properties_t, state_machine::edge_container<next_type::Dummy>>;
 
-  constexpr static bool has_adjacency_container = properties::has_property_v<properties_t, state_machine::adj_list_cont<next_type::Dummy>>.value ||
-                                                  properties::has_property_v<properties_t, state_machine::adj_mat_cont<next_type::Dummy>>.value ||
+  constexpr static bool has_adjacency_container = properties::has_property_v<properties_t, state_machine::adj_list_cont<next_type::Dummy>> ||
+                                                  properties::has_property_v<properties_t, state_machine::adj_mat_cont<next_type::Dummy>> ||
                                                   !properties::is_valid_v<properties_t, state_machine::compressed_t, std::false_type>;
 
   constexpr static bool has_edge_list_container = representation == representation_t::edge_list;
 
-  constexpr static bool has_in_adjacency_container = properties::has_property_v<properties_t, state_machine::indexed_type<state_machine::adj_list_cont<next_type::Dummy>, 1>>.value ||
-                                                     properties::has_property_v<properties_t, state_machine::indexed_type<state_machine::adj_mat_cont<next_type::Dummy>, 1>>.value;
+  constexpr static bool has_in_adjacency_container = properties::has_property_v<properties_t, state_machine::indexed_type<state_machine::adj_list_cont<next_type::Dummy>, 1>> ||
+                                                     properties::has_property_v<properties_t, state_machine::indexed_type<state_machine::adj_mat_cont<next_type::Dummy>, 1>>;
 
   constexpr static bool has_in_edges = !properties::is_valid_v<properties_t, state_machine::in_edges_t, std::false_type>;
 
