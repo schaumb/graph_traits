@@ -197,36 +197,36 @@ namespace detail {
   };
 
   template <class T, class = void>
-  struct array_like_required_template_class_2 : std::false_type {};
-
-  template <template <class, std::size_t> class T, class U, auto V>
-  struct array_like_required_template_class_2<
-        T<U, V>,
-        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V>>::value>, T<U, V>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U>;
-  };
-
-  template <template <class, std::size_t> class T, class U, auto V>
-  struct array_like_required_template_class_2<
-        const T<U, V>,
-        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V>>::value>, T<U, V>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U>;
-  };
-
-  template <class T, class = void>
   struct array_like_required_template_class : std::false_type {};
 
   template <template <class, auto, class...> class T, class U, auto V, class... Vs>
   struct array_like_required_template_class<
         T<U, V, Vs...>,
-        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value && !array_like_required_template_class_2<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
     constexpr static bool is_defined = is_defined_v<U>;
   };
 
   template <template <class, auto, class...> class T, class U, auto V, class... Vs>
   struct array_like_required_template_class<
         const T<U, V, Vs...>,
-        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value && !array_like_required_template_class_2<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
+  template <class T, class = void>
+  struct array_like_required_template_class_2 : std::false_type {};
+
+  template <template <class, std::size_t> class T, class U, auto V>
+  struct array_like_required_template_class_2<
+        T<U, V>,
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V>>::value && !array_like_required_template_class<T<U, V>>::value>, T<U, V>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
+  template <template <class, std::size_t> class T, class U, auto V>
+  struct array_like_required_template_class_2<
+        const T<U, V>,
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V>>::value && !array_like_required_template_class<T<U, V>>::value>, T<U, V>>> : std::true_type {
     constexpr static bool is_defined = is_defined_v<U>;
   };
 
