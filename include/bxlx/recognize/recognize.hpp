@@ -448,7 +448,7 @@ namespace state_machine {
               no_good_recognition, assert_types::at<CRTP>,
               assert_types::got<false,
                                 decltype(std::tuple_cat(std::declval<std::conditional_t<
-                                                              States::template valid_conditions<T>(),
+                                                              States::template valid_conditions<T, Props>(),
                                                               std::tuple<decltype(States::template valid<T, Props>())>,
                                                               std::tuple<>>>()...))>>{};
       } else if constexpr (valid_types > 1) {
@@ -524,7 +524,7 @@ namespace state_machine {
       } else if constexpr (valid_conditions<T, Props>()) {
         return apply_properties_t<T, add_properties<Props, Properties, T>, NextStates...>{};
       } else {
-        return Conditions->template valid<T, Props>();
+        return std::remove_reference_t<decltype(*Conditions)>::template valid<T, Props>();
       }
     }
 
@@ -534,7 +534,7 @@ namespace state_machine {
     template <class T, class Props = properties::empty_t>
     constexpr static bool valid_conditions() {
       if constexpr (is_valid_type_v<T>) {
-        return Conditions->template valid<T, Props>().value;
+        return std::remove_reference_t<decltype(*Conditions)>::template valid<T, Props>().value;
       } else {
         return false;
       }
