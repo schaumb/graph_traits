@@ -19,19 +19,22 @@ namespace bxlx::graph::traits {
 namespace type_filter {
   template <class Check = std::greater<>, std::size_t Size = 0, class Reason = empty_tuple>
   struct tuple_t {
-    template <class T, class = std::enable_if_t<classification::classify<T> != classification::type::tuple_like>>
-    constexpr static assert_types::reason<expected_tuple, assert_types::got<classification::classify<T>>> valid() {
-      return {};
-    }
+    struct is_tuple {
+      template<class T>
+      using type = std::conditional_t<Check{}(std::tuple_size_v<T>, Size),
+                                      std::true_type,
+                                      assert_types::reason<Reason, assert_types::got<std::tuple_size_v<T>>>>;
+    };
+    struct is_not_tuple {
+      template<class T>
+      using type = assert_types::reason<expected_tuple, assert_types::got<classification::classify<T>>>;
+    };
 
-    template <class T, class = std::enable_if_t<classification::classify<T> == classification::type::tuple_like>>
-    constexpr static auto valid() {
-      if constexpr (Check{}(std::tuple_size_v<T>, Size)) {
-        return std::true_type{};
-      } else {
-        return assert_types::reason<Reason, assert_types::got<std::tuple_size_v<T>>>{};
-      }
-    }
+    template <class T>
+    using is_valid = typename std::conditional_t<
+          classification::classify<T> == classification::type::tuple_like,
+          is_tuple,
+          is_not_tuple>::template type<T>;
   };
 
   using tuple      = tuple_t<>;
@@ -39,24 +42,25 @@ namespace type_filter {
   using tuple_eq_2 = tuple_t<std::equal_to<>, 2, tuple_size_not_equal_to_2>;
 
   struct any {
-    template <class>
-    constexpr static std::true_type valid() {
-      return {};
-    }
+    template <class T>
+    using is_valid = std::true_type;
   };
 
   template <classification::type t>
   struct fix_typed_t {
 
-    template <class T>
-    constexpr static std::conditional_t<
+    template<class T>
+    using is_valid = std::conditional_t<
           classification::classify<T> == t,
           std::true_type,
-          assert_types::reason<assert_types::expected<t, assert_types::got<classification::classify<T>>>>>
-    valid() {
-      return {};
-    }
+          assert_types::reason<assert_types::expected<t, assert_types::got<classification::classify<T>>>>>;
   };
+
+  template<class type_filter, class T>
+  constexpr static bool is_valid_v = type_filter::template is_valid<T>::value;
+
+  template<class type_filter, class T>
+  using invalid_type_t = typename type_filter::template is_valid<T>;
 
   using range    = fix_typed_t<classification::type::range>;
   using map      = fix_typed_t<classification::type::map_like>;
@@ -414,7 +418,7 @@ namespace state_machine {
                                                                       properties::property_t<CRTP, T>
                                                                       >>;
       constexpr std::size_t valid_states = ((States::template valid<T, Props>().value) + ...);
-      constexpr std::size_t valid_types = ((States::template valid_type<T>().value) + ...);
+      constexpr std::size_t valid_types = ((States::template is_valid_type_v<T>) + ...);
       constexpr std::size_t valid_conditions = ((States::template valid_conditions<T, Props>().value) + ...);
       if constexpr (valid_states == 1) {
         return std::tuple_element_t<
@@ -431,7 +435,7 @@ namespace state_machine {
       } else if constexpr (valid_types == 1) {
         return std::tuple_element_t<
               0, decltype(std::tuple_cat(
-                       std::declval<std::conditional_t<States::template valid_type<T>(), std::tuple<States>,
+                       std::declval<std::conditional_t<States::template is_valid_type_v<T>, std::tuple<States>,
                                                        std::tuple<>>>()...))>::template valid<T, Props>();
       } else if constexpr (valid_types > 1 &&
                            valid_conditions == 1) {
@@ -452,7 +456,7 @@ namespace state_machine {
               no_good_recognition, assert_types::at<CRTP>,
               assert_types::got<false,
                                 decltype(std::tuple_cat(std::declval<std::conditional_t<
-                                                              States::template valid_type<T>(),
+                                                              States::template is_valid_type_v<T>,
                                                               std::tuple<decltype(States::template valid<T, Props>())>,
                                                               std::tuple<>>>()...))>>{};
       } else {
@@ -515,8 +519,8 @@ namespace state_machine {
   struct transition {
     template <class T, class Props = properties::empty_t>
     constexpr static auto valid() {
-      if constexpr (!valid_type<T>()) {
-        return TypeFilter::template valid<T>();
+      if constexpr (!is_valid_type_v<T>) {
+        return invalid_type_t<TypeFilter, T>{};
       } else if constexpr (!valid_conditions<T, Props>().value) {
         return Conditions->template valid<T, Props>();
       } else {
@@ -525,16 +529,14 @@ namespace state_machine {
     }
 
     template <class T>
-    constexpr static auto valid_type() {
-      return TypeFilter::template valid<T>();
-    }
+    constexpr static bool is_valid_type_v = is_valid_v<TypeFilter, T>;
 
     template <class T, class Props = properties::empty_t>
     constexpr static auto valid_conditions() {
-      if constexpr (valid_type<T>()) {
+      if constexpr (is_valid_type_v<T>) {
         return Conditions->template valid<T, Props>();
       } else {
-        return valid_type<T>();
+        return invalid_type_t<TypeFilter, T>{};
       }
     }
   };
