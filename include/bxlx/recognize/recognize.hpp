@@ -419,7 +419,7 @@ namespace state_machine {
                                                                       >>;
       constexpr std::size_t valid_states = ((States::template valid<T, Props>().value) + ...);
       constexpr std::size_t valid_types = ((States::template is_valid_type_v<T>) + ...);
-      constexpr std::size_t valid_conditions = ((States::template valid_conditions<T, Props>().value) + ...);
+      constexpr std::size_t valid_conditions = ((States::template valid_conditions<T, Props>()) + ...);
       if constexpr (valid_states == 1) {
         return std::tuple_element_t<
               0, decltype(std::tuple_cat(
@@ -532,11 +532,11 @@ namespace state_machine {
     constexpr static bool is_valid_type_v = is_valid_v<TypeFilter, T>;
 
     template <class T, class Props = properties::empty_t>
-    constexpr static auto valid_conditions() {
+    constexpr static bool valid_conditions() {
       if constexpr (is_valid_type_v<T>) {
-        return Conditions->template valid<T, Props>();
+        return Conditions->template valid<T, Props>().value;
       } else {
-        return invalid_type_t<TypeFilter, T>{};
+        return false;
       }
     }
   };
