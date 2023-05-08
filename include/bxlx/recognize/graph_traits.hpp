@@ -44,7 +44,7 @@ struct graph_traits<G, V, true> {
   using user_defined_node_t = properties::get_value_t<properties_t, state_machine::user_node_t, std::enable_if<true, std::false_type>>;
   using user_defined_edge_t = properties::get_value_t<properties_t, state_machine::user_edge_t>;
 
-  using node_type = properties::get_value<properties_t, state_machine::node_type_t>;
+  using node_type = properties::get_value<properties_t, state_machine::node_type_t, std::enable_if<true, std::size_t>>;
   using edge_type = properties::get_value<properties_t, state_machine::edge_type_t>;
 
   using node_container = properties::get_value<properties_t, state_machine::node_container<next_type::Dummy>>;
@@ -52,7 +52,8 @@ struct graph_traits<G, V, true> {
 
   using edge_list_container = properties::get_value<properties_t, state_machine::edge_list_n<next_type::Dummy>>;
 
-  using adjacency_conatiner = properties::get_value<properties_t, state_machine::indexed_type<state_machine::adj_list_cont<next_type::Dummy>, 1>,
+  using adjacency_container =
+        properties::get_value<properties_t, state_machine::indexed_type<state_machine::adj_list_cont<next_type::Dummy>, 1>,
         properties::get_value<properties_t, state_machine::indexed_type<state_machine::adj_mat_cont<next_type::Dummy>, 1>,
         properties::get_value<properties_t, state_machine::adj_list_cont<next_type::Dummy>,
         properties::get_value<properties_t, state_machine::adj_mat_cont<next_type::Dummy>>>>>;

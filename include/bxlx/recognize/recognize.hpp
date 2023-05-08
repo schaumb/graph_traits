@@ -121,6 +121,9 @@ namespace next_type {
   using T = U;
 
   template <class U>
+  using CVT = std::remove_cv_t<U>;
+
+  template <class U>
   using Dummy = std::enable_if_t<false, U>;
 } // namespace next_type
 
@@ -182,17 +185,22 @@ namespace conditions {
       if constexpr (type_traits::is_range_v<std::tuple_element_t<1, T>>) {
         if constexpr (std::is_base_of_v<std::random_access_iterator_tag,
                                         type_traits::range_iterator_tag_t<std::tuple_element_t<1, T>>>) {
-          if constexpr (classification::classify<std::tuple_element_t<0, T>> == classification::type::index) {
+          if constexpr (!std::is_const_v<T> && !type_traits::detail::class_member_traits::has_push_front_v<std::tuple_element_t<1, T>,
+                type_traits::range_value_t<std::tuple_element_t<1, T>> &&>) {
+            return assert_types::reason<struct no_push_front>{};
+          } else if constexpr (classification::classify<std::tuple_element_t<0, T>> == classification::type::index) {
             return std::true_type{};
           } else {
             return assert_types::reason<
                   expected<classification::type::index, got<classification::classify<std::tuple_element_t<0, T>>>>>{};
           }
         } else if constexpr (
+              std::is_base_of_v<std::bidirectional_iterator_tag,
+                                type_traits::range_iterator_tag_t<std::tuple_element_t<1, T>>> && (
               std::is_same_v<std::tuple_element_t<0, T>,
                              type_traits::detail::std_begin_t<std::add_const_t<std::tuple_element_t<1, T>>>> ||
               std::is_same_v<std::tuple_element_t<0, T>,
-                             type_traits::detail::std_begin_t<std::tuple_element_t<1, T>>>) {
+                             type_traits::detail::std_begin_t<std::tuple_element_t<1, T>>>)) {
           return std::true_type{};
         } else {
           return assert_types::reason<struct iterator>{};
@@ -362,9 +370,9 @@ namespace collect_props {
   constexpr props::set_t<struct node_prop_t, Tr> node_prop{};
   template <template <class> class Tr = next_type::T>
   constexpr props::set_t<struct edge_prop_t, Tr> edge_prop{};
-  template <template <class> class Tr = next_type::T>
+  template <template <class> class Tr = next_type::CVT>
   constexpr props::set_t<struct edge_type_t, Tr> edge_type{};
-  template <template <class> class Tr = next_type::T>
+  template <template <class> class Tr = next_type::CVT>
   constexpr props::set_t<struct node_type_t, Tr> node_type{};
 
   constexpr settable_prop<struct user_edge_t, collect_values::na_t, std::true_type, std::false_type> user_edge{};
@@ -550,7 +558,7 @@ namespace state_machine {
                    transition<map, not_multimap && not_range<V>, node_type<K> + node_prop<V> + (user_node = t)>> {};
 
 
-  template <template <class> class Tr>
+  template <template <class> class Tr = T>
   struct node
         : any_of_r<node<Tr>,
                    Tr,
@@ -566,10 +574,17 @@ namespace state_machine {
                    transition<any, user_edge == na && exclude<edge_prop_t> && not_range<>, &edge_prop<>>> {};
 
   template <template <class> class Tr = T>
+  struct adj_list_cont_elem
+        : any_of_r<adj_list_cont_elem<Tr>,
+                   Tr,
+                   transition<tuple_eq_2, no, empty, node<tup_0>, edge<tup_N_1>>,
+                   simple_transition<node>> {};
+
+  template <template <class> class Tr = T>
   struct adj_list_cont
         : any_of_r<adj_list_cont<Tr>,
                    Tr,
-                   transition<range, no, empty, node<E>>,
+                   transition<range, no, empty, adj_list_cont_elem<E>>,
                    transition<map, no, empty, node<K>, edge<V>>> {};
 
   template <template <class> class Tr = T>

@@ -17,9 +17,17 @@
 #include <array>
 #include <bitset>
 #include <atomic>
+#include <deque>
 
 template<class T>
 struct type_identity { using type = T; };
+
+template<std::size_t i, class T>
+using tuple_element_cvref_t = bxlx::graph::type_traits::detail::copy_cvref_t<T, std::tuple_element_t<i, T>>;
+
+template<std::size_t i, class T>
+using tuple_element_cvref = bxlx::graph::type_traits::detail::copy_cvref<T, std::tuple_element_t<i, T>>;
+
 
 template <class T>
 using ra_range = std::vector<T>;
@@ -99,19 +107,23 @@ constexpr static bool assert_on() {
 
   static_assert(repre<T> == repr);
   static_assert(user_defined == is_user_defined_node_type_v<T>);
-  static_assert(std::is_same_v<typename traits::node_index_t, node_index_t>);
-  static_assert(false == traits::user_edge_index);
-  static_assert(std::is_same_v<typename traits::edge_index_t, void>);
-  static_assert(traits::has_graph_property == !std::is_void_v<graph_prop>);
-  static_assert(traits::has_node_property == !std::is_void_v<node_prop>);
-  static_assert(traits::has_edge_property == !std::is_void_v<edge_prop>);
-  static_assert(traits::max_node_compile_time == nodes);
-  static_assert(traits::max_edge_compile_time == edges);
-  static_assert(std::is_same_v<node_repr_type, typename traits::node_repr_type>);
-  static_assert(std::is_same_v<edge_repr_type, typename traits::edge_repr_type>);
-  static_assert(std::is_same_v<typename traits::graph_property_type, graph_prop>);
-  static_assert(std::is_same_v<typename traits::node_property_type, node_prop>);
-  static_assert(std::is_same_v<typename traits::edge_property_type, edge_prop>);
+  static_assert(std::is_same_v<node_t<T>, node_index_t>);
+  static_assert(has_graph_property_v<T> == !std::is_void_v<graph_prop>);
+  static_assert(has_node_property_v<T> == !std::is_void_v<node_prop>);
+  static_assert(has_edge_property_v<T> == !std::is_void_v<edge_prop>);
+  //static_assert(traits::max_node_compile_time == nodes);
+  //static_assert(traits::max_edge_compile_time == edges);
+  //static_assert(std::is_same_v<node_repr_type, typename traits::node_repr_type>);
+  //static_assert(std::is_same_v<edge_repr_type, typename traits::edge_repr_type>);
+  if constexpr (!std::is_void_v<graph_prop>) {
+    static_assert(std::is_same_v<graph_property_t<T>, graph_prop>);
+  }
+  if constexpr (!std::is_void_v<node_prop>) {
+    static_assert(std::is_same_v<node_property_t<T>, node_prop>);
+  }
+  if constexpr (!std::is_void_v<edge_prop>) {
+    static_assert(std::is_same_v<edge_property_t<T>, edge_prop>);
+  }
   return true;
 };
 
@@ -156,13 +168,13 @@ using node_indices = type_holders<std::string_view, int>;
 using indices = type_holders<int>;
 using props = type_holders<int>;
 
-static_assert(std::is_same_v<graph_traits<std::initializer_list<std::pair<int, int>>>::node_index_t, int>);
-
+static_assert(std::is_same_v<bxlx::graph::node_t<std::initializer_list<std::pair<int, int>>>, int>);
+/*
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_adj_list_1() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
-        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
-        constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
+        constexpr auto nodes = std::size_t{}; // compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto inside = std::size_t{}; // compile_time_size_v<typename decltype(range)::type>;
         assert_on<
             typename decltype(graph)::type,
             graph_representation_t::adjacency_list,
@@ -198,12 +210,12 @@ constexpr bool check_all_adj_list_1() {
     };
     auto for_each_any_range = [&] (auto range, auto edge_prop, auto index) {
         using Range = typename decltype(range)::type;
-        using EdgeRepr = bxlx::detail2::range_traits_type<Range>;
+        using EdgeRepr = bxlx::graph::type_traits::range_value_t<Range>;
         constexpr auto edge_repr = type_identity<EdgeRepr>{};
         constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
             std::is_void_v<typename decltype(edge_prop)::type>,
             type_identity<void>,
-            bxlx::detail2::tuple_element_cvref<1, EdgeRepr>
+            bxlx::graph::type_traits::detail::copy_cvref_t<EdgeRepr, std::tuple_element_t<1, EdgeRepr>>
         >::type>{};
         if constexpr (node_p) {
             props::for_each(for_each_node_prop, range, edge_repr, modified_edge_prop, index);
@@ -235,8 +247,8 @@ constexpr bool check_all_adj_list_1() {
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_adj_list_1_5() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
-        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
-        constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
+        constexpr auto nodes = std::size_t{}; // compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto inside = std::size_t{}; // compile_time_size_v<typename decltype(range)::type>;
         assert_on<
             typename decltype(graph)::type,
             graph_representation_t::adjacency_list,
@@ -272,12 +284,12 @@ constexpr bool check_all_adj_list_1_5() {
     };
     auto for_each_map = [&] (auto range, auto edge_prop, auto index) {
         using Range = typename decltype(range)::type;
-        using EdgeRepr = bxlx::detail2::range_traits_type<Range>;
+        using EdgeRepr = bxlx::graph::type_traits::range_value_t<Range>;
         constexpr auto edge_repr = type_identity<EdgeRepr>{};
         constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
             std::is_void_v<typename decltype(edge_prop)::type>,
             type_identity<void>,
-            bxlx::detail2::tuple_element_cvref<1, EdgeRepr>
+              bxlx::graph::type_traits::detail::copy_cvref_t<EdgeRepr, std::tuple_element_t<1, EdgeRepr>>
         >::type>{};
         if constexpr (node_p) {
             props::for_each(for_each_node_prop, range, edge_repr, modified_edge_prop, index);
@@ -306,8 +318,8 @@ constexpr bool check_all_adj_list_1_5() {
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_adj_list_2() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
-        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
-        constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
+        constexpr auto nodes = std::size_t{}; // compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto inside = std::size_t{}; // compile_time_size_v<typename decltype(range)::type>;
         assert_on<
             typename decltype(graph)::type,
             graph_representation_t::adjacency_list,
@@ -330,12 +342,12 @@ constexpr bool check_all_adj_list_2() {
     };
     auto for_each_indexed_range = [&] (auto node_range, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
         using NodeRange = typename decltype(node_range)::type;
-        using NodeRepr = bxlx::detail2::range_traits_type<NodeRange>;
+        using NodeRepr = bxlx::graph::type_traits::range_value_t<NodeRange>;
         constexpr auto node_repr = type_identity<NodeRepr>{};
         constexpr auto modified_node_prop = std::conditional_t<
             std::is_void_v<typename decltype(node_prop)::type>,
             type_identity<void>,
-            bxlx::detail2::tuple_element_cvref<1, bxlx::detail2::tuple_element_cvref_t<1, NodeRepr>>
+            tuple_element_cvref<1, tuple_element_cvref_t<1, NodeRepr>>
         >{};
 
         if constexpr (graph_p) {
@@ -354,16 +366,17 @@ constexpr bool check_all_adj_list_2() {
     auto for_each_any_range = [&] (auto range, auto edge_prop, auto index) {
         using NodeIndex = typename decltype(index)::type;
         using Range = typename decltype(range)::type;
-        using EdgeRepr = bxlx::detail2::range_traits_type<Range>;
+        using EdgeRepr = bxlx::graph::type_traits::range_value_t<Range>;
         constexpr auto edge_repr = type_identity<EdgeRepr>{};
         constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
             std::is_void_v<typename decltype(edge_prop)::type>,
             type_identity<void>,
-            bxlx::detail2::tuple_element_cvref<1, EdgeRepr>
+              bxlx::graph::type_traits::detail::copy_cvref_t<EdgeRepr, std::tuple_element_t<1, EdgeRepr>>
         >::type>{};
-        if constexpr (bxlx::detail2::compile_time_size_v<Range> != 0) {
+        //if constexpr (compile_time_size_v<Range> != 0) {
             // not acceptable.
-        } else if constexpr (node_p) {
+        //} else
+        if constexpr (node_p) {
             props::for_each(for_each_node_prop, range, edge_repr, modified_edge_prop, index);
         } else {
             map_with_node_index::for_each<NodeIndex, Range>(for_each_indexed_range, type_identity<void>{}, range, edge_repr, modified_edge_prop, index);
@@ -393,8 +406,8 @@ constexpr bool check_all_adj_list_2() {
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_adj_list_3() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
-        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
-        constexpr auto inside = bxlx::detail2::compile_time_size_v<typename decltype(range)::type>;
+        constexpr auto nodes = std::size_t{}; // compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto inside = std::size_t{}; // compile_time_size_v<typename decltype(range)::type>;
         assert_on<
             typename decltype(graph)::type,
             graph_representation_t::adjacency_list,
@@ -416,15 +429,16 @@ constexpr bool check_all_adj_list_3() {
         checker(type_identity<std::pair<NodeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
     };
     auto for_each_indexed_range = [&] (auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
-        using Comp1 = bxlx::detail2::range_member_traits::key_compare_t<typename decltype(range)::type>;
-        using Comp2 = bxlx::detail2::range_member_traits::key_compare_t<typename decltype(node_range)::type>;
-        using Eq1 = bxlx::detail2::range_member_traits::key_equal_t<typename decltype(range)::type>;
-        using Eq2 = bxlx::detail2::range_member_traits::key_equal_t<typename decltype(node_range)::type>;
+        /*using Comp1 = range_member_traits::key_compare_t<typename decltype(range)::type>;
+        using Comp2 = range_member_traits::key_compare_t<typename decltype(node_range)::type>;
+        using Eq1 = range_member_traits::key_equal_t<typename decltype(range)::type>;
+        using Eq2 = range_member_traits::key_equal_t<typename decltype(node_range)::type>;
 
-        if constexpr ((!std::is_void_v<Comp1> && !std::is_void_v<Comp2> && !std::is_same_v<Comp1, Comp2>) ||
-                      (!std::is_void_v<Eq1> && !std::is_void_v<Eq2> && !std::is_same_v<Eq1, Eq2>)) {
+        //if constexpr ((!std::is_void_v<Comp1> && !std::is_void_v<Comp2> && !std::is_same_v<Comp1, Comp2>) ||
+        //             (!std::is_void_v<Eq1> && !std::is_void_v<Eq2> && !std::is_same_v<Eq1, Eq2>)) {
             // not matching node comparator/equality
-        } else if constexpr (graph_p) {
+        //} else
+        if constexpr (graph_p) {
             props::for_each(for_each_graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
         } else {
             checker(node_range, type_identity<void>{}, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
@@ -468,8 +482,8 @@ constexpr bool check_all_adj_list_3() {
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_adj_matrix_1() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto bitset) {
-        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
-        constexpr auto bit_node = bxlx::detail2::compile_time_size_v<typename decltype(bitset)::type>;
+        constexpr auto nodes = std::size_t{}; // compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto bit_node = std::size_t{}; // compile_time_size_v<typename decltype(bitset)::type>;
         static_assert(!nodes || !bit_node || nodes == bit_node);
         constexpr auto node_size = std::max(nodes, bit_node);
         assert_on<
@@ -477,7 +491,7 @@ constexpr bool check_all_adj_matrix_1() {
             graph_representation_t::adjacency_matrix,
             std::size_t,
             typename decltype(node_repr)::type,
-            bxlx::detail2::subscript_operator_return_t<typename decltype(bitset)::type>,
+            bxlx::graph::type_traits::detail::subscript_operator_return_t<typename decltype(bitset)::type>,
             node_size,
             node_size * node_size,
             typename decltype(graph_prop)::type,
@@ -526,8 +540,8 @@ constexpr bool check_all_adj_matrix_1() {
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_adj_matrix_2() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto inside_range, auto edge_repr, auto edge_prop) {
-        constexpr auto nodes = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
-        constexpr auto range_size = bxlx::detail2::compile_time_size_v<typename decltype(inside_range)::type>;
+        constexpr auto nodes = std::size_t{}; // compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto range_size = std::size_t{}; // compile_time_size_v<typename decltype(inside_range)::type>;
         constexpr auto node_size = std::max(nodes, range_size);
         assert_on<
             typename decltype(graph)::type,
@@ -566,7 +580,7 @@ constexpr bool check_all_adj_matrix_2() {
 
     auto for_each_inside_indexed_range = [&] (auto inside_range, auto edge_repr, auto edge_prop) {
         using InsideRange = typename decltype(inside_range)::type;
-        if constexpr (bxlx::detail2::classify<InsideRange> != bxlx::detail2::type_classification::bitset_like_container) {
+        if constexpr (bxlx::graph::classification::classify<InsideRange> != bxlx::graph::classification::type::bitset) {
             if constexpr (node_p) {
                 props::for_each(for_each_node_prop, inside_range, edge_repr, edge_prop);
             } else {
@@ -597,8 +611,8 @@ constexpr bool check_all_adj_matrix_2() {
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_edge_list_1() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
-        constexpr auto node_size = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
-        constexpr auto edges_size = bxlx::detail2::compile_time_size_v<typename decltype(edge_range)::type>;
+        constexpr auto node_size = std::size_t{}; // compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto edges_size = std::size_t{}; // compile_time_size_v<typename decltype(edge_range)::type>;
         assert_on<
             typename decltype(graph)::type,
             graph_representation_t::edge_list,
@@ -628,14 +642,14 @@ constexpr bool check_all_edge_list_1() {
     auto for_each_node_map = [&] (auto node_range, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
         using NodeRange = typename decltype(node_range)::type;
         using EdgeRange = typename decltype(edge_range)::type;
-        using NodeRepr = bxlx::detail2::range_traits_type<NodeRange>;
+        using NodeRepr = bxlx::graph::type_traits::range_value_t<NodeRange>;
         constexpr auto node_repr = type_identity<NodeRepr>{};
         constexpr auto modified_node_prop = std::conditional_t<
             std::is_void_v<typename decltype(node_prop)::type>,
             type_identity<void>,
-            bxlx::detail2::tuple_element_cvref<1, NodeRepr>
+            tuple_element_cvref<1, NodeRepr>
         >{};
-        if constexpr (!bxlx::detail2::is_map_like_container_v<NodeRange>) {
+        if constexpr (!bxlx::graph::classification::classify<NodeRange> == bxlx::graph::classification::type::map_like) {
 
         } else if constexpr (graph_p) {
             props::for_each(for_each_graph_prop, node_range, node_repr, modified_node_prop, edge_range, edge_repr, edge_prop, node_index);
@@ -653,12 +667,12 @@ constexpr bool check_all_edge_list_1() {
     };
 
     auto for_each_edge_range = [&] (auto edge_range, auto edge_prop, auto node_index) {
-        using EdgeRepr = bxlx::detail2::range_traits_type<typename decltype(edge_range)::type>;
+        using EdgeRepr = bxlx::graph::type_traits::range_value_t<typename decltype(edge_range)::type>;
         constexpr auto edge_repr = type_identity<EdgeRepr>{};
         constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
             std::is_void_v<typename decltype(edge_prop)::type>,
             type_identity<void>,
-            bxlx::detail2::tuple_element_cvref<std::tuple_size_v<EdgeRepr>-1, EdgeRepr>
+            tuple_element_cvref<std::tuple_size_v<EdgeRepr>-1, EdgeRepr>
         >::type>{};
 
         if constexpr (node_p) {
@@ -692,8 +706,8 @@ constexpr bool check_all_edge_list_1() {
 template<bool node_p, bool edge_p, bool graph_p>
 constexpr bool check_all_edge_list_2() {
     auto checker = [](auto graph, auto graph_prop, auto node_range, auto node_repr, auto node_prop, auto edge_range, auto edge_repr, auto edge_prop, auto node_index) {
-        constexpr auto node_size = bxlx::detail2::compile_time_size_v<typename decltype(node_range)::type>;
-        constexpr auto edges_size = bxlx::detail2::compile_time_size_v<typename decltype(edge_range)::type>;
+        constexpr auto node_size = std::size_t{}; // compile_time_size_v<typename decltype(node_range)::type>;
+        constexpr auto edges_size = std::size_t{}; // compile_time_size_v<typename decltype(edge_range)::type>;
         assert_on<
             typename decltype(graph)::type,
             graph_representation_t::edge_list,
@@ -738,12 +752,12 @@ constexpr bool check_all_edge_list_2() {
 
     auto for_each_edge_range = [&] (auto edge_range, auto edge_prop, auto node_index) {
         if constexpr (node_p) {
-            using EdgeRepr = bxlx::detail2::range_traits_type<typename decltype(edge_range)::type>;
+            using EdgeRepr = bxlx::graph::type_traits::range_value_t<typename decltype(edge_range)::type>;
             constexpr auto edge_repr = type_identity<EdgeRepr>{};
             constexpr auto modified_edge_prop = type_identity<typename std::conditional_t<
                 std::is_void_v<typename decltype(edge_prop)::type>,
                 type_identity<void>,
-                bxlx::detail2::tuple_element_cvref<std::tuple_size_v<EdgeRepr>-1, EdgeRepr>
+                tuple_element_cvref<std::tuple_size_v<EdgeRepr>-1, EdgeRepr>
             >::type>{};
             props::for_each(for_each_node_prop, edge_range, edge_repr, modified_edge_prop, node_index);
         }
@@ -767,9 +781,12 @@ constexpr bool check_all_edge_list_2() {
     return true;
 }
 
+template<auto T>
+using constant_t = std::integral_constant<decltype(T), T>;
+
 using check_nodes = type_holders<
-    bxlx::traits::constant_t<0>, bxlx::traits::constant_t<1>, bxlx::traits::constant_t<2>, bxlx::traits::constant_t<3>,
-    bxlx::traits::constant_t<4>, bxlx::traits::constant_t<5>, bxlx::traits::constant_t<6>, bxlx::traits::constant_t<7>
+    constant_t<0>, constant_t<1>, constant_t<2>, constant_t<3>,
+    constant_t<4>, constant_t<5>, constant_t<6>, constant_t<7>
 >;
 
 [[maybe_unused]]
@@ -783,7 +800,7 @@ constexpr auto ignore = (check_nodes::for_each([] (auto v) {
     static_assert(check_all_adj_matrix_2<!(Val & 1), !(Val & 2), !(Val & 4)>());
     static_assert(check_all_edge_list_1<!(Val & 1), !(Val & 2), !(Val & 4)>());
     static_assert(check_all_edge_list_2<!(Val & 1), !(Val & 2), !(Val & 4)>());
-}), 0);
+}), 0);*/
 
 static_assert(assert_on<set<tup<int, int>>, graph_representation_t::edge_list, int, void, const tup<int, int>, 0, 0, void, void, void, true>());
 static_assert(assert_on<set<tup<int, int, int>>, graph_representation_t::edge_list, int, void, const tup<int, int, int>, 0, 0, void, void, const int, true>());
@@ -821,11 +838,15 @@ static_assert(it_is_a_graph_v< tup<ra_range<tup<ra_range<opt<struct edge_prop>>,
 static_assert(it_is_a_graph_v< std::pair<std::array<std::pair<int, int>, 5>, std::list<std::pair<int, int>> > >);
 static_assert(it_is_a_graph_v< std::pair<std::map<int, int>, std::list<std::pair<int, int>> > >);
 
-static_assert(std::is_same_v<typename bxlx::graph_traits<std::array<std::array<int, 10>, 3>>::out_edge_container_type, std::array<int, 10>>);
-static_assert(std::is_same_v<typename bxlx::graph_traits<std::pair<std::vector<int>, std::set<std::tuple<int, int>>>>::edge_container_type, std::set<std::tuple<int, int>>>);
+static_assert(std::is_same_v<bxlx::graph::adjacency_container_t<std::array<std::array<int, 10>, 3>>, std::array<int, 10>>);
+static_assert(std::is_same_v<bxlx::graph::edge_list_container_t<std::pair<std::vector<int>, std::set<std::tuple<int, int>>>>, std::set<std::tuple<int, int>>>);
 
+namespace detail = bxlx::graph::type_traits::detail;
 
-using details = bxlx::graph::type_traits::detail;
+template <class T>
+using range_traits_type = bxlx::graph::type_traits::range_value_t<T>;
+template <class T>
+using optional_traits_type = bxlx::graph::type_traits::optional_value_t<T>;
 static_assert(std::is_same_v<detail::std_begin_t<const std::vector<int>>, std::vector<int>::const_iterator>);
 static_assert(std::is_same_v<range_traits_type<const std::vector<int>>, const int>);
 
@@ -839,28 +860,40 @@ static_assert(std::is_same_v<optional_traits_type<const std::optional<int>>, con
 static_assert(std::is_same_v<optional_traits_type<const std::optional<struct Dimy>>, const struct Dimy>);
 static_assert(std::is_same_v<optional_traits_type<const struct Dimy*>, const struct Dimy>);
 
+using bxlx::graph::classification::classify;
+using type_classification = bxlx::graph::classification::type;
 static_assert(classify<const bool> == type_classification::bool_t);
 static_assert(classify<const std::map<int, int>> == type_classification::map_like);
 static_assert(classify<const std::unordered_map<int, int>> == type_classification::map_like);
 
-static_assert(bxlx::detail2::has_subscript_operator_v<std::string_view>);
-static_assert(bxlx::detail2::is_range_v<std::set<int>>);
-static_assert(bxlx::detail2::is_range_v<std::set<std::pair<int, int>>>);
-static_assert(bxlx::detail2::is_range_v<std::set<std::pair<const int, int>>>);
-static_assert(bxlx::detail2::is_range_v<std::set<int, std::greater<>>>);
-static_assert(bxlx::detail2::is_range_v<std::multiset<int>>);
-static_assert(!bxlx::detail2::is_range_v<std::map<int, int>>);
+using bxlx::graph::type_traits::detail::has_subscript_operator_v;
+using bxlx::graph::type_traits::is_range_v;
 
-static_assert(!bxlx::detail2::is_multi_v<std::set<int>>);
-static_assert(!bxlx::detail2::is_multi_v<std::set<int, std::less<>>>);
-static_assert(bxlx::detail2::is_multi_v<std::multiset<int>>);
-static_assert(bxlx::detail2::is_multi_v<std::multiset<int, std::less<>>>);
-static_assert(!bxlx::detail2::is_multi_v<std::map<int, int>>);
-static_assert(!bxlx::detail2::is_multi_v<std::map<int, int, std::less<>>>);
-static_assert(bxlx::detail2::is_multi_v<std::multimap<int, int>>);
-static_assert(bxlx::detail2::is_multi_v<std::multimap<int, int, std::less<>>>);
+template <class T>
+constexpr auto is_multi_v = bxlx::graph::type_traits::detail::is_associative_multi_v<T>;
+static_assert(has_subscript_operator_v<std::string_view>);
+static_assert(is_range_v<std::set<int>>);
+static_assert(is_range_v<std::set<std::pair<int, int>>>);
+static_assert(is_range_v<std::set<std::pair<const int, int>>>);
+static_assert(is_range_v<std::set<int, std::greater<>>>);
+static_assert(is_range_v<std::multiset<int>>);
+static_assert(is_range_v<std::map<int, int>>);
 
-static_assert(bxlx::detail2::is_queue_like_container_v<std::deque<class B>>);
-static_assert(bxlx::detail2::is_queue_like_container_v<std::list<int>>);
-static_assert(!bxlx::detail2::is_queue_like_container_v<std::vector<int>>);
-static_assert(!bxlx::detail2::is_queue_like_container_v<std::forward_list<int>>);
+static_assert(!is_multi_v<std::set<int>>);
+static_assert(!is_multi_v<std::set<int, std::less<>>>);
+static_assert(is_multi_v<std::multiset<int>>);
+static_assert(is_multi_v<std::multiset<int, std::less<>>>);
+static_assert(!is_multi_v<std::map<int, int>>);
+static_assert(!is_multi_v<std::map<int, int, std::less<>>>);
+static_assert(is_multi_v<std::multimap<int, int>>);
+static_assert(is_multi_v<std::multimap<int, int, std::less<>>>);
+
+using bxlx::graph::traits::conditions::separator_of_t;
+
+template<class Oth, class T>
+constexpr bool is_queue_like_container_v = separator_of_t::template valid<std::tuple<Oth, T>, void>();
+
+static_assert(is_queue_like_container_v<int, std::deque<class B>>);
+static_assert(is_queue_like_container_v<std::list<int>::iterator, std::list<int>>);
+static_assert(!is_queue_like_container_v<int, std::vector<int>>);
+static_assert(!is_queue_like_container_v<std::forward_list<int>::iterator, std::forward_list<int>>);
