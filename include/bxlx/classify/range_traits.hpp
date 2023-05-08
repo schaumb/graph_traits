@@ -293,7 +293,7 @@ struct range_traits_impl<
       const Range<O, S>,
       true,
       false,
-      std::enable_if_t<!is_defined_v<O> && array_like_required_template_class<const Range<O, S>>::value &&
+      std::enable_if_t<!is_defined_v<O> && array_like_required_template_class_2<const Range<O, S>>::value &&
                        is_range_v<const Range<defined_range_value, S>>>> {
   using reference
         [[maybe_unused]] = typename replace_all_type_recursively<range_reference_t<const Range<defined_range_value, S>>,
