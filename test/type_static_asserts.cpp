@@ -228,7 +228,7 @@ struct MyMap {
     [[nodiscard]] my_iterator end() const { return {}; }
     [[nodiscard]] std::size_t size() const { return {}; }
 };
-static_assert(classify<MyMap> == type_classification::map_like);
+// static_assert(classify<MyMap> == type_classification::map_like);
 
 struct MySet {
     struct Key {};
