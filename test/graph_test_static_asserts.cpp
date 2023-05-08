@@ -18,6 +18,8 @@
 #include <bitset>
 #include <atomic>
 #include <deque>
+#include <unordered_map>
+
 
 template<class T>
 struct type_identity { using type = T; };
@@ -893,7 +895,7 @@ using bxlx::graph::traits::conditions::separator_of_t;
 template<class Oth, class T>
 constexpr bool is_queue_like_container_v = separator_of_t::template valid<std::tuple<Oth, T>, void>();
 
-static_assert(is_queue_like_container_v<int, std::deque<class B>>);
+static_assert(is_queue_like_container_v<int, std::deque<float>>);
 static_assert(is_queue_like_container_v<std::list<int>::iterator, std::list<int>>);
 static_assert(!is_queue_like_container_v<int, std::vector<int>>);
 static_assert(!is_queue_like_container_v<std::forward_list<int>::iterator, std::forward_list<int>>);
