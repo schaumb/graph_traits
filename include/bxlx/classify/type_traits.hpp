@@ -293,7 +293,7 @@ namespace detail {
   struct is_nothrow_convertible_impl<From, To, true> {
 #ifdef _MSC_VER
 #  pragma warning(push)
-#  pragma warning(disable : 4267)
+#  pragma warning(disable : 4267 4244)
 #endif
     static void test(To) noexcept {}
 
