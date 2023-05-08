@@ -521,10 +521,10 @@ namespace state_machine {
     constexpr static auto valid() {
       if constexpr (!is_valid_type_v<T>) {
         return invalid_type_t<TypeFilter, T>{};
-      } else if constexpr (!valid_conditions<T, Props>().value) {
-        return Conditions->template valid<T, Props>();
-      } else {
+      } else if constexpr (valid_conditions<T, Props>()) {
         return apply_properties_t<T, add_properties<Props, Properties, T>, NextStates...>{};
+      } else {
+        return Conditions->template valid<T, Props>();
       }
     }
 
