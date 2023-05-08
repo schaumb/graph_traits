@@ -431,7 +431,7 @@ constexpr bool check_all_adj_list_3() {
         checker(type_identity<std::pair<NodeRange, GraphProp>>{}, graph_prop, node_range, node_repr, node_prop, range, edge_repr, edge_prop, index);
     };
     auto for_each_indexed_range = [&] (auto node_range, auto node_repr, auto node_prop, auto range, auto edge_repr, auto edge_prop, auto index) {
-        /*using Comp1 = range_member_traits::key_compare_t<typename decltype(range)::type>;
+        using Comp1 = range_member_traits::key_compare_t<typename decltype(range)::type>;
         using Comp2 = range_member_traits::key_compare_t<typename decltype(node_range)::type>;
         using Eq1 = range_member_traits::key_equal_t<typename decltype(range)::type>;
         using Eq2 = range_member_traits::key_equal_t<typename decltype(node_range)::type>;

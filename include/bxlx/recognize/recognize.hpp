@@ -515,9 +515,9 @@ namespace state_machine {
   struct transition {
     template <class T, class Props = properties::empty_t>
     constexpr static auto valid() {
-      if constexpr (!valid_type<T>()) {
+      if constexpr (!valid_type<T>().value) {
         return TypeFilter::template valid<T>();
-      } else if constexpr (!valid_conditions<T, Props>()) {
+      } else if constexpr (!valid_conditions<T, Props>().value) {
         return Conditions->template valid<T, Props>();
       } else {
         return apply_properties_t<T, add_properties<Props, Properties, T>, NextStates...>{};
@@ -531,7 +531,7 @@ namespace state_machine {
 
     template <class T, class Props = properties::empty_t>
     constexpr static auto valid_conditions() {
-      if constexpr (valid_type<T>()) {
+      if constexpr (valid_type<T>().value) {
         return Conditions->template valid<T, Props>();
       } else {
         return valid_type<T>();
