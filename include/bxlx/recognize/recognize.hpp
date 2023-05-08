@@ -419,24 +419,24 @@ namespace state_machine {
       if constexpr (valid_states == 1) {
         return std::tuple_element_t<
               0, decltype(std::tuple_cat(
-                       std::declval<std::conditional_t<States::template valid<T, Props>().value, std::tuple<States>,
+                       std::declval<std::conditional_t<States::template valid<T, Props>(), std::tuple<States>,
                                                        std::tuple<>>>()...))>::template valid<T, Props>();
       } else if constexpr (valid_states > 1) {
         return assert_types::reason<
               multiple_good_recognition, assert_types::at<CRTP>,
               decltype(std::tuple_cat(
-                    std::declval<std::conditional_t<States::template valid<T, Props>().value,
+                    std::declval<std::conditional_t<States::template valid<T, Props>(),
                                                     std::tuple<decltype(States::template valid<T, Props>())>,
                                                     std::tuple<>>>()...))>{};
       } else if constexpr (valid_types == 1) {
         return std::tuple_element_t<
               0, decltype(std::tuple_cat(
-                       std::declval<std::conditional_t<States::template valid_type<T>().value, std::tuple<States>,
+                       std::declval<std::conditional_t<States::template valid_type<T>(), std::tuple<States>,
                                                        std::tuple<>>>()...))>::template valid<T, Props>();
       } else if constexpr (valid_types > 1 &&
                            valid_conditions == 1) {
         return std::tuple_element_t<
-              0, decltype(std::tuple_cat(std::declval<std::conditional_t<States::template valid_conditions<T, Props>().value,
+              0, decltype(std::tuple_cat(std::declval<std::conditional_t<States::template valid_conditions<T, Props>(),
                                                                          std::tuple<States>, std::tuple<>>>()...))>::
               template valid<T, Props>();
       } else if constexpr (valid_conditions > 1) {
