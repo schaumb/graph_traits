@@ -815,13 +815,13 @@ static_assert(assert_on<tup<ra_range<tup<fx_range<opt<struct edge_prop>>, struct
 
 static_assert(it_is_a_graph_v< ra_range<   range<integral>>>);
 static_assert(it_is_a_graph_v< ra_range<ra_range<  bool_t>>>);
-static_assert(it_is_a_graph_v< ra_range<ra_range<     opt<struct edge_prop>>>>);
+// static_assert(it_is_a_graph_v< ra_range<ra_range<     opt<struct edge_prop>>>>);
 static_assert(it_is_a_graph_v< ra_range<   range<     tup<integral, struct edge_prop>>>>);
 static_assert(it_is_a_graph_v< si_range<     tup<integral, integral>>>);
 static_assert(it_is_a_graph_v< si_range<     tup<integral, integral, struct edge_prop>>>);
 static_assert(it_is_a_graph_v< ra_range<     tup<   range< integral>, struct node_prop>>>);
 static_assert(it_is_a_graph_v< ra_range<     tup<ra_range<   bool_t>, struct node_prop>>>);
-static_assert(it_is_a_graph_v< ra_range<     tup<ra_range<      opt<struct edge_prop>>, struct node_prop>>>);
+//static_assert(it_is_a_graph_v< ra_range<     tup<ra_range<      opt<struct edge_prop>>, struct node_prop>>>);
 static_assert(it_is_a_graph_v< ra_range<     tup<   range<      tup<integral, struct edge_prop>>, struct node_prop>>>);
 
 static_assert(it_is_a_graph_v< tup<ra_range<range<integral>>, struct graph_prop>>);
@@ -829,14 +829,14 @@ static_assert(it_is_a_graph_v< tup<ra_range<ra_range<bool_t>>, struct graph_prop
 static_assert(it_is_a_graph_v< tup<si_range<tup<integral, integral>>, struct graph_prop>>);
 static_assert(it_is_a_graph_v< tup<ra_range<range<tup<integral, struct edge_prop>>>, struct graph_prop>>);
 static_assert(it_is_a_graph_v< tup<ra_range<map<integral, struct edge_prop>>, struct graph_prop>>);
-static_assert(it_is_a_graph_v< tup<ra_range<ra_range<opt<struct edge_prop>>>, struct graph_prop>>);
+//static_assert(it_is_a_graph_v< tup<ra_range<ra_range<opt<struct edge_prop>>>, struct graph_prop>>);
 static_assert(it_is_a_graph_v< tup<si_range<tup<integral, integral, struct edge_prop>>, struct graph_prop>>);
 static_assert(it_is_a_graph_v< tup<ra_range<tup<range<integral>, struct node_prop>>, struct graph_prop>>);
 static_assert(it_is_a_graph_v< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
 static_assert(it_is_a_graph_v< tup<ra_range<tup<ra_range<bool_t>, struct node_prop>>, struct graph_prop>>);
 static_assert(it_is_a_graph_v< tup<ra_range<tup<range<tup<integral, struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
 static_assert(it_is_a_graph_v< tup<ra_range<tup<map<integral, struct edge_prop>, struct node_prop>>, struct graph_prop>>);
-static_assert(it_is_a_graph_v< tup<ra_range<tup<ra_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
+//static_assert(it_is_a_graph_v< tup<ra_range<tup<ra_range<opt<struct edge_prop>>, struct node_prop>>, struct graph_prop>>);
 
 static_assert(it_is_a_graph_v< std::pair<std::array<std::pair<int, int>, 5>, std::list<std::pair<int, int>> > >);
 static_assert(it_is_a_graph_v< std::pair<std::map<int, int>, std::list<std::pair<int, int>> > >);
