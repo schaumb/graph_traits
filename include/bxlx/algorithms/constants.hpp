@@ -116,21 +116,21 @@ template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Trai
 using in_adjacency_container_t = typename Traits::in_adjacency_container::type;
 
 namespace detail {
-  template<template<class, class, bool...> class container_type, class G, class Traits, class = void>
+  template<template<class, class, bool> class container_type, class G, class Traits, class = void>
   constexpr std::size_t get_constexpr_size = {};
 
-  template<template<class, class> class container_type, class G, class Traits>
+  template<template<class, class, bool> class container_type, class G, class Traits>
   constexpr std::size_t get_constexpr_size<container_type, G, Traits,
-                                    std::enable_if_t<classification::classify<container_type<G, Traits>> == classification::type::range ||
-                                                     classification::classify<container_type<G, Traits>> == classification::type::map_like>> =
-        type_traits::range_constexpr_size_v<container_type<G, Traits>>;
+                                    std::enable_if_t<classification::classify<container_type<G, Traits, true>> == classification::type::range ||
+                                                     classification::classify<container_type<G, Traits, true>> == classification::type::map_like>> =
+        type_traits::range_constexpr_size_v<container_type<G, Traits, true>>;
 
-  template<template<class, class> class container_type, class G, class Traits>
+  template<template<class, class, bool> class container_type, class G, class Traits>
   constexpr std::size_t get_constexpr_size<container_type, G, Traits,
-                                    std::enable_if_t<classification::classify<container_type<G, Traits>> == classification::type::bitset>> =
-        type_traits::detail::constexpr_std_size_v<container_type<G, Traits>>;
+                                    std::enable_if_t<classification::classify<container_type<G, Traits, true>> == classification::type::bitset>> =
+        type_traits::detail::constexpr_std_size_v<container_type<G, Traits, true>>;
 
-  template<template<class, class, bool...> class container_type, class G, class Traits>
+  template<template<class, class, bool> class container_type, class G, class Traits>
   constexpr bool has_constexpr_size = get_constexpr_size<container_type, G, Traits> > 0;
 
   template <class T>
