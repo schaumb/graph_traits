@@ -10,6 +10,12 @@
 
 #include "../recognize/graph_traits.hpp"
 
+#if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
+#define HAS_BXLX_GRAPH_EXCEPTIONS
+#else
+#include <cstdlib>
+#endif
+
 namespace bxlx::graph {
 using traits::representation_t;
 using traits::graph_traits;
@@ -116,6 +122,15 @@ template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Trai
 using in_adjacency_container_t = typename Traits::in_adjacency_container::type;
 
 namespace detail {
+  template<class T, class ...Args>
+  [[noreturn]] constexpr void throw_or_terminate(Args&&... args) {
+#ifdef HAS_BXLX_GRAPH_EXCEPTIONS
+    throw T{std::forward<Args>(args)...};
+#else
+    std::abort();
+#endif
+  }
+
   template<template<class, class, bool> class container_type, class G, class Traits, class = void>
   constexpr std::size_t get_constexpr_size = {};
 
@@ -196,17 +211,44 @@ namespace detail {
   struct edge_repr;
 
   template<class G, class Traits>
-  struct edge_repr<G, Traits, std::enable_if_t<has_edge_container_v<G, Traits>>> {
-    using type = typename edge_container_t<G, Traits>::const_iterator;
+  struct edge_repr<G, Traits, std::enable_if_t<has_edge_container_v<G, Traits, true>>> {
+    using type = std::conditional_t<std::is_const_v<edge_container_t<G, Traits, true>>,
+                                    typename edge_container_t<G, Traits, true>::const_iterator,
+                                    typename edge_container_t<G, Traits, true>::iterator>;
   };
   template<class G, class Traits>
-  struct edge_repr<G, Traits, std::enable_if_t<!has_edge_container_v<G, Traits> && has_edge_list_container_v<G, Traits>>> {
-    using type = typename edge_list_container_t<G, Traits>::const_iterator;
+  struct edge_repr<G, Traits, std::enable_if_t<!has_edge_container_v<G, Traits, true> && has_edge_list_container_v<G, Traits, true>>> {
+    using type = std::conditional_t<std::is_const_v<edge_list_container_t<G, Traits, true>>,
+                                    typename edge_list_container_t<G, Traits, true>::const_iterator,
+                                    typename edge_list_container_t<G, Traits, true>::iterator>;
   };
   template<class G, class Traits>
-  struct edge_repr<G, Traits, std::enable_if_t<!has_edge_container_v<G, Traits> && has_adjacency_container_v<G, Traits>>> {
-    using type = typename adjacency_container_t<G, Traits>::const_iterator;
+  struct edge_repr<G, Traits, std::enable_if_t<!has_edge_container_v<G, Traits, true> && has_adjacency_container_v<G, Traits, true>>> {
+    using type = std::conditional_t<std::is_const_v<adjacency_container_t<G, Traits, true>>,
+                                    typename adjacency_container_t<G, Traits, true>::const_iterator,
+                                    typename adjacency_container_t<G, Traits, true>::iterator>;
   };
+
+
+  template<class G, class Traits = graph_traits<G>, class = void>
+  struct directed_edges{};
+
+  template<class G, class Traits>
+  struct directed_edges<G, Traits, std::enable_if_t<has_edge_property_v<G, Traits, true> || has_in_edges_v<G, Traits, true>>> :
+        std::bool_constant<!has_edge_container_v<G, Traits, true> || has_in_edges_v<G, Traits, true>>{};
+
+  template<class G, class Traits>
+  struct directed_edges<G, Traits, std::enable_if_t<!has_node_container_v<G, Traits> &&
+                                                                  has_constexpr_size<adjacency_container_t, G, Traits>>> :
+        std::bool_constant<is_square_num(get_constexpr_size<adjacency_container_t, G, Traits>) ||
+                           is_k_x_km1(get_constexpr_size<adjacency_container_t, G, Traits>)>{};
+
+  template<class G, class Traits, class = void>
+  constexpr bool has_directed_edges_v = false;
+
+  template<class G, class Traits>
+  constexpr bool has_directed_edges_v<G, Traits, std::void_t<typename directed_edges<G, Traits>::type>>
+    = true;
 }
 
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
@@ -315,22 +357,16 @@ template<class G, class Traits>
 constexpr bool parallel_edges_v<G, Traits, true, std::void_t<typename Traits::multi_edge::type>>
       = Traits::multi_edge::type::value;
 
-template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
-constexpr bool directed_edges_v = [] () -> bool { throw; }();
-
-template<class G, class Traits>
-constexpr bool directed_edges_v<G, Traits, true, std::enable_if_t<has_edge_property_v<G, Traits, true> || has_in_edges_v<G, Traits, true>>> =
-      !has_edge_container_v<G, Traits, true> || has_in_edges_v<G, Traits, true>;
-
-template<class G, class Traits>
-constexpr bool directed_edges_v<G, Traits, true, std::enable_if_t<!has_node_container_v<G, Traits> &&
-                                                                  detail::has_constexpr_size<adjacency_container_t, G, Traits>>> =
-      detail::is_square_num(detail::get_constexpr_size<adjacency_container_t, G, Traits>) ||
-            detail::is_k_x_km1(detail::get_constexpr_size<adjacency_container_t, G, Traits>);
-
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
+constexpr bool directed_edges_v = detail::directed_edges<G, Traits>::value;
+
+template<class G, class Traits = graph_traits<G>, bool V = it_is_a_graph_v<G, Traits>>
 using edge_repr_t = typename detail::edge_repr<G, Traits>::type;
 
 }
+
+#ifdef HAS_BXLX_GRAPH_EXCEPTIONS
+#undef HAS_BXLX_GRAPH_EXCEPTIONS
+#endif
 
 #endif //BXLX_GRAPH_CONSTANTS_HPP

@@ -17,44 +17,6 @@ enum class representation_t {
   edge_list,
 };
 
-namespace detail {
-  struct noop_t {
-    template<class ...Ts>
-    constexpr void operator()(Ts && ...) const noexcept {
-    }
-  };
-
-  template<std::size_t I>
-  struct getter_t {
-    template<class T, class ...Ts>
-    [[nodiscard]] constexpr auto operator()(T&& val, Ts&&...) const noexcept -> type_traits::detail::copy_cvref_t<T&&, std::tuple_element_t<I, T>> {
-      return std::get<I>(val);
-    }
-  };
-
-  struct indirect_t {
-    template<class T, class ...Ts>
-    [[nodiscard]] constexpr auto operator()(T&& val, Ts&&...) const noexcept -> decltype(*val) {
-      return *val;
-    }
-  };
-
-  struct identity_t {
-    template<class T, class ...Ts>
-    [[nodiscard]] constexpr T&& operator()(T&& val, Ts&&...) const noexcept {
-      return std::forward<T>(val);
-    }
-  };
-
-  template<class type1, class type2>
-  struct composition_t {
-    template<class T, class ...Ts>
-    [[nodiscard]] constexpr auto operator()(T&& val, Ts&&... ts) const noexcept -> std::invoke_result_t<type1, std::invoke_result_t<type2, T&&, Ts&&...>, Ts&&...> {
-      return type1{}(type2{}(std::forward<T>(val), ts...), ts...);
-    }
-  };
-}
-
 template <class G, class V = decltype(state_machine::graph::template valid<std::remove_reference_t<G>>()), bool = V{}.value>
 struct graph_traits {
   using reason_t = V;

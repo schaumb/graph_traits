@@ -25,7 +25,14 @@
 
 #define CEXPR_ASSERT_TEST
 #ifdef CEXPR_ASSERT_TEST
+#  define STRINGIZE_1(x) #x
+#  define STRINGIZE_2(x) STRINGIZE_1(x)
 #  define ASSERT(...) static_assert((__VA_ARGS__))
+#  define RASSERT(...)                                                                                                 \
+    assert((__VA_ARGS__));                                                                                             \
+    while (!(__VA_ARGS__))                                                                                             \
+    throw std::logic_error(__FILE__ ":" STRINGIZE_2(__LINE__) " : " #__VA_ARGS__)
+
 #else
 #  define STRINGIZE_1(x) #x
 #  define STRINGIZE_2(x) STRINGIZE_1(x)
@@ -33,6 +40,7 @@
     assert((__VA_ARGS__));                                                                                             \
     while (!(__VA_ARGS__))                                                                                             \
     throw std::logic_error(__FILE__ ":" STRINGIZE_2(__LINE__) " : " #__VA_ARGS__)
+#  define RASSERT(...) ASSERT(__VA_ARGS__)
 #endif
 
 template<class, class>
@@ -45,7 +53,10 @@ struct same<T, T> {
 
 #define SAME(...) ASSERT(same< __VA_ARGS__ >::value)
 
-#define THROWS(...)
+#define THROWS(...) try {            \
+    __VA_ARGS__;                     \
+    RASSERT(false && "Not thrown: " # __VA_ARGS__); \
+  } catch (...) {}
 
 static_assert(bxlx::graph::version >= "1.0.0");
 static_assert(bxlx::graph::major_version >= 1);
@@ -186,7 +197,7 @@ void test_properties() {
 
   using graph_1 = vector<vector<int>>;
   SAME(node_t<graph_1>, int);
-  SAME(edge_repr_t<graph_1>, typename vector<int>::const_iterator);
+  SAME(edge_repr_t<graph_1>, typename vector<int>::iterator);
   SAME(node_container_t<graph_1>, graph_1);
   SAME(adjacency_container_t<graph_1>, vector<int>);
 
@@ -194,23 +205,23 @@ void test_properties() {
   SAME(graph_property_t<graph_2>, graph_prop);
   SAME(edge_property_t<graph_2>, edge_prop);
   SAME(node_t<graph_2>, size_t);
-  SAME(edge_repr_t<graph_2>, typename vector<optional<edge_prop>>::const_iterator);
+  SAME(edge_repr_t<graph_2>, typename vector<optional<edge_prop>>::iterator);
   SAME(adjacency_container_t<graph_2>, vector<optional<edge_prop>>);
 
-  using graph_3 = pair<map<string_view, node_prop>, multimap<pair<string_view, string_view>, edge_prop>>;
-  SAME(node_property_t<graph_3>, node_prop);
-  SAME(edge_property_t<graph_3>, edge_prop);
+  using graph_3 = const pair<map<string_view, node_prop>, multimap<pair<string_view, string_view>, edge_prop>>;
+  SAME(node_property_t<graph_3>, const node_prop);
+  SAME(edge_property_t<graph_3>, const edge_prop);
   SAME(node_t<graph_3>, string_view);
   SAME(edge_t<graph_3>, pair<string_view, string_view>);
   SAME(edge_repr_t<graph_3>, typename multimap<pair<string_view, string_view>, edge_prop>::const_iterator);
-  SAME(node_container_t<graph_3>, map<string_view, node_prop>);
-  SAME(edge_list_container_t<graph_3>, multimap<pair<string_view, string_view>, edge_prop>);
+  SAME(node_container_t<graph_3>, const map<string_view, node_prop>);
+  SAME(edge_list_container_t<graph_3>, const multimap<pair<string_view, string_view>, edge_prop>);
 
   using graph_4 = pair<vector<pair<list<int>, map<int, edge>>>, map<edge, edge_prop>>;
   SAME(edge_property_t<graph_4>, edge_prop);
   SAME(node_t<graph_4>, int);
   SAME(edge_t<graph_4>, edge);
-  SAME(edge_repr_t<graph_4>, typename map<edge, edge_prop>::const_iterator);
+  SAME(edge_repr_t<graph_4>, typename map<edge, edge_prop>::iterator);
   SAME(node_container_t<graph_4>, vector<pair<list<int>, map<int, edge>>>);
   SAME(adjacency_container_t<graph_4>, map<int, edge>);
   SAME(edge_container_t<graph_4>, map<edge, edge_prop>);
@@ -218,7 +229,7 @@ void test_properties() {
 
   using graph_5 = vector<pair<size_t, deque<short>>>;
   SAME(node_t<graph_5>, short);
-  SAME(edge_repr_t<graph_5>, deque<short>::const_iterator);
+  SAME(edge_repr_t<graph_5>, deque<short>::iterator);
   SAME(node_container_t<graph_5>, graph_5);
   SAME(adjacency_container_t<graph_5>, deque<short>);
 }
@@ -233,52 +244,52 @@ void test_graph_getters() {
         { {}, {{1, 1.0}}, 2.0f },
         { {0}, {}, 3.0f }
   };
-/*
-  ASSERT(&nodes(graph_1) == &std::get<0>(graph_1));
-  ASSERT(&edges(graph_1) == &std::get<2>(graph_1));
-  ASSERT(&edge_list(graph_1) == &std::get<1>(graph_1));
-  ASSERT(graph_property(graph_1) == "graph_prop");
 
-  ASSERT(adjacents(&graph_2, 0) != nullptr);
-  ASSERT(adjacents(&graph_2, 2) == nullptr);
-  ASSERT(&adjacents(graph_2, 0) == &std::get<1>(graph_2[0]));
+  RASSERT(&nodes(graph_1) == &std::get<0>(graph_1));
+  RASSERT(&edges(graph_1) == &std::get<2>(graph_1));
+  RASSERT(&edge_list(graph_1) == &std::get<1>(graph_1));
+  RASSERT(graph_property(graph_1) == "graph_prop");
+
+  RASSERT(adjacents(&graph_2, 0) != nullptr);
+  RASSERT(adjacents(&graph_2, 2) == nullptr);
+  RASSERT(&adjacents(graph_2, 0) == &std::get<1>(graph_2[0]));
   THROWS(adjacents(graph_2, 2));
 
-  ASSERT(in_adjacents(&graph_2, 0) != nullptr);
-  ASSERT(in_adjacents(&graph_2, 2) == nullptr);
-  ASSERT(&in_adjacents(graph_2, 0) == &std::get<0>(graph_2[0]));
+  RASSERT(in_adjacents(&graph_2, 0) != nullptr);
+  RASSERT(in_adjacents(&graph_2, 2) == nullptr);
+  RASSERT(&in_adjacents(graph_2, 0) == &std::get<0>(graph_2[0]));
   THROWS(in_adjacents(graph_2, 2));
 
-  ASSERT(node_property(graph_1, 0) == "node_0");
+  RASSERT(node_property(graph_1, 0) == "node_0");
 
-  ASSERT(node_property(&graph_2, 0) != nullptr);
-  ASSERT(node_property(&graph_2, 2) == nullptr);
-  ASSERT(node_property(graph_2, 0) == 2.0f);
+  RASSERT(node_property(&graph_2, 0) != nullptr);
+  RASSERT(node_property(&graph_2, 2) == nullptr);
+  RASSERT(node_property(graph_2, 0) == 2.0f);
   THROWS(node_property(graph_2, 2));
 
-  ASSERT(get_edge(graph_1, 0) != invalid_edge(graph_1));
-  ASSERT(get_adjacency(graph_1, 1, 0) == get_adjacency(graph_1, 0, 1));
+  RASSERT(get_edge(graph_1, 0) != invalid_edge(graph_1));
+  RASSERT(get_adjacency(graph_1, 0, 1) != invalid_edge(graph_1));
+  RASSERT(get_adjacency(graph_1, 1, 0) == get_adjacency(graph_1, 0, 1));
   // get_edge(graph_1, 0, 1);
   // undefined --> undirected, but not contains all edge both direction
 
-  ASSERT(edge_property(&graph_1, 0) != nullptr);
-  ASSERT(edge_property(graph_1, 0) == "edge_0");
-  ASSERT(edge_property(graph_1, 0, 1) == "edge_0");
-  ASSERT(edge_property(graph_1, get_edge(graph_1, 0)) == "edge_0");
+  RASSERT(edge_property(&graph_1, 0) != nullptr);
+  RASSERT(edge_property(graph_1, 0) == "edge_0");
+  RASSERT(edge_property(graph_1, 0, 1) == "edge_0");
+  RASSERT(edge_property(graph_1, get_edge(graph_1, 0)) == "edge_0");
 
-  ASSERT(get_edge(graph_2, 0, 1) != invalid_edge(graph_2));
-  ASSERT(get_edge(graph_2, 1, 0) == invalid_edge(graph_2));
-  ASSERT(get_edge(graph_2, 0, 2) == invalid_edge(graph_2));
-  ASSERT(get_adjacency(graph_2, 1, 0) != get_adjacency(graph_2, 0, 1));
-  ASSERT(get_adjacency(graph_2, 1, 0) == invalid_edge(graph_2));
+  RASSERT(get_edge(graph_2, 0, 1) != invalid_edge(graph_2));
+  RASSERT(get_edge(graph_2, 1, 0) == invalid_edge(graph_2));
+  RASSERT(get_edge(graph_2, 0, 2) == invalid_edge(graph_2));
+  RASSERT(get_adjacency(graph_2, 1, 0) != get_adjacency(graph_2, 0, 1));
+  RASSERT(get_adjacency(graph_2, 1, 0) == invalid_edge(graph_2));
 
-  ASSERT(edge_property(&graph_2, 0, 1) != nullptr);
-  ASSERT(edge_property(&graph_2, 0, 2) == nullptr);
-  ASSERT(edge_property(graph_2, 0, 1) == 1.0);
+  RASSERT(edge_property(&graph_2, 0, 1) != nullptr);
+  RASSERT(edge_property(&graph_2, 0, 2) == nullptr);
+  RASSERT(edge_property(graph_2, 0, 1) == 1.0);
   THROWS(edge_property(graph_2, 0, 2));
 
-  ASSERT(edge_property(graph_2, get_edge(graph_2, 0, 1)) == 1.0);
-  */
+  RASSERT(edge_property(graph_2, get_edge(graph_2, 0, 1)) == 1.0);
 }
 
 int main() {
@@ -286,4 +297,5 @@ int main() {
   test_example_graph_representations();
   test_check_variables();
   test_properties();
+  test_graph_getters();
 }
