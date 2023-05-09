@@ -291,6 +291,49 @@ void test_graph_getters() {
 
   RASSERT(edge_property(graph_2, get_edge(graph_2, 0, 1)) == 1.0);
 }
+#include <iostream>
+void test_query() {
+
+  bitset<36> graph_1 {}; // compressed, directed
+  graph_1[1] = true; // 0 -> 1 edge
+  graph_1[8] = true; // 1 -> 2 edge
+
+  list<pair<string_view, string_view>> graph_2 {
+        {"node_1", "node_2"},
+        {"node_5", "node_2"},
+        {"node_2", "node_5"},
+  };
+
+  RASSERT(has_node(graph_1, 0));
+  RASSERT(!has_node(graph_1, 6));
+  RASSERT(has_node(graph_2, "node_5"));
+  RASSERT(!has_node(graph_2, "no_node"));
+
+  RASSERT(has_edge(graph_1, 0, 1));
+  RASSERT(!has_edge(graph_1, 2, 1));
+  RASSERT(!has_edge(graph_2, "node_2", "node_1"));
+
+  // on these graph the has_adjacency is the same as has_edge
+
+  RASSERT(node_count(graph_1) == 6);
+  RASSERT(edge_count(graph_1) == 2);
+  RASSERT(adjacency_count(graph_1) == 2);
+
+  RASSERT(node_count(graph_2) == 3);
+  RASSERT(adjacency_count(graph_2) == 3);
+
+  // edge_count(graph_2)
+  // undefined --> not exact directed/undirected edges. No property/shared property used
+/*
+  RASSERT(size(out_edges(graph_1, 0)) == 1);
+  RASSERT(size(out_edges(graph_2, "node_2")) == 1);
+  RASSERT(size(in_edges(graph_2, "node_2")) == 2);
+
+  for (auto&& [node, repr] : out_edges(graph_2, "node_2")) {
+    RASSERT(node == "node_5");
+    RASSERT(repr != invalid_edge(graph_2));
+  }*/
+}
 
 int main() {
   test_is_graph();
@@ -298,4 +341,5 @@ int main() {
   test_check_variables();
   test_properties();
   test_graph_getters();
+  test_query();
 }

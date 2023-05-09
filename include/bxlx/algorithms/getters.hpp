@@ -100,17 +100,19 @@ namespace detail {
   template <class G, class Traits>
   using adjacent_container_getter =
         std::conditional_t<has_adjacency_container_v<G, Traits>,
-                           std::conditional_t<has_in_edges_v<G, Traits>,
+              std::conditional_t<has_node_container_v<G, Traits>,
+                           composition_t<std::conditional_t<has_in_edges_v<G, Traits>,
                                               last_getter_t<1 + has_node_property_v<G, Traits>>,
+                                              first_getter_t>, indirect_t>,
                                               first_getter_t>,
                            noop_t>;
 
   template <class G, class Traits>
   using in_adjacent_container_getter =
-        std::conditional_t<has_in_adjacency_container_v<G, Traits>, first_getter_t, noop_t>;
+        std::conditional_t<has_in_adjacency_container_v<G, Traits>, composition_t<first_getter_t, indirect_t>, noop_t>;
 
   template <class G, class Traits>
-  using node_property_getter = std::conditional_t<has_node_property_v<G, Traits>, last_getter_t<>, noop_t>;
+  using node_property_getter = std::conditional_t<has_node_property_v<G, Traits>, composition_t<last_getter_t<>, indirect_t>, noop_t>;
 
   template <class G, class Traits>
   using edge_property_getter = std::conditional_t<has_edge_property_v<G, Traits>, composition_t<last_getter_t<>, indirect_t>, noop_t>;
@@ -147,10 +149,10 @@ namespace detail {
     auto&& node_cont = nodes(std::forward<G&&>(graph));
     if constexpr (is_user_defined_node_type_v<G, Traits>) {
       if (auto [from, to] = node_cont.equal_range(node); from != to)
-        return getter{}(std::get<0>(*from));
+        return getter{}(from);
     } else {
       if (std::size(node_cont) > node) {
-        return getter{}(*std::next(std::begin(node_cont), node));
+        return getter{}(std::next(std::begin(node_cont), node));
       }
     }
     detail::throw_or_terminate<std::out_of_range>("Cannot find node");
@@ -161,10 +163,10 @@ namespace detail {
     auto&& node_cont = nodes(*graph);
     if constexpr (is_user_defined_node_type_v<G, Traits>) {
       if (auto [from, to] = node_cont.equal_range(node); from != to)
-        return std::addressof(getter{}(std::get<0>(*from)));
+        return std::addressof(getter{}(from));
     } else {
       if (std::size(node_cont) > node)
-        return std::addressof(getter{}(*std::next(std::begin(node_cont), node)));
+        return std::addressof(getter{}(std::next(std::begin(node_cont), node)));
     }
     return {};
   }
@@ -223,18 +225,69 @@ constexpr auto get_edge(G& graph, edge_t<G, Traits> const& edge) -> edge_repr_t<
   return invalid_edge(graph);
 }
 
+template<class G, class Traits = graph_traits<G>>
+constexpr std::enable_if_t<has_node_container_v<G, Traits> || has_adjacency_container_v<G, Traits>, std::size_t> node_count(G const& graph) {
+  if constexpr (has_node_container_v<G, Traits>) {
+    return std::size(detail::node_container_getter<G, Traits>{}(graph));
+  } else {
+    if (auto size = std::size(detail::adjacent_container_getter<G, Traits>{}(graph)); detail::is_square_num(size)) {
+      return detail::constexpr_sqrt(size);
+    } else if (detail::is_k_x_km1(size)) {
+      return detail::constexpr_sqrt_no_self(size);
+    } else if (detail::is_k_x_km1_d_2(size)) {
+      return detail::constexpr_sqrt_no_self(size * 2) + 1;
+    } else {
+      throw;
+    }
+  }
+}
+
+template<class Cmp = std::equal_to<>, class G, class Traits = graph_traits<G>>
+constexpr std::enable_if_t<!has_node_container_v<G, Traits> && !has_adjacency_container_v<G, Traits>, std::size_t> node_count(G const& graph, Cmp&& cmp = {}) {
+  std::size_t res {};
+  auto&& edge_list_cont = edge_list(graph);
+  const auto end = std::end(edge_list_cont),
+             begin = std::begin(edge_list_cont);
+  constexpr auto s = detail::source_getter<G, Traits>{};
+  constexpr auto t = detail::target_getter<G, Traits>{};
+
+  for (auto it = begin; it != end; ++it) {
+    auto&& source = s(it);
+    auto&& target = t(it);
+
+    bool need_count_source = !cmp(source, target);
+    bool need_count_target = true;
+
+    for (auto it2 = std::next(it); need_count_source && need_count_target && it2 != end; ++it2) {
+      if (need_count_source)
+        need_count_source = !cmp(source, s(it2)) && !cmp(source, t(it2));
+      if (need_count_target)
+        need_count_target = !cmp(target, s(it2)) && !cmp(target, t(it2));
+    }
+
+    res += need_count_source + need_count_target;
+  }
+
+  return res;
+}
+
 template <class G, class Traits = graph_traits<G>>
 constexpr auto
 get_edge(G& graph, node_t<G, Traits> const& from, node_t<G, Traits> const& to) -> edge_repr_t<G, Traits> {
   if constexpr (has_adjacency_container_v<G, Traits>) {
-    if (auto* adj = adjacents(&graph, from)) {
-      if (auto [f, t] = adj->equal_range(to); f != t) {
-        if constexpr (has_edge_container_v<G, Traits>) {
-          return get_edge(graph, detail::edge_index_getter<G, Traits>{}(f));
-        } else {
-          return f;
+    if constexpr (has_node_container_v<G, Traits>) {
+      if (auto* adj = adjacents(&graph, from)) {
+        if (auto [f, t] = adj->equal_range(to); f != t) {
+          if constexpr (has_edge_container_v<G, Traits>) {
+            return get_edge(graph, detail::edge_index_getter<G, Traits>{}(f));
+          } else {
+            return f;
+          }
         }
       }
+    } else {
+      auto&& adj_mat = detail::adjacent_container_getter<G, Traits>{}(graph);
+      return iterator::bitset_iterator<adjacency_container_t<G, Traits>>{&adj_mat, from * node_count(graph) + to};
     }
   } else {
     auto&& edge_list_cont = edge_list(graph);
@@ -339,6 +392,75 @@ edge_property(G* graph, edge_t<G, Traits> const& edge) -> detail::copy_cvref_t<G
   if (auto&& e = get_edge(*graph, edge); e != invalid_edge(*graph))
     return std::addressof(edge_property(*graph, e));
   return nullptr;
+}
+
+template<class G, class Traits = graph_traits<G>>
+constexpr std::size_t edge_count(G const& graph) {
+  if constexpr (has_edge_container_v<G, Traits>) {
+    return std::size(detail::edge_container_getter<G, Traits>{}(graph));
+  } else if constexpr (has_edge_list_container_v<G, Traits>) {
+    return std::size(detail::edge_list_container_getter<G, Traits>{}(graph));
+  } else if constexpr (has_node_container_v<G, Traits>) {
+    return 0;
+  } else {
+    auto first = iterator::get_first_good(detail::adjacent_container_getter<const G, Traits>{}(graph)),
+         end = decltype(first){};
+    return std::distance(first, end);
+  }
+}
+
+template<class G, class Traits = graph_traits<G>>
+constexpr std::size_t adjacency_count(G const& graph) {
+  return edge_count(graph);
+}
+
+template<class G, class Traits = graph_traits<G>>
+constexpr std::enable_if_t<has_node_container_v<G, Traits> || has_adjacency_container_v<G, Traits>, bool> has_node(G const& graph, node_t<G, Traits> const& node) {
+  if constexpr (has_node_container_v<G, Traits>) {
+    return detail::get_node_properties_ptr<const G, Traits, detail::identity_t, bool>(&graph, node);
+  } else {
+    return node_count(graph) > node;
+  }
+}
+
+template<class Cmp = std::equal_to<>, class G, class Traits = graph_traits<G>>
+constexpr std::enable_if_t<!has_node_container_v<G, Traits> && !has_adjacency_container_v<G, Traits>, bool> has_node(G const& graph, node_t<G, Traits> const& node, Cmp&& cmp = {}) {
+  auto&& edge_list_cont = edge_list(graph);
+  const auto end = std::end(edge_list_cont);
+  auto it = std::begin(edge_list_cont);
+  while (it != end) {
+    if (cmp(detail::source_getter<G, Traits>{}(it), node) ||
+        cmp(detail::target_getter<G, Traits>{}(it), node)) {
+      return true;
+    }
+    ++it;
+  }
+  return false;
+}
+
+template<class G, class Traits = graph_traits<G>>
+constexpr bool has_edge(G const& graph, edge_t<G, Traits> const& edge) {
+  return get_edge(graph, edge) != invalid_edge(graph);
+}
+
+template<class G, class Traits = graph_traits<G>>
+constexpr bool has_edge(G const& graph,
+                        node_t<G, Traits> const& from,
+                        node_t<G, Traits> const& to) {
+  return get_edge(graph, from, to) != invalid_edge(graph);
+}
+
+template<class G, class Traits = graph_traits<G>>
+constexpr bool has_adjacency(G const& graph,
+                             node_t<G, Traits> const& from,
+                             node_t<G, Traits> const& to) {
+  if constexpr (detail::has_directed_edges_v<G, Traits>) {
+    if constexpr (!directed_edges_v<G, Traits>) {
+      if (auto && edge = has_edge(graph, to, from))
+        return edge;
+    }
+  }
+  return has_edge(graph, from, to);
 }
 }
 

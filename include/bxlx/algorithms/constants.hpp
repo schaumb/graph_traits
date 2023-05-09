@@ -9,6 +9,7 @@
 #define BXLX_GRAPH_CONSTANTS_HPP
 
 #include "../recognize/graph_traits.hpp"
+#include "bitset_iterator.hpp"
 
 #if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
 #define HAS_BXLX_GRAPH_EXCEPTIONS
@@ -223,12 +224,18 @@ namespace detail {
                                     typename edge_list_container_t<G, Traits, true>::iterator>;
   };
   template<class G, class Traits>
-  struct edge_repr<G, Traits, std::enable_if_t<!has_edge_container_v<G, Traits, true> && has_adjacency_container_v<G, Traits, true>>> {
+  struct edge_repr<G, Traits, std::enable_if_t<!has_edge_container_v<G, Traits, true> && has_adjacency_container_v<G, Traits, true> &&
+                   (classification::classify<adjacency_container_t<G, Traits, true>> != classification::type::bitset)>> {
     using type = std::conditional_t<std::is_const_v<adjacency_container_t<G, Traits, true>>,
                                     typename adjacency_container_t<G, Traits, true>::const_iterator,
                                     typename adjacency_container_t<G, Traits, true>::iterator>;
   };
 
+  template<class G, class Traits>
+  struct edge_repr<G, Traits, std::enable_if_t<!has_edge_container_v<G, Traits, true> && has_adjacency_container_v<G, Traits, true> &&
+                                               (classification::classify<adjacency_container_t<G, Traits, true>> == classification::type::bitset)>> {
+    using type = iterator::bitset_iterator<adjacency_container_t<G, Traits, true>>;
+  };
 
   template<class G, class Traits = graph_traits<G>, class = void>
   struct directed_edges{};
