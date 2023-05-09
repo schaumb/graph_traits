@@ -171,6 +171,17 @@ namespace detail {
     const T k = constexpr_sqrt_no_self(n*2);
     return k * (k-1) / 2 == n;
   }
+
+  template<class, class = void>
+  constexpr inline auto constexpr_number = [] { throw; };
+  template<class T>
+  constexpr inline auto constexpr_number<T, std::enable_if_t<type_traits::detail::is_constexpr_initializable_v<T>>>
+        = [] { return ~T{}; };
+
+  template<class T, bool = type_traits::is_defined_v<T>, class = void>
+  constexpr inline bool is_constexpr_number_v {};
+  template<class T>
+  constexpr inline bool is_constexpr_number_v<T, true, std::void_t<decltype(~std::declval<T>())>> = type_traits::detail::is_constexpr<&constexpr_number<std::remove_cv_t<T>>>(0);
 }
 
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
@@ -184,7 +195,7 @@ constexpr std::size_t max_node_size_v<G, Traits, true,
                                       std::enable_if_t<has_node_container_v<G, Traits> &&
                                             !detail::has_constexpr_size<node_container_t, G, Traits> &&
                                                        detail::has_constexpr_size<edge_list_container_t, G, Traits> &&
-                                                       (representation_v<G, Traits> == representation_t::adjacency_matrix)>> =
+                                                       (representation_v<G, Traits, true> == representation_t::adjacency_matrix)>> =
       detail::get_constexpr_size<edge_list_container_t, G, Traits>;
 template<class G, class Traits>
 constexpr std::size_t max_node_size_v<G, Traits, true,
@@ -225,7 +236,7 @@ constexpr std::size_t max_edge_size_v<G, Traits, true,
                                       std::enable_if_t<!detail::has_constexpr_size<edge_container_t, G, Traits> &&
                                                        detail::has_constexpr_size<node_container_t, G, Traits> &&
                                                        detail::has_constexpr_size<adjacency_container_t, G, Traits> &&
-                                                       (representation_v<G, Traits> == representation_t::adjacency_list)
+                                                       (representation_v<G, Traits, true> == representation_t::adjacency_list)
                                                        >> =
       detail::get_constexpr_size<node_container_t, G, Traits> * detail::get_constexpr_size<adjacency_container_t, G, Traits>;
 template<class G, class Traits>
@@ -244,6 +255,23 @@ constexpr std::size_t max_edge_size_v<G, Traits, true,
                                                        (representation_v<G, Traits> == representation_t::adjacency_matrix)
                                                        >> =
       max_node_size_v<G, Traits> * max_node_size_v<G, Traits>;
+
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
+constexpr bool has_invalid_node_v = representation_v<G, Traits> != representation_t::adjacency_matrix &&
+  (detail::has_constexpr_size<adjacency_container_t, G, Traits> || detail::has_constexpr_size<edge_list_container_t, G, Traits>);
+
+template<class G, class Traits = graph_traits<G>, bool = has_invalid_node_v<G, Traits>, class = void>
+constexpr auto invalid_node_v = [] { throw; } ();
+
+template<class G, class Traits>
+constexpr node_t<G, Traits> invalid_node_v<G, Traits, true, std::enable_if_t<detail::is_constexpr_number_v<node_t<G, Traits>>>> =
+      detail::constexpr_number<node_t<G, Traits>>();
+
+template<class G, class Traits>
+constexpr node_t<G, Traits> invalid_node_v<G, Traits, true, std::enable_if_t<!detail::is_constexpr_number_v<node_t<G, Traits>> &&
+                                                                             type_traits::detail::is_constexpr_initializable_v<node_t<G, Traits>>>> =
+      type_traits::detail::constexpr_initializable<node_t<G, Traits>>();
+
 /*
 
 template<class G, class Traits = graph_traits<G>>
@@ -254,9 +282,6 @@ constexpr bool parallel_edges_v = ...;
 
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr bool directed_edges_v = ...;
-
-template<class G, class Traits = graph_traits<G>>
-constexpr bool has_invalid_node_v = ...;
 
 template<class G, class Traits = graph_traits<G>>
 using edge_repr_t = ...;

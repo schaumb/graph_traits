@@ -73,12 +73,12 @@ void test_constants() {
   using graph_1 = int[10][9];
   ASSERT(max_node_size_v<graph_1> == 10);
   ASSERT(max_edge_size_v<graph_1> == 90);
-  //ASSERT(invalid_node_v<graph_1> == ~int{});
+  ASSERT(invalid_node_v<graph_1> == ~int{});
 
   using graph_2 = array<pair<string_view, string_view>, 10>;
   ASSERT(max_node_size_v<graph_2> == 20);
   ASSERT(max_edge_size_v<graph_2> == 10);
-  //ASSERT(invalid_node_v<graph_2> == string_view{});
+  ASSERT(invalid_node_v<graph_2> == string_view{});
 
   using graph_3 = bitset<36>;
   ASSERT(max_node_size_v<graph_3> == 6);
