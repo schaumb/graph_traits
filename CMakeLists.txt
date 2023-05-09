@@ -19,6 +19,8 @@ add_library(${PROJECT_NAME} INTERFACE)
 
 target_sources(${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/graph>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/algorithms/constants.hpp>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/algorithms/getters.hpp>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/classify/range_traits.hpp>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/classify/optional_traits.hpp>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/classify/type_traits.hpp>

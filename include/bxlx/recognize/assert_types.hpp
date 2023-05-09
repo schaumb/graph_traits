@@ -23,6 +23,10 @@ struct why_not_graph {
 template <class Reason, class...>
 struct reason : std::false_type {};
 
+template <class ...>
+struct type_holder {
+  struct type {};
+};
 
 template <auto e, class...>
 struct expected;
@@ -53,6 +57,7 @@ namespace graph::assert_types {
   using bxlx::got;
   using bxlx::at;
   using bxlx::input;
+  using bxlx::type_holder;
 } // namespace graph::assert_types
 } // namespace bxlx
 

@@ -427,7 +427,7 @@ namespace state_machine {
                                                        std::tuple<>>>()...))>::template valid<T, Props>();
       } else if constexpr (valid_states > 1) {
         return assert_types::reason<
-              multiple_good_recognition, assert_types::at<CRTP>,
+              multiple_good_recognition, assert_types::at<CRTP>, assert_types::input<typename assert_types::type_holder<T, PropsT>::type>,
               decltype(std::tuple_cat(
                     std::declval<std::conditional_t<States::template valid<T, Props>(),
                                                     std::tuple<decltype(States::template valid<T, Props>())>,
@@ -445,7 +445,7 @@ namespace state_machine {
               template valid<T, Props>();
       } else if constexpr (valid_conditions > 1) {
         return assert_types::reason<
-              no_good_recognition, assert_types::at<CRTP>,
+              no_good_recognition, assert_types::at<CRTP>, assert_types::input<typename assert_types::type_holder<T, PropsT>::type>,
               assert_types::got<false,
                                 decltype(std::tuple_cat(std::declval<std::conditional_t<
                                                               States::template valid_conditions<T, Props>(),
@@ -453,14 +453,14 @@ namespace state_machine {
                                                               std::tuple<>>>()...))>>{};
       } else if constexpr (valid_types > 1) {
         return assert_types::reason<
-              no_good_recognition, assert_types::at<CRTP>,
+              no_good_recognition, assert_types::at<CRTP>, assert_types::input<typename assert_types::type_holder<T, PropsT>::type>,
               assert_types::got<false,
                                 decltype(std::tuple_cat(std::declval<std::conditional_t<
                                                               States::template is_valid_type_v<T>,
                                                               std::tuple<decltype(States::template valid<T, Props>())>,
                                                               std::tuple<>>>()...))>>{};
       } else {
-        return assert_types::reason<no_good_recognition, assert_types::at<CRTP>>{};
+        return assert_types::reason<no_good_recognition, assert_types::at<CRTP>, assert_types::input<typename assert_types::type_holder<T, PropsT>::type>>{};
       }
     }
   };
