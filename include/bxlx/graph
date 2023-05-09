@@ -10,7 +10,10 @@
 
 #include <type_traits>
 #include <string_view>
-#include "algorithms/getters.hpp"
+#include "algorithms/decisions.hpp"
+#include "algorithms/search.hpp"
+#include "algorithms/sort.hpp"
+
 
 namespace bxlx::graph {
 constexpr std::string_view version = "1.0.0";

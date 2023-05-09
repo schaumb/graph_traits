@@ -21,6 +21,10 @@ target_sources(${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/graph>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/algorithms/constants.hpp>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/algorithms/getters.hpp>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/algorithms/bitset_iterator.hpp>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/algorithms/decisions.hpp>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/algorithms/search.hpp>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/algorithms/sort.hpp>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/classify/range_traits.hpp>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/classify/optional_traits.hpp>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}include/bxlx/classify/type_traits.hpp>

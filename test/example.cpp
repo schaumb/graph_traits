@@ -335,6 +335,117 @@ void test_query() {
   }
 }
 
+void test_decisions() {
+  array<pair<vector<int>, string_view>, 10> graph {{
+        {{1, 2, 4, 9},  "node 0"},
+        {{0, 5},        "node 1"},
+        {{0, 1},        "node 2"},
+        {{8, 9},        "node 3"},
+        {{7},           "node 4"},
+        {{5, 5, 5},     "node 5"},
+        {{0, 1, 2, 3},  "node 6"},
+        {{3, 7, 9},     "node 7"},
+        {{},            "node 8"},
+        {{8},           "node 9"},
+  }};
+
+  RASSERT(is_connected(graph, std::false_type{}));
+  RASSERT(!is_connected(graph, true));
+
+  pair<vector<vector<pair<int, string_view>>>, map<string_view, float>> graph_2 {
+        {
+              {},
+              {{{0, "edge_0"}}}
+        }, {{"edge_0", 0.5f}}
+  };
+
+  // is_connected(graph); undefined behaviour, undirected graph,
+  // not exists on both direction all edge
+  RASSERT(!is_connected(graph, std::true_type{}));
+  RASSERT(is_connected(graph, false)); // checks both direction
+}
+
+void test_search() {
+
+  array<pair<vector<int>, string_view>, 10> graph {{
+        {{1, 2, 4, 9},  "node 0"},
+        {{0, 5},        "node 1"},
+        {{0, 1},        "node 2"},
+        {{8, 9},        "node 3"},
+        {{7},           "node 4"},
+        {{5, 5, 5},     "node 5"},
+        {{0, 1, 2, 3},  "node 6"},
+        {{3, 7, 9},     "node 7"},
+        {{},            "node 8"},
+        {{8},           "node 9"},
+  }};
+
+  vector<tuple<int, edge_types::tree_t, size_t>> res;
+
+  depth_first_search(graph, 0, std::back_inserter(res), 3);
+  // we need only the node once on the tree, and they distance max 3
+
+  RASSERT(res == vector<tuple<int, edge_types::tree_t, size_t>>{
+                      {0, {}, 0},
+                      {1, {}, 1},
+                      {5, {}, 2},
+                      {2, {}, 1},
+                      {4, {}, 1},
+                      {7, {}, 2},
+                      {3, {}, 3},
+                      {9, {}, 3}
+                });
+  // we can see that 8 is closer from 0 than 3 distance (0->9->8),
+  // but 9 recognized at 7's neighbour, and no revisit happened.
+
+
+  array<tuple<int, int, edge_type>, 10> res_2 {};
+
+  auto to = breadth_first_search(graph, 4, begin(res_2));
+
+  RASSERT(res_2 == array<tuple<int, int, edge_type>, 10>{{
+                        {4, 7, edge_type::tree},
+                        {7, 3, edge_type::tree},
+                        {7, 7, edge_type::reverse},
+                        {7, 9, edge_type::tree},
+                        {3, 8, edge_type::tree},
+                        {3, 9, edge_type::cross},
+                        {9, 8, edge_type::cross}
+                  }});
+
+  deque<tuple<int, std::string_view, double>> res_3;
+
+  shortest_paths(graph, 4, front_inserter(res_3), [](int n1, int n2) { return (n1+n2)/2.0; });
+
+  RASSERT(res_3 == deque<tuple<int, std::string_view, double>>{
+                         {8, "node 8", 16.0}, // {}
+                         {9, "node 9", 14.5}, // (8: 16)
+                         {3, "node 3", 10.5}, // (8: 16, 9: 14.5)
+                         {7, "node 7", 5.5} , // (3: 10.5, 9: 14.5)
+                         {4, "node 4", 0.0}   // (7: 5.5)
+                   });
+}
+
+void test_sort() {
+  array<pair<vector<int>, string_view>, 10> graph {{
+        {{1, 2, 4, 9},  "node 0"},
+        {{5},           "node 1"},
+        {{1},           "node 2"},
+        {{8, 9, 2},     "node 3"},
+        {{7},           "node 4"},
+        {{},            "node 5"},
+        {{0, 1, 2, 3},  "node 6"},
+        {{3, 9},        "node 7"},
+        {{},            "node 8"},
+        {{8},           "node 9"},
+  }};
+
+  array<int, 10> output{};
+
+  RASSERT(topological_sort(graph, begin(output)) == end(output));
+  RASSERT(output == array<int, 10>{6, 0, 4, 7, 3, 2, 1, 9, 8, 5}); // one possible output
+}
+
 int main() {
   test_is_graph();
   test_example_graph_representations();
@@ -342,4 +453,7 @@ int main() {
   test_properties();
   test_graph_getters();
   test_query();
+  test_decisions();
+  test_search();
+  test_sort();
 }
