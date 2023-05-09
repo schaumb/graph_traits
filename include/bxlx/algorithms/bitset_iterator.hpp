@@ -22,29 +22,29 @@ namespace bxlx::graph::iterator {
 
     T* obj;
     Index index;
+    Index max;
 
     bool get_bool() const {
-      return obj && std::size(*obj) > index && (*obj)[index];
+      return obj && max > index && (*obj)[index];
     }
 
     constexpr operator bitset_iterator<const T, Index, true>() const {
-      return {obj, index};
+      return {obj, index, max};
     }
 
     constexpr bitset_iterator& operator++ () {
       if (get_bool())
         do {
           ++index;
-        } while (std::size(*obj) > index && !(*obj)[index]);
+        } while (max > index && !(*obj)[index]);
       return *this;
     }
   };
 
   template<class T>
-  constexpr bitset_iterator<T> get_first_good(T& bitset) {
-    bitset_iterator<T> r {&bitset, 0};
-    const auto size = std::size(bitset);
-    while (r.index < size && !r.get_bool()) {
+  constexpr bitset_iterator<T> get_first_good(T& bitset, std::size_t from = 0, std::size_t to = ~std::size_t{}) {
+    bitset_iterator<T> r {&bitset, from, std::min(to, std::size(bitset))};
+    while (r.index < r.max && !r.get_bool()) {
       ++r.index;
     }
     return r;

@@ -127,18 +127,18 @@ namespace detail {
   using target_getter = std::conditional_t<has_edge_list_container_v<G, Traits>, composition_t<last_getter_t<1 + has_edge_property_v<G, Traits>>, indirect_t>, noop_t>;
 }
 
-template <class G, class Traits = graph_traits<G>>
+template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr auto nodes(G&& graph) -> detail::copy_cvref_t<G&&, node_container_t<G, Traits>> {
   return std::forward<detail::copy_cvref_t<G&&, node_container_t<G, Traits>>>(
         detail::node_container_getter<G, Traits>{}(std::forward<G&&>(graph)));
 }
 
-template <class G, class Traits = graph_traits<G>>
+template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr auto edges(G&& graph) -> detail::copy_cvref_t<G&&, edge_container_t<G, Traits>> {
   return detail::edge_container_getter<G, Traits>{}(std::forward<G&&>(graph));
 }
 
-template <class G, class Traits = graph_traits<G>>
+template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr auto edge_list(G&& graph) -> detail::copy_cvref_t<G&&, edge_list_container_t<G, Traits>> {
   return detail::edge_list_container_getter<G, Traits>{}(std::forward<G&&>(graph));
 }
@@ -201,7 +201,7 @@ in_adjacents(G* graph, node_t<G, Traits> const& node) -> detail::copy_cvref_t<G,
 }
 
 
-template <class G, class Traits = graph_traits<G>>
+template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr auto invalid_edge(G const&) -> edge_repr_t<G, Traits> {
   return {};
 }
@@ -287,7 +287,8 @@ get_edge(G& graph, node_t<G, Traits> const& from, node_t<G, Traits> const& to) -
       }
     } else {
       auto&& adj_mat = detail::adjacent_container_getter<G, Traits>{}(graph);
-      return iterator::bitset_iterator<adjacency_container_t<G, Traits>>{&adj_mat, from * node_count(graph) + to};
+      return iterator::bitset_iterator<adjacency_container_t<G, Traits>>{&adj_mat, from * node_count(graph) + to,
+        std::size(adj_mat)};
     }
   } else {
     auto&& edge_list_cont = edge_list(graph);
@@ -326,7 +327,7 @@ template <class G, class Traits = graph_traits<G>>
 constexpr auto equal_edges(G& graph, edge_t<G, Traits> const& edge)
       -> std::pair<edge_repr_t<G, Traits>, edge_repr_t<G, Traits>>; // (4)
 
-template <class G, class Traits = graph_traits<G>>
+template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr auto get_adjacency(G& graph, node_t<G, Traits> const& from, node_t<G, Traits> const& to)
       -> edge_repr_t<G, Traits> {
   if constexpr (detail::has_directed_edges_v<G, Traits>) {
@@ -339,7 +340,7 @@ constexpr auto get_adjacency(G& graph, node_t<G, Traits> const& from, node_t<G, 
 }
 
 
-template <class G, class Traits = graph_traits<G>>
+template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr auto graph_property(G&& graph) -> detail::copy_cvref_t<G&&, graph_property_t<G, Traits>> {
   return detail::graph_property_getter<G, Traits>{}(std::forward<G&&>(graph));
 }
@@ -394,7 +395,7 @@ edge_property(G* graph, edge_t<G, Traits> const& edge) -> detail::copy_cvref_t<G
   return nullptr;
 }
 
-template<class G, class Traits = graph_traits<G>>
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr std::size_t edge_count(G const& graph) {
   if constexpr (has_edge_container_v<G, Traits>) {
     return std::size(detail::edge_container_getter<G, Traits>{}(graph));
@@ -409,7 +410,7 @@ constexpr std::size_t edge_count(G const& graph) {
   }
 }
 
-template<class G, class Traits = graph_traits<G>>
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr std::size_t adjacency_count(G const& graph) {
   return edge_count(graph);
 }
@@ -450,7 +451,7 @@ constexpr bool has_edge(G const& graph,
   return get_edge(graph, from, to) != invalid_edge(graph);
 }
 
-template<class G, class Traits = graph_traits<G>>
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr bool has_adjacency(G const& graph,
                              node_t<G, Traits> const& from,
                              node_t<G, Traits> const& to) {
@@ -461,6 +462,136 @@ constexpr bool has_adjacency(G const& graph,
     }
   }
   return has_edge(graph, from, to);
+}
+
+namespace detail {
+  template<class G, class Traits, class = void>
+  struct edge_iterable;
+
+  template<class G, class Traits>
+  struct edge_iterable<G, Traits, std::enable_if_t<!has_node_container_v<G, Traits> && has_adjacency_container_v<G, Traits>>> {
+    G& g;
+    node_t<G, Traits> start;
+
+    struct const_iterator {
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = std::pair<node_t<G, Traits>, edge_repr_t<G, Traits>>;
+      using difference_type = std::ptrdiff_t;
+      using pointer = const value_type*;
+      using reference = const value_type&;
+
+      iterator::bitset_iterator<adjacency_container_t<G, Traits>> it;
+      node_t<G, Traits> start;
+
+      constexpr bool operator!=(const_iterator const& rhs) const {
+        return it != rhs.it;
+      }
+
+      constexpr const_iterator operator++() {
+        ++it;
+        return *this;
+      }
+    };
+
+    constexpr const_iterator begin() const {
+      auto c = node_count(g);
+      return {iterator::get_first_good(adjacent_container_getter<G, Traits>{}(g), start * c, (start+1)*c), start * c};
+    }
+
+    constexpr const_iterator end() const {
+      return {};
+    }
+
+    constexpr std::size_t size() const {
+      return std::distance(begin(), end());
+    }
+  };
+
+  template<class G, class Traits, class Check, class Neigh>
+  struct edge_list_iterable {
+    G& g;
+    node_t<G, Traits> start;
+
+    struct const_iterator {
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = std::pair<node_t<G, Traits>, edge_repr_t<G, Traits>>;
+      using difference_type = std::ptrdiff_t;
+      using pointer = const value_type*;
+      using reference = const value_type&;
+
+      using wrapper_it = std::conditional_t<std::is_const_v<G>,
+                                            typename edge_list_container_t<G, Traits>::const_iterator,
+                                            typename edge_list_container_t<G, Traits>::iterator>;
+      const edge_list_iterable* that;
+      wrapper_it it, end;
+
+      constexpr const_iterator(const edge_list_iterable& that, wrapper_it it, wrapper_it end) : that(&that), it(it), end(end) {
+        if (it != end && Check{}(it) != that.start)
+          ++*this;
+      }
+
+      constexpr bool operator!=(const_iterator const& rhs) const {
+        return it != rhs.it;
+      }
+
+      constexpr const_iterator operator++() {
+        while (++it != end) {
+          if (Check{}(it) == that->start)
+            break;
+        }
+        return *this;
+      }
+
+      constexpr value_type operator*() const {
+        if constexpr (has_edge_container_v<G, Traits>) {
+          return {Neigh{}(it), get_edge(that->g, edge_index_getter<G, Traits>{}(it))};
+        } else {
+          return {Neigh{}(it), it};
+        }
+      }
+    };
+
+    constexpr const_iterator begin() const {
+      auto& el = edge_list_container_getter<G, Traits>{}(g);
+      return {*this, std::begin(el), std::end(el)};
+    }
+
+    constexpr const_iterator end() const {
+      auto it = std::end(edge_list_container_getter<G, Traits>{}(g));
+      return {*this, it, it};
+    }
+
+    constexpr std::size_t size() const {
+      return std::distance(begin(), end());
+    }
+  };
+
+  template<class G, class Traits>
+  struct edge_iterable<G, Traits, std::enable_if_t<has_edge_list_container_v<G, Traits>>>
+        : edge_list_iterable<G, Traits, source_getter<G, Traits>, target_getter<G, Traits>> {
+  };
+
+
+  template<class G, class Traits, class = void>
+  struct in_edge_iterable;
+
+  template<class G, class Traits>
+  struct in_edge_iterable<G, Traits, std::enable_if_t<has_edge_list_container_v<G, Traits>>>
+        : edge_list_iterable<G, Traits, target_getter<G, Traits>, source_getter<G, Traits>> {
+  };
+
+}
+
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
+constexpr auto out_edges(G& graph, node_t<G, Traits> const& node)
+      -> detail::edge_iterable<G, Traits> {
+  return {graph, node};
+}
+
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
+constexpr auto in_edges(G& graph, node_t<G, Traits> const& node)
+      -> detail::in_edge_iterable<G, Traits> {
+  return {graph, node};
 }
 }
 

@@ -324,7 +324,7 @@ void test_query() {
 
   // edge_count(graph_2)
   // undefined --> not exact directed/undirected edges. No property/shared property used
-/*
+
   RASSERT(size(out_edges(graph_1, 0)) == 1);
   RASSERT(size(out_edges(graph_2, "node_2")) == 1);
   RASSERT(size(in_edges(graph_2, "node_2")) == 2);
@@ -332,7 +332,7 @@ void test_query() {
   for (auto&& [node, repr] : out_edges(graph_2, "node_2")) {
     RASSERT(node == "node_5");
     RASSERT(repr != invalid_edge(graph_2));
-  }*/
+  }
 }
 
 int main() {
