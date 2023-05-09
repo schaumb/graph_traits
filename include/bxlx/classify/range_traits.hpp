@@ -9,6 +9,7 @@
 #define BXLX_GRAPH_RANGE_TRAITS_HPP
 
 #include "type_traits.hpp"
+#include <limits>
 
 namespace bxlx::graph::type_traits::detail {
 
@@ -35,6 +36,44 @@ template <class T>
 constexpr inline bool has_std_data_v<T, std::enable_if_t<class_member_traits::has_container_type_type_v<T>>> =
       has_std_data_v<class_member_traits::get_container_type_member_t<T>>;
 
+template<auto* Lambda, int=((*Lambda)(), 0)>
+[[maybe_unused]] constexpr bool is_constexpr(int) { return true; }
+template<auto*>
+constexpr bool is_constexpr(...) { return false; }
+
+template<class, class = void>
+constexpr inline auto constexpr_initializable = [] { throw; };
+template<class T>
+constexpr inline auto constexpr_initializable<T, std::enable_if_t<std::is_trivially_destructible_v<T>>>
+      = [] { return T{}; };
+// TODO add constexpr not trivially destructible trait (C++20) if recursively declared all class
+// the main reason why it is disabled currently because if you had a predeclared class inside your container,
+// you cannot instantiate the class compile time without compile error
+
+template<class T>
+constexpr inline bool is_constexpr_initializable_v = is_constexpr<&constexpr_initializable<std::remove_cv_t<T>>>(0);
+
+template<class, class = void>
+constexpr inline auto constexpr_std_size = [] { throw; };
+template<class T>
+constexpr inline auto constexpr_std_size<T, std::enable_if_t<is_constexpr_initializable_v<T>>>
+      = [] { return std::size(T{}); };
+
+template<class T, bool = has_std_size_v<T>, class = void>
+constexpr inline std::size_t constexpr_std_size_v = 0;
+template<class T>
+constexpr inline std::size_t constexpr_std_size_v<T, true, std::enable_if_t<
+                                                                 is_constexpr<&constexpr_std_size<std::remove_cv_t<T>>>(0)>
+                                                  > = constexpr_std_size<std::remove_cv_t<T>>();
+
+
+template <class, class = void>
+constexpr inline std::size_t get_size_v = 0;
+
+template <class T>
+constexpr inline std::size_t get_size_v<T, std::enable_if_t<is_tuple_v<T>>> = std::tuple_size_v<T>;
+template <class T>
+constexpr inline std::size_t get_size_v<T, std::enable_if_t<!is_tuple_v<T> && (constexpr_std_size_v<T> > 0)>> = constexpr_std_size_v<T>;
 
 template <class, class = void>
 constexpr inline bool has_std_iterator_traits_v = false;
@@ -166,6 +205,8 @@ struct range_traits_impl<T, true, true, std::enable_if_t<has_begin_end_iterators
   constexpr static bool defined    = true;
   constexpr static bool continuous = has_std_data_v<T>;
 
+  constexpr static std::size_t constexpr_size = get_size_v<T>;
+
   constexpr static range_type_t range =
         class_member_traits::has_length_v<T> ? range_type_t::string_like
         : class_member_traits::has_push_front_v<std::remove_const_t<T>,
@@ -195,6 +236,8 @@ struct range_traits_impl<Range<O, Other...>,
   constexpr static bool defined    = true;
   constexpr static bool continuous = range_is_continuous_v<Range<defined_range_value>>;
 
+  constexpr static std::size_t constexpr_size = range_constexpr_size_v<Range<defined_range_value>>;
+
   constexpr static range_type_t range = range_type_v<Range<defined_range_value>>;
 
   constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value>>;
@@ -214,6 +257,8 @@ struct range_traits_impl<const Range<O, Other...>,
 
   constexpr static bool defined    = true;
   constexpr static bool continuous = range_is_continuous_v<const Range<defined_range_value>>;
+
+  constexpr static std::size_t constexpr_size = range_constexpr_size_v<const Range<defined_range_value>>;
 
   constexpr static range_type_t range = range_type_v<const Range<defined_range_value>>;
 
@@ -236,6 +281,8 @@ struct range_traits_impl<
 
   constexpr static bool defined    = true;
   constexpr static bool continuous = range_is_continuous_v<Range<defined_range_value, S>>;
+
+  constexpr static std::size_t constexpr_size = range_constexpr_size_v<Range<defined_range_value, S>>;
 
   constexpr static range_type_t range = range_type_v<Range<defined_range_value, S>>;
 
@@ -260,6 +307,8 @@ struct range_traits_impl<
   constexpr static bool defined    = true;
   constexpr static bool continuous = range_is_continuous_v<const Range<defined_range_value, S>>;
 
+  constexpr static std::size_t constexpr_size = range_constexpr_size_v<const Range<defined_range_value, S>>;
+
   constexpr static range_type_t range = range_type_v<const Range<defined_range_value, S>>;
 
   constexpr static bool is_multi = associative_traits::is_multi_v<Range<defined_range_value, S>>;
@@ -281,6 +330,8 @@ struct range_traits_impl<
 
   constexpr static bool defined    = true;
   constexpr static bool continuous = range_is_continuous_v<Range<defined_range_value, S>>;
+
+  constexpr static std::size_t constexpr_size = range_constexpr_size_v<Range<defined_range_value, S>>;
 
   constexpr static range_type_t range = range_type_v<Range<defined_range_value, S>>;
 
@@ -304,6 +355,8 @@ struct range_traits_impl<
 
   constexpr static bool defined    = true;
   constexpr static bool continuous = range_is_continuous_v<const Range<defined_range_value, S>>;
+
+  constexpr static std::size_t constexpr_size = range_constexpr_size_v<const Range<defined_range_value, S>>;
 
   constexpr static range_type_t range = range_type_v<const Range<defined_range_value, S>>;
 
@@ -358,6 +411,8 @@ struct range_traits_impl<
   constexpr static bool defined    = true;
   constexpr static bool continuous = range_is_continuous_v<the_range>;
 
+  constexpr static std::size_t constexpr_size = range_constexpr_size_v<the_range>;
+
   constexpr static range_type_t range = range_type_v<the_range>;
 
   constexpr static bool is_multi = associative_traits::is_multi_v<the_range>;
@@ -383,6 +438,8 @@ struct range_traits_impl<
   constexpr static bool defined    = true;
   constexpr static bool continuous = range_is_continuous_v<the_range>;
 
+  constexpr static std::size_t constexpr_size = range_constexpr_size_v<the_range>;
+
   constexpr static range_type_t range = range_type_v<the_range>;
 
   constexpr static bool is_multi = associative_traits::is_multi_v<std::remove_const_t<the_range>>;
@@ -404,6 +461,8 @@ struct range_traits<M[N]> {
 
   constexpr static bool defined    = false;
   constexpr static bool continuous = true;
+
+  constexpr static std::size_t constexpr_size = N;
 
   constexpr static range_type_t range = range_type_t::sequence;
 

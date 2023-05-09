@@ -430,6 +430,9 @@ template <class T>
 constexpr inline bool range_is_continuous_v = detail::range_traits<T>::continuous;
 
 template <class T>
+constexpr inline std::size_t range_constexpr_size_v = detail::range_traits<T>::constexpr_size;
+
+template <class T>
 constexpr inline bool is_range_v = detail::is_range_v<T> && !detail::is_string_v<T>;
 
 using detail::is_map_v;
