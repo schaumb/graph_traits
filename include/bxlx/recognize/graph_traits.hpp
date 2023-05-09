@@ -45,7 +45,9 @@ struct graph_traits<G, V, true> {
   using user_defined_edge_t = properties::get_value_t<properties_t, state_machine::user_edge_t>;
 
   using node_type = properties::get_value<properties_t, state_machine::node_type_t, std::enable_if<true, std::size_t>>;
-  using edge_type = properties::get_value<properties_t, state_machine::edge_type_t>;
+  using edge_type =
+        properties::get_value<properties_t, state_machine::edge_type_t,
+        properties::get_value<properties_t, state_machine::node_pair<next_type::Dummy>>>;
 
   using node_container =
         properties::get_value<properties_t, state_machine::node_container<next_type::Dummy>,

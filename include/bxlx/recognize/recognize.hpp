@@ -653,7 +653,9 @@ namespace state_machine {
 
 
   template <template <class> class Tr = T>
-  struct node_pair : transform<Tr, transition<tuple_eq_2, no, empty, node<tup_0>, node<tup_N_1>>> {};
+  struct node_pair : any_of_r<node_pair<Tr>,
+                              Tr,
+                              transition<tuple_eq_2, no, empty, node<tup_0>, node<tup_N_1>>> {};
 
   template <template <class> class Tr>
   struct edge_list_elem

@@ -35,6 +35,16 @@
     throw std::logic_error(__FILE__ ":" STRINGIZE_2(__LINE__) " : " #__VA_ARGS__)
 #endif
 
+template<class, class>
+struct same;
+
+template<class T>
+struct same<T, T> {
+  constexpr static bool value = true;
+};
+
+#define SAME(...) ASSERT(same< __VA_ARGS__ >::value)
+
 static_assert(bxlx::graph::version >= "1.0.0");
 static_assert(bxlx::graph::major_version >= 1);
 static_assert(!bxlx::graph::is_graph_v<void>);
@@ -167,8 +177,50 @@ void test_check_variables() {
   ASSERT(directed_edges_v<graph_5>);
 }
 
+void test_properties() {
+
+  using graph_1 = vector<vector<int>>;
+  SAME(node_t<graph_1>, int);
+  SAME(edge_repr_t<graph_1>, typename vector<int>::const_iterator);
+  SAME(node_container_t<graph_1>, graph_1);
+  SAME(adjacency_container_t<graph_1>, vector<int>);
+
+  using graph_2 = pair<vector<optional<edge_prop>>, graph_prop>;
+  SAME(graph_property_t<graph_2>, graph_prop);
+  SAME(edge_property_t<graph_2>, edge_prop);
+  SAME(node_t<graph_2>, size_t);
+  SAME(edge_repr_t<graph_2>, typename vector<optional<edge_prop>>::const_iterator);
+  SAME(adjacency_container_t<graph_2>, vector<optional<edge_prop>>);
+
+  using graph_3 = pair<map<string_view, node_prop>, multimap<pair<string_view, string_view>, edge_prop>>;
+  SAME(node_property_t<graph_3>, node_prop);
+  SAME(edge_property_t<graph_3>, edge_prop);
+  SAME(node_t<graph_3>, string_view);
+  SAME(edge_t<graph_3>, pair<string_view, string_view>);
+  SAME(edge_repr_t<graph_3>, typename multimap<pair<string_view, string_view>, edge_prop>::const_iterator);
+  SAME(node_container_t<graph_3>, map<string_view, node_prop>);
+  SAME(edge_list_container_t<graph_3>, multimap<pair<string_view, string_view>, edge_prop>);
+
+  using graph_4 = pair<vector<pair<list<int>, map<int, edge>>>, map<edge, edge_prop>>;
+  SAME(edge_property_t<graph_4>, edge_prop);
+  SAME(node_t<graph_4>, int);
+  SAME(edge_t<graph_4>, edge);
+  SAME(edge_repr_t<graph_4>, typename map<edge, edge_prop>::const_iterator);
+  SAME(node_container_t<graph_4>, vector<pair<list<int>, map<int, edge>>>);
+  SAME(adjacency_container_t<graph_4>, map<int, edge>);
+  SAME(edge_container_t<graph_4>, map<edge, edge_prop>);
+  SAME(in_adjacency_container_t<graph_4>, list<int>);
+
+  using graph_5 = vector<pair<size_t, deque<short>>>;
+  SAME(node_t<graph_5>, short);
+  SAME(edge_repr_t<graph_5>, deque<short>::const_iterator);
+  SAME(node_container_t<graph_5>, graph_5);
+  SAME(adjacency_container_t<graph_5>, deque<short>);
+}
+
 int main() {
   test_is_graph();
   test_example_graph_representations();
   test_check_variables();
+  test_properties();
 }

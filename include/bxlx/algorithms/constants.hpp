@@ -191,6 +191,22 @@ namespace detail {
   constexpr inline bool is_constexpr_number_v {};
   template<class T>
   constexpr inline bool is_constexpr_number_v<T, true, std::void_t<decltype(~std::declval<T>())>> = type_traits::detail::is_constexpr<&constexpr_number<std::remove_cv_t<T>>>(0);
+
+  template<class G, class Traits, class = void>
+  struct edge_repr;
+
+  template<class G, class Traits>
+  struct edge_repr<G, Traits, std::enable_if_t<has_edge_container_v<G, Traits>>> {
+    using type = typename edge_container_t<G, Traits>::const_iterator;
+  };
+  template<class G, class Traits>
+  struct edge_repr<G, Traits, std::enable_if_t<!has_edge_container_v<G, Traits> && has_edge_list_container_v<G, Traits>>> {
+    using type = typename edge_list_container_t<G, Traits>::const_iterator;
+  };
+  template<class G, class Traits>
+  struct edge_repr<G, Traits, std::enable_if_t<!has_edge_container_v<G, Traits> && has_adjacency_container_v<G, Traits>>> {
+    using type = typename adjacency_container_t<G, Traits>::const_iterator;
+  };
 }
 
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
@@ -311,13 +327,10 @@ constexpr bool directed_edges_v<G, Traits, true, std::enable_if_t<!has_node_cont
                                                                   detail::has_constexpr_size<adjacency_container_t, G, Traits>>> =
       detail::is_square_num(detail::get_constexpr_size<adjacency_container_t, G, Traits>) ||
             detail::is_k_x_km1(detail::get_constexpr_size<adjacency_container_t, G, Traits>);
-;
-/*
 
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
+using edge_repr_t = typename detail::edge_repr<G, Traits>::type;
 
-template<class G, class Traits = graph_traits<G>>
-using edge_repr_t = ...;
-*/
 }
 
 #endif //BXLX_GRAPH_CONSTANTS_HPP
