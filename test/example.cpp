@@ -104,9 +104,71 @@ void test_example_graph_representations() {
   ASSERT(representation_v<Mat> == adjacency_matrix);
 }
 
+struct edge;
+
+constexpr bool operator<(edge const&, edge const&) {
+  return false;
+}
+
+void test_check_variables() {
+  using graph_1 = vector<vector<int>>;
+
+  ASSERT(!has_graph_property_v<graph_1>);
+  ASSERT(!has_node_property_v<graph_1>);
+  ASSERT(!has_edge_property_v<graph_1>);
+  ASSERT(!is_user_defined_node_type_v<graph_1>);
+  ASSERT(has_node_container_v<graph_1>);
+  ASSERT(has_adjacency_container_v<graph_1>);
+  ASSERT(!has_edge_list_container_v<graph_1>);
+  ASSERT(!has_edge_container_v<graph_1>);
+  ASSERT(!has_in_adjacency_container_v<graph_1>);
+  ASSERT(!has_in_edges_v<graph_1>);
+  ASSERT(!has_invalid_node_v<graph_1>);
+  // ASSERT(!is_user_defined_edge_type_v<graph_1>);
+  // ASSERT(parallel_edges_v<graph_1>);
+  // ASSERT(directed_edges_v<graph_1>);
+  // ASSERT(compressed_edges_v<graph_1>);
+  // parallel_edges_v, directed_edges_v es compressed_edges_v nincs ertelmezve graph_1 -en, igy ezek forditasi hibat okoznak
+
+  // tovabbiakban csak az igaz allitasokat sorolom fel (vagy a letezesuket ahol van ertelme), a tobbi vagy nem letezik, vagy hamis.
+
+  using graph_2 = pair<vector<optional<edge_prop>>, graph_prop>;
+  ASSERT(has_graph_property_v<graph_2>);
+  ASSERT(has_edge_property_v<graph_2>);
+  ASSERT(has_adjacency_container_v<graph_2>);
+  ASSERT(!parallel_edges_v<graph_2>);
+  ASSERT(compressed_edges_v<graph_2>);
+
+  using graph_3 = pair<map<string_view, node_prop>, multimap<pair<string_view, string_view>, edge_prop>>;
+  ASSERT(has_node_property_v<graph_3>);
+  ASSERT(has_edge_property_v<graph_3>);
+  ASSERT(is_user_defined_node_type_v<graph_3>);
+  ASSERT(has_node_container_v<graph_3>);
+  ASSERT(has_edge_list_container_v<graph_3>);
+  ASSERT(parallel_edges_v<graph_3>);
+  ASSERT(directed_edges_v<graph_3>);
+
+  using graph_4 = pair<vector<pair<list<int>, map<int, edge>>>, map<edge, edge_prop>>;
+  ASSERT(has_edge_property_v<graph_4>);
+  ASSERT(is_user_defined_edge_type_v<graph_4>);
+  ASSERT(has_node_container_v<graph_4>);
+  ASSERT(has_adjacency_container_v<graph_4>);
+  ASSERT(has_edge_container_v<graph_4>);
+  ASSERT(has_in_adjacency_container_v<graph_4>);
+  ASSERT(has_in_edges_v<graph_4>);
+  ASSERT(!parallel_edges_v<graph_4>);
+  ASSERT(directed_edges_v<graph_4>);
+
+  using graph_5 = vector<pair<size_t, deque<short>>>;
+  // u.a.: using graph_5 = vector<pair<list<short>::const_iterator, list<short>>>;
+  ASSERT(has_node_container_v<graph_5>);
+  ASSERT(has_adjacency_container_v<graph_5>);
+  ASSERT(has_in_edges_v<graph_5>);
+  ASSERT(directed_edges_v<graph_5>);
+}
 
 int main() {
   test_is_graph();
   test_example_graph_representations();
-
+  test_check_variables();
 }

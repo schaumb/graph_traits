@@ -60,7 +60,7 @@ constexpr bool has_node_container_v<G, Traits, true, std::void_t<typename Traits
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
 constexpr bool has_adjacency_container_v = false;
 template <class G, class Traits>
-constexpr bool has_adjacency_container_v<G, Traits, true, std::void_t<typename Traits::adjacency_conatiner::type>> = true;
+constexpr bool has_adjacency_container_v<G, Traits, true, std::void_t<typename Traits::adjacency_container::type>> = true;
 
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
 constexpr bool has_edge_list_container_v = false;
@@ -75,7 +75,7 @@ constexpr bool has_edge_container_v<G, Traits, true, std::void_t<typename Traits
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
 constexpr bool has_in_adjacency_container_v = false;
 template <class G, class Traits>
-constexpr bool has_in_adjacency_container_v<G, Traits, true, std::void_t<typename Traits::in_adjacency_conatiner::type>> = true;
+constexpr bool has_in_adjacency_container_v<G, Traits, true, std::void_t<typename Traits::in_adjacency_container::type>> = true;
 
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr bool has_in_edges_v = Traits::in_edges_t::value;
@@ -132,6 +132,15 @@ namespace detail {
 
   template<template<class, class, bool> class container_type, class G, class Traits>
   constexpr bool has_constexpr_size = get_constexpr_size<container_type, G, Traits> > 0;
+
+  template<template<class, class, bool> class container_type, class G, class Traits, class = void>
+  constexpr bool is_associative = false;
+  template<template<class, class, bool> class container_type, class G, class Traits>
+  constexpr bool is_associative<container_type, G, Traits, std::enable_if_t<
+    type_traits::is_range_v<container_type<G, Traits, true>>>> =
+        type_traits::range_type_v<container_type<G, Traits, true>> == type_traits::range_type_t::set_like ||
+        type_traits::range_type_v<container_type<G, Traits, true>> == type_traits::range_type_t::map_like;
+
 
   template <class T>
   constexpr T sqrt_helper(T x, T lo, T hi) {
@@ -217,6 +226,8 @@ constexpr std::size_t max_node_size_v<G, Traits, true,
       ? detail::constexpr_sqrt(detail::get_constexpr_size<adjacency_container_t, G, Traits>) :
       detail::is_k_x_km1(detail::get_constexpr_size<adjacency_container_t, G, Traits>)
       ? detail::constexpr_sqrt_no_self(detail::get_constexpr_size<adjacency_container_t, G, Traits>) :
+      detail::is_k_x_km1_d_2(detail::get_constexpr_size<adjacency_container_t, G, Traits>)
+      ? detail::constexpr_sqrt_no_self(detail::get_constexpr_size<adjacency_container_t, G, Traits> * 2) + 1 :
                   [] () -> std::size_t { throw; }();
 
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
@@ -272,16 +283,37 @@ constexpr node_t<G, Traits> invalid_node_v<G, Traits, true, std::enable_if_t<!de
                                                                              type_traits::detail::is_constexpr_initializable_v<node_t<G, Traits>>>> =
       type_traits::detail::constexpr_initializable<node_t<G, Traits>>();
 
+
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
+constexpr bool parallel_edges_v = [] () -> bool { throw; }();
+
+template<class G, class Traits>
+constexpr bool parallel_edges_v<G, Traits, true, std::enable_if_t<detail::is_associative<adjacency_container_t, G, Traits>>>
+      = bxlx::graph::type_traits::is_associative_multi_v<adjacency_container_t<G, Traits>>;
+
+template<class G, class Traits>
+constexpr bool parallel_edges_v<G, Traits, true, std::enable_if_t<detail::is_associative<edge_list_container_t, G, Traits>>>
+      = bxlx::graph::type_traits::is_associative_multi_v<edge_list_container_t<G, Traits>>;
+
+template<class G, class Traits>
+constexpr bool parallel_edges_v<G, Traits, true, std::void_t<typename Traits::multi_edge::type>>
+      = Traits::multi_edge::type::value;
+
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>, class = void>
+constexpr bool directed_edges_v = [] () -> bool { throw; }();
+
+template<class G, class Traits>
+constexpr bool directed_edges_v<G, Traits, true, std::enable_if_t<has_edge_property_v<G, Traits, true> || has_in_edges_v<G, Traits, true>>> =
+      !has_edge_container_v<G, Traits, true> || has_in_edges_v<G, Traits, true>;
+
+template<class G, class Traits>
+constexpr bool directed_edges_v<G, Traits, true, std::enable_if_t<!has_node_container_v<G, Traits> &&
+                                                                  detail::has_constexpr_size<adjacency_container_t, G, Traits>>> =
+      detail::is_square_num(detail::get_constexpr_size<adjacency_container_t, G, Traits>) ||
+            detail::is_k_x_km1(detail::get_constexpr_size<adjacency_container_t, G, Traits>);
+;
 /*
 
-template<class G, class Traits = graph_traits<G>>
-constexpr node_t<G, Traits> invalid_node_v = ...;
-
-template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
-constexpr bool parallel_edges_v = ...;
-
-template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
-constexpr bool directed_edges_v = ...;
 
 template<class G, class Traits = graph_traits<G>>
 using edge_repr_t = ...;

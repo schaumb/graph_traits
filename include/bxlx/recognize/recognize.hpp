@@ -144,7 +144,7 @@ namespace conditions {
         , condition_t {
     template <class T, class>
     constexpr static std::conditional_t<
-          classification::classify<Tr<T>> != classification::type::range,
+          !type_traits::is_range_v<Tr<T>>,
           std::true_type,
           assert_types::reason<assert_types::got<classification::type::range>, not_expected>>
     valid() {
