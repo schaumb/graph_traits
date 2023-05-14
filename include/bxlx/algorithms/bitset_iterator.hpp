@@ -11,7 +11,21 @@
 #include "../classify/type_traits.hpp"
 
 namespace bxlx::graph::iterator {
-  template<class T, class Index = type_traits::detail::std_size_t<T>, bool is_const = std::is_const_v<T>>
+  using good_bits = std::true_type;
+  using bad_bits = std::false_type;
+  struct all_bits {
+    template<class T>
+    constexpr inline std::true_type operator==(T&&) const {
+      return {};
+    }
+    template<class T>
+    constexpr inline std::false_type operator!=(T&&) const {
+      return {};
+    }
+  };
+
+  template<class T, class which_bits = good_bits,
+            class Index = type_traits::detail::std_size_t<T>, bool is_const = std::is_const_v<T>>
   struct bitset_iterator {
     using iterator_category = std::forward_iterator_tag;
     using value_type = bool;
@@ -25,10 +39,10 @@ namespace bxlx::graph::iterator {
     Index max;
 
     bool get_bool() const {
-      return obj && max > index && (*obj)[index];
+      return obj && max > index && which_bits{} == (*obj)[index];
     }
 
-    constexpr operator bitset_iterator<const T, Index, true>() const {
+    constexpr operator bitset_iterator<const T, which_bits, Index, true>() const {
       return {obj, index, max};
     }
 
@@ -36,7 +50,7 @@ namespace bxlx::graph::iterator {
       if (get_bool())
         do {
           ++index;
-        } while (max > index && !(*obj)[index]);
+        } while (max > index && which_bits{} != (*obj)[index]);
       return *this;
     }
   };
@@ -50,10 +64,10 @@ namespace bxlx::graph::iterator {
     return r;
   }
 
-  template<class T, class U, class Index, bool is_const, bool other_const>
+  template<class T, class U, class WhichBits, class Index, bool is_const, bool other_const>
   constexpr std::enable_if_t<std::is_same_v<std::remove_const_t<T>, std::remove_const_t<U>>, bool> operator != (
-        bitset_iterator<T, Index, is_const> const& lhs,
-        bitset_iterator<U, Index, other_const> const& rhs) {
+        bitset_iterator<T, WhichBits, Index, is_const> const& lhs,
+        bitset_iterator<U, WhichBits, Index, other_const> const& rhs) {
     if (!lhs.get_bool() && !rhs.get_bool())
       return false;
     return lhs.obj != rhs.obj || lhs.index != rhs.index;

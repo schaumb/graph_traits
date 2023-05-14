@@ -9,6 +9,8 @@
 #define BXLX_GRAPH_GETTERS_HPP
 
 #include "constants.hpp"
+#include <climits>
+#include <set>
 
 namespace bxlx::graph {
 namespace detail {
@@ -30,7 +32,7 @@ namespace detail {
   struct first_getter_t {
     template <class T, class... Ts>
     [[nodiscard]] constexpr inline decltype(auto) operator()(T&& val, Ts&&...) const noexcept {
-      if constexpr (type_traits::is_tuple_v<std::remove_reference_t<T>>) {
+      if constexpr (classification::classify<std::remove_reference_t<T>> == classification::type::tuple_like) {
         return first_getter_t{}(std::get<0>(std::forward<T&&>(val)));
       } else {
         return std::forward<T&&>(val);
@@ -129,8 +131,7 @@ namespace detail {
 
 template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr auto nodes(G&& graph) -> detail::copy_cvref_t<G&&, node_container_t<G, Traits>> {
-  return std::forward<detail::copy_cvref_t<G&&, node_container_t<G, Traits>>>(
-        detail::node_container_getter<G, Traits>{}(std::forward<G&&>(graph)));
+  return detail::node_container_getter<G, Traits>{}(std::forward<G&&>(graph));
 }
 
 template <class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
@@ -277,11 +278,25 @@ get_edge(G& graph, node_t<G, Traits> const& from, node_t<G, Traits> const& to) -
   if constexpr (has_adjacency_container_v<G, Traits>) {
     if constexpr (has_node_container_v<G, Traits>) {
       if (auto* adj = adjacents(&graph, from)) {
-        if (auto [f, t] = adj->equal_range(to); f != t) {
-          if constexpr (has_edge_container_v<G, Traits>) {
-            return get_edge(graph, detail::edge_index_getter<G, Traits>{}(f));
-          } else {
-            return f;
+        if constexpr (detail::is_associative<node_container_t, G, Traits>) {
+          if (auto [f, t] = adj->equal_range(to); f != t) {
+            if constexpr (has_edge_container_v<G, Traits>) {
+              return get_edge(graph, detail::edge_index_getter<G, Traits>{}(f));
+            } else {
+              return f;
+            }
+          }
+        } else {
+          auto it = std::begin(*adj), end = std::end(*adj);
+          while (it != end) {
+            if (detail::composition_t<detail::first_getter_t, detail::indirect_t>{}(it) == to) {
+              if constexpr (has_edge_container_v<G, Traits>) {
+                return get_edge(graph, detail::edge_index_getter<G, Traits>{}(it));
+              } else {
+                return it;
+              }
+            }
+            ++it;
           }
         }
       }
@@ -487,7 +502,7 @@ namespace detail {
         return it != rhs.it;
       }
 
-      constexpr const_iterator operator++() {
+      constexpr const_iterator& operator++() {
         ++it;
         return *this;
       }
@@ -499,6 +514,69 @@ namespace detail {
     }
 
     constexpr const_iterator end() const {
+      return {};
+    }
+
+    constexpr std::size_t size() const {
+      return std::distance(begin(), end());
+    }
+  };
+
+  template<class G, class Traits>
+  struct edge_iterable<G, Traits, std::enable_if_t<has_node_container_v<G, Traits> && has_adjacency_container_v<G, Traits>>> {
+    G& g;
+    node_t<G, Traits> start;
+
+    struct const_iterator {
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = std::pair<node_t<G, Traits>, edge_repr_t<G, Traits>>;
+      using difference_type = std::ptrdiff_t;
+      using pointer = const value_type*;
+      using reference = const value_type&;
+
+      using wrapper_it = std::conditional_t<std::is_const_v<G>,
+                                            typename adjacency_container_t<G, Traits>::const_iterator,
+                                            typename adjacency_container_t<G, Traits>::iterator>;
+      G* g;
+      wrapper_it start, it;
+
+      constexpr bool operator!=(const_iterator const& rhs) const {
+        return it != rhs.it;
+      }
+
+      constexpr const_iterator& operator++() {
+        ++it;
+        return *this;
+      }
+
+      constexpr value_type operator*() const {
+        edge_repr_t<G, Traits> edge_repr;
+        if constexpr (has_edge_container_v<G, Traits>) {
+          edge_repr = get_edge(g, edge_index_getter<G, Traits>{}(it));
+        } else {
+          edge_repr = it;
+        }
+        node_t<G, Traits> node;
+        if constexpr (is_user_defined_node_type_v<G, Traits>) {
+          node = composition_t<first_getter_t, indirect_t>{}(it);
+        } else {
+          node = std::distance(it, start);
+        }
+        return {node, edge_repr};
+      }
+    };
+
+    constexpr const_iterator begin() const {
+      if (auto has_adj = adjacents(&g, start)) {
+        return {&g, std::begin(*has_adj), std::begin(*has_adj)};
+      }
+      return {};
+    }
+
+    constexpr const_iterator end() const {
+      if (auto has_adj = adjacents(&g, start)) {
+        return {&g, std::begin(*has_adj), std::end(*has_adj)};
+      }
       return {};
     }
 
@@ -534,7 +612,7 @@ namespace detail {
         return it != rhs.it;
       }
 
-      constexpr const_iterator operator++() {
+      constexpr const_iterator& operator++() {
         while (++it != end) {
           if (Check{}(it) == that->start)
             break;
@@ -580,6 +658,154 @@ namespace detail {
         : edge_list_iterable<G, Traits, target_getter<G, Traits>, source_getter<G, Traits>> {
   };
 
+  template<class G, class Traits, class = void>
+  struct node_iterable;
+
+
+  template<class G, class Traits>
+  struct node_iterable<G, Traits, std::enable_if_t<has_node_container_v<G, Traits>>> {
+    G& g;
+    template<class G2 = G, class Traits2 = Traits, class = void>
+    struct const_iterator {
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = node_t<G, Traits>;
+      using difference_type = std::ptrdiff_t;
+      using pointer = const value_type*;
+      using reference = const value_type&;
+      value_type n;
+
+      constexpr const_iterator(const G2& g, bool end) :
+        n(end ? std::size(node_container_getter<G, Traits>{}(g)) : value_type{}) {}
+
+      constexpr bool operator!=(const_iterator const& rhs) const {
+        return n != rhs.n;
+      }
+
+      constexpr const_iterator& operator++() {
+        ++n;
+        return *this;
+      }
+
+      constexpr value_type operator*() const {
+        return n;
+      }
+    };
+
+    template<class G2, class Traits2>
+    struct const_iterator<G2, Traits2, std::enable_if_t<is_associative<node_container_t, G2, Traits2>>> {
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = node_t<G, Traits>;
+      using difference_type = std::ptrdiff_t;
+      using pointer = const value_type*;
+      using reference = const value_type&;
+      using It = typename node_container_t<G, Traits>::const_iterator;
+      It it;
+
+      constexpr const_iterator(const G2& g, bool end) :
+        it (end ? std::end(node_container_getter<G, Traits>{}(g)) : std::begin(node_container_getter<G, Traits>{}(g))){}
+
+      constexpr bool operator!=(const_iterator const& rhs) const {
+        return it != rhs.it;
+      }
+
+      constexpr const_iterator& operator++() {
+        ++it;
+        return *this;
+      }
+
+      constexpr value_type operator*() const {
+        return composition_t<first_getter_t, indirect_t>{}(it);
+      }
+    };
+
+
+
+    constexpr const_iterator<> begin() const {
+      return {g, false};
+    }
+
+    constexpr const_iterator<> end() const {
+      return {g, true};
+    }
+
+    constexpr std::size_t size() const {
+      return std::size(node_container_getter<G, Traits>{}(g));
+    }
+  };
+
+  template<class T>
+  constexpr T log2(T x) {
+    return x == T{1} ? T{} : 1+log2(x >> 1);
+  }
+
+  template<class T>
+  constexpr T log2_ceil(T x) {
+    return x == T{1} ? T{} : log2(x - 1) + 1;
+  }
+
+  template<class G, class Traits = graph_traits<G>, class States = std::integral_constant<std::size_t, 2>, class = void>
+  struct node_set;
+
+  template<class G, class Traits, class States>
+  struct node_set<G, Traits, States,
+                  std::enable_if_t<max_node_size_v<G, Traits> != std::numeric_limits<std::size_t>::max()>> {
+    constexpr static std::size_t BITS_PER_SET = sizeof(std::uint64_t) * CHAR_BIT;
+    constexpr static std::size_t USED_BITS_PER_NODE = log2_ceil(States::value);
+    constexpr static std::size_t BIT_MASK = (1 << USED_BITS_PER_NODE) - 1;
+    std::array<std::uint64_t, (max_node_size_v<G, Traits> * USED_BITS_PER_NODE + (BITS_PER_SET - 1) ) / BITS_PER_SET> bitset {};
+
+    using const_iterator = iterator::bitset_iterator<const node_set, iterator::good_bits, node_t<G, Traits>>;
+    using iterator = iterator::bitset_iterator<node_set, iterator::all_bits, node_t<G, Traits>>;
+
+    constexpr const_iterator begin() const {
+      return iterator::get_first_good(*this);
+    }
+
+    constexpr const_iterator end() const {
+      return {this, size(), size()};
+    }
+
+    struct reference {
+      using ToType = std::conditional_t<USED_BITS_PER_NODE == 1, bool, std::size_t>;
+      iterator it;
+
+      constexpr operator ToType() const {
+        auto ix = it.index;
+        return (it.obj->bitset[ix / (BITS_PER_SET / USED_BITS_PER_NODE)] >> (ix % (BITS_PER_SET / USED_BITS_PER_NODE))) & BIT_MASK;
+      }
+
+      constexpr reference& operator=(std::conditional_t<USED_BITS_PER_NODE == 1, bool, std::size_t> res) {
+        auto ix = it.index;
+        it.obj->bitset[ix / (BITS_PER_SET / USED_BITS_PER_NODE)] ^= ((res & BIT_MASK) ^ static_cast<ToType>(*this)) << (ix % (BITS_PER_SET / USED_BITS_PER_NODE));
+        return *this;
+      }
+    };
+
+    constexpr reference operator[](node_t<G, Traits> const& n) {
+      return {{this, n, static_cast<node_t<G, Traits>>(size())}};
+    }
+
+    constexpr std::size_t size() const noexcept {
+      return max_node_size_v<G, Traits>;
+    }
+
+    using type = node_set<G, Traits, States>;
+  };
+
+  template<class G, class Traits, class States>
+  struct node_set<G, Traits, States, std::enable_if_t<is_user_defined_node_type_v<G, Traits> && States{} == 2>> {
+    using type = std::set<node_t<G, Traits>>;
+  };
+
+  template<class G, class Traits = graph_traits<G>, class States = std::integral_constant<std::size_t, 2>, bool = it_is_a_graph_v<G, Traits>>
+  using node_set_t = typename node_set<G, Traits, States>::type;
+}
+
+
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
+constexpr auto node_indices(G& graph)
+      -> detail::node_iterable<G, Traits> {
+  return {graph};
 }
 
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>

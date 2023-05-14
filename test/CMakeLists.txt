@@ -1,8 +1,8 @@
 
 add_executable(graph_test
-        example.cpp
-        type_static_asserts.cpp
-        # graph_test_static_asserts.cpp
+        femto_test.hpp
+        test.cpp
+        classification.cpp
         )
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang")

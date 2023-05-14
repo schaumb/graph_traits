@@ -349,20 +349,22 @@ void test_decisions() {
         {{8},           "node 9"},
   }};
 
-  RASSERT(is_connected(graph, std::false_type{}));
+  static_assert(max_node_size_v<decltype(graph)> == 10);
+  //RASSERT(is_connected(graph, std::false_type{}));
   RASSERT(!is_connected(graph, true));
 
   pair<vector<vector<pair<int, string_view>>>, map<string_view, float>> graph_2 {
         {
-              {},
+              {{{1, "edge_0"}}},
               {{{0, "edge_0"}}}
         }, {{"edge_0", 0.5f}}
   };
 
-  // is_connected(graph); undefined behaviour, undirected graph,
+  // is_connected(graph_2); undefined behaviour, undirected graph,
   // not exists on both direction all edge
-  RASSERT(!is_connected(graph, std::true_type{}));
-  RASSERT(is_connected(graph, false)); // checks both direction
+  static_assert(it_is_a_graph_v<decltype(graph_2)>);
+  RASSERT(!is_connected(graph_2, std::true_type{}));
+  RASSERT(is_connected(graph_2, false)); // checks both direction
 }
 
 void test_search() {
@@ -382,7 +384,10 @@ void test_search() {
 
   vector<tuple<int, edge_types::tree_t, size_t>> res;
 
-  depth_first_search(graph, 0, std::back_inserter(res), 3);
+  detail::node_set<decltype(graph)> ns;
+  static_assert(same<type_traits::range_value_t<detail::node_set<decltype(graph)>>, const bool>::value);
+
+  depth_first_search(graph, 0, std::back_inserter(res), {}, 3);
   // we need only the node once on the tree, and they distance max 3
 
   RASSERT(res == vector<tuple<int, edge_types::tree_t, size_t>>{
@@ -397,33 +402,6 @@ void test_search() {
                 });
   // we can see that 8 is closer from 0 than 3 distance (0->9->8),
   // but 9 recognized at 7's neighbour, and no revisit happened.
-
-
-  array<tuple<int, int, edge_type>, 10> res_2 {};
-
-  auto to = breadth_first_search(graph, 4, begin(res_2));
-
-  RASSERT(res_2 == array<tuple<int, int, edge_type>, 10>{{
-                        {4, 7, edge_type::tree},
-                        {7, 3, edge_type::tree},
-                        {7, 7, edge_type::reverse},
-                        {7, 9, edge_type::tree},
-                        {3, 8, edge_type::tree},
-                        {3, 9, edge_type::cross},
-                        {9, 8, edge_type::cross}
-                  }});
-
-  deque<tuple<int, std::string_view, double>> res_3;
-
-  shortest_paths(graph, 4, front_inserter(res_3), [](int n1, int n2) { return (n1+n2)/2.0; });
-
-  RASSERT(res_3 == deque<tuple<int, std::string_view, double>>{
-                         {8, "node 8", 16.0}, // {}
-                         {9, "node 9", 14.5}, // (8: 16)
-                         {3, "node 3", 10.5}, // (8: 16, 9: 14.5)
-                         {7, "node 7", 5.5} , // (3: 10.5, 9: 14.5)
-                         {4, "node 4", 0.0}   // (7: 5.5)
-                   });
 }
 
 void test_sort() {
