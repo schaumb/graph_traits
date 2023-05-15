@@ -1,8 +1,15 @@
 
 add_executable(graph_test
         femto_test.hpp
+        test_graphs.hpp
         test.cpp
         classification.cpp
+        state_machine.cpp
+        graph_traits.cpp
+        graph_traits_retrieval.cpp
+        graph_traits_queries.cpp
+        connected.cpp
+        topology.cpp
         )
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang")
