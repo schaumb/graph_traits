@@ -34,6 +34,7 @@ struct assert_error : std::logic_error { using std::logic_error::logic_error; };
   while ((assert((__VA_ARGS__)), !(__VA_ARGS__)))                                                               \
     throw test::assert_error(__FILE__ ":" STRINGIZE_2(__LINE__)  ": void " + std::string{__FUNCTION__} + "(): " \
                              "Assertion `(" #__VA_ARGS__  ")' failed.")
-#define SAME(...) ASSERT(std::is_same_v<__VA_ARGS__>)
+#define S_ASSERT(...) static_assert((__VA_ARGS__))
+#define SAME(...) S_ASSERT(std::is_same_v<__VA_ARGS__>)
 
 #endif //BXLX_GRAPH_FEMTO_TEST_HPP
