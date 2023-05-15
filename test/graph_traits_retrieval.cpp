@@ -11,7 +11,7 @@ TEST(check_node_exists) {
 
 }
 
-TEST(check_node_exists_with_unique_comparator) {
+TEST(check_node_exists_comp) {
 
 }
 

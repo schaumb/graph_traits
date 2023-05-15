@@ -157,7 +157,7 @@ namespace conditions {
   struct random_access_t
         : crtp_address_to_nullptr<random_access_t>
         , condition_t {
-    template <class T, class>
+    template <class T, class = properties::empty_t>
     constexpr static std::conditional_t<
           std::is_base_of_v<std::random_access_iterator_tag, type_traits::range_iterator_tag_t<T>>,
           std::true_type,
@@ -170,7 +170,7 @@ namespace conditions {
   struct not_multimap_t
         : crtp_address_to_nullptr<not_multimap_t>
         , condition_t {
-    template <class T, class>
+    template <class T, class = properties::empty_t>
     constexpr static std::conditional_t<
           !type_traits::is_associative_multi_v<T>,
           std::true_type,
@@ -184,13 +184,13 @@ namespace conditions {
   struct separator_of_t
         : crtp_address_to_nullptr<separator_of_t>
         , condition_t {
-    template <class T, class>
+    template <class T, class = properties::empty_t>
     constexpr static auto valid() {
       if constexpr (type_traits::is_range_v<std::tuple_element_t<1, T>>) {
         if constexpr (std::is_base_of_v<std::random_access_iterator_tag,
                                         type_traits::range_iterator_tag_t<std::tuple_element_t<1, T>>>) {
-          if constexpr (!std::is_const_v<T> && !type_traits::detail::class_member_traits::has_push_front_v<std::tuple_element_t<1, T>,
-                type_traits::range_value_t<std::tuple_element_t<1, T>> &&>) {
+          if constexpr (!std::is_const_v<T> && !std::is_const_v<std::tuple_element_t<1, T>> && (!type_traits::detail::class_member_traits::has_push_front_v<std::tuple_element_t<1, T>,
+                type_traits::range_value_t<std::tuple_element_t<1, T>> &&> && !std::is_array_v<std::tuple_element_t<1, T>>)) {
             return assert_types::reason<struct no_push_front>{};
           } else if constexpr (classification::classify<std::tuple_element_t<0, T>> == classification::type::index) {
             return std::true_type{};
