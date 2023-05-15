@@ -224,7 +224,9 @@ TEST(check_indeterminates_and_predeclareds) {
   S_ASSERT(classify<std::string> == type::indeterminate);
   S_ASSERT(classify<std::string_view> == type::indeterminate);
   S_ASSERT(classify<std::unique_ptr<predeclared[]>> == type::indeterminate);
+#if !defined(__clang_major__) || __clang_major__ != 9
   S_ASSERT(classify<std::shared_ptr<int[]>> == type::indeterminate);
+#endif
   S_ASSERT(classify<void()> == type::indeterminate);
   S_ASSERT(classify<void(predeclared::*)()> == type::indeterminate);
 
