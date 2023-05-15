@@ -28,6 +28,13 @@ TEST(check_bitset) {
   S_ASSERT(classify<std::vector<std::pair<predeclared, bool>>> != type::bitset);
 }
 
+TEST(check_maps) {
+}
+
+TEST(check_ranges) {
+
+}
+
 TEST(check_tuples) {
   using namespace bxlx::graph::classification;
   struct predeclared;
@@ -41,4 +48,20 @@ TEST(check_tuples) {
   S_ASSERT(classify<std::array<predeclared, 10>> != type::tuple_like);
   S_ASSERT(classify<std::array<int, 10>> != type::tuple_like);
   // S_ASSERT(classify<std::array<std::tuple<predeclared, float>, 10>> != type::tuple_like); // TODO msvc fails
+}
+
+TEST(check_optionals) {
+
+}
+
+TEST(check_bools) {
+
+}
+
+TEST(check_indices) {
+
+}
+
+TEST(check_indeterminates_and_predeclareds) {
+
 }
