@@ -5,6 +5,13 @@
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+
+struct my_range {};
+namespace std {  // before include any std::begin
+struct predeclared const* begin(my_range const&);
+struct predeclared const* end(my_range const&);
+}
+
 #include "femto_test.hpp"
 #include <bxlx/graph>
 #include <array>
@@ -32,12 +39,11 @@ TEST(check_bitset) {
   S_ASSERT(classify<const std::bitset<10>> == type::bitset);
   S_ASSERT(classify<std::bitset<0>> == type::bitset);
 
-  /*
   struct my_bitset {
     struct bool_proxy {
         bool_proxy() = default;
         bool_proxy(bool&) = delete;
-        operator bool() const;
+        operator bool() const noexcept;
     };
 
     bool_proxy operator[](size_t) const;
@@ -45,7 +51,6 @@ TEST(check_bitset) {
   };
 
   S_ASSERT(classify<my_bitset> == type::bitset);
-*/
 }
 
 TEST(check_maps) {
@@ -61,13 +66,13 @@ TEST(check_maps) {
   S_ASSERT(classify<std::unordered_map<int, predeclared>> == type::map_like);
   S_ASSERT(classify<std::unordered_multimap<std::pair<predeclared, predeclared>, int>> == type::map_like);
 
-  /*
   using K = int;
   using V = int;
   struct my_map {
     struct const_iterator {
         const_iterator& operator++();
         std::pair<K, V> const& operator*() const;
+        bool operator!=(const_iterator const &) const;
     };
 
     const_iterator begin() const;
@@ -81,13 +86,6 @@ TEST(check_maps) {
   };
 
   S_ASSERT(classify<my_map> == type::map_like);
-*/
-}
-
-struct my_range {};
-namespace std {
-struct predeclared const* begin(my_range const&);
-struct predeclared const* end(my_range const&);
 }
 
 TEST(check_ranges) {
@@ -120,18 +118,17 @@ TEST(check_ranges) {
   S_ASSERT(classify<std::array<std::tuple<predeclared, float>, 10>> == type::range);
 #endif
 
-  /*
   struct my_range_2 {
     struct const_iterator {
       const_iterator& operator++();
       struct predeclared const& operator*() const;
+      bool operator!=(const_iterator const &) const;
     };
     const_iterator begin() const;
     const_iterator end() const;
   };
   S_ASSERT(classify<my_range> == type::range);
   S_ASSERT(classify<my_range_2> == type::range);
-*/
 }
 
 struct my_tuple {};
