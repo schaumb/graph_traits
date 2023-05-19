@@ -186,14 +186,11 @@ TEST(check_bools) {
   S_ASSERT(classify<std::bitset<10>::reference> == type::bool_t);
   S_ASSERT(classify<std::atomic_bool> == type::bool_t);
 
-  /*
   struct my_bool {
-    my_bool(bool);
-    operator bool() const;
+    my_bool(bool) noexcept;
+    operator bool() const noexcept;
   };
   S_ASSERT(classify<my_bool> == type::bool_t);
-*/
-
 }
 
 TEST(check_indices) {
@@ -203,13 +200,11 @@ TEST(check_indices) {
   S_ASSERT(classify<const std::uint8_t> == type::index);
   S_ASSERT(classify<std::atomic_int> == type::index);
 
-  /*
   struct my_index {
-    my_bool(int);
-    operator int() const;
+    my_index(int) noexcept;
+    operator int() const noexcept;
   };
   S_ASSERT(classify<my_index> == type::index);
-*/
 }
 
 TEST(check_indeterminates_and_predeclareds) {
