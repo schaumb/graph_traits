@@ -5,7 +5,7 @@
 #ifndef BXLX_GRAPH_GETTTER_TYPES_HPP
 #define BXLX_GRAPH_GETTTER_TYPES_HPP
 
-#include "constants.hpp"
+#include "bxlx/algorithms/constants.hpp"
 
 namespace bxlx::graph::detail {
 using bxlx::graph::type_traits::detail::copy_cvref_t;

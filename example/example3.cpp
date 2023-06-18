@@ -12,7 +12,7 @@ void example3 () {
    2 ------/    \   -> 5 -/
                  \       /
                   -------       */
-  std::list<std::pair<std::string, std::string>> edge_list {
+  std::pair<std::string, std::string> edge_list[] {
         {"0", "3"},
         {"1", "3"},
         {"2", "6"},

@@ -127,8 +127,8 @@ struct edge_list_iterable {
     using reference = const value_type&;
 
     using wrapper_it = std::conditional_t<std::is_const_v<G>,
-                                          typename edge_list_container_t<G, Traits>::const_iterator,
-                                          typename edge_list_container_t<G, Traits>::iterator>;
+                                          bxlx::graph::type_traits::detail::std_begin_t<const edge_list_container_t<G, Traits>>,
+                                          bxlx::graph::type_traits::detail::std_begin_t<edge_list_container_t<G, Traits>>>;
     const edge_list_iterable* that;
     wrapper_it it, end;
 
@@ -183,6 +183,7 @@ template<class G, class Traits>
 struct in_edge_iterable<G, Traits, std::enable_if_t<has_edge_list_container_v<G, Traits>>>
       : edge_list_iterable<G, Traits, detail::target_getter<G, Traits>, detail::source_getter<G, Traits>> {
 };
+
 }
 
 #endif //BXLX_GRAPH_EDGE_ITERATOR_HPP

@@ -5,8 +5,8 @@
 #include <type_traits>
 
 #include "../classify/type_traits.hpp"
-#include "detail/constants.hpp"
 #include "../recognize/graph_traits.hpp"
+#include "constants.hpp"
 
 namespace bxlx::graph {
 namespace iterator {
@@ -32,6 +32,9 @@ namespace iterator {
 
   template<class G, class Traits, class = void>
   struct in_edge_iterable;
+
+  template<class G, class Traits, class = void>
+  struct in_out_edge_iterable;
 }
 namespace detail {
   using type_traits::detail::copy_cvref_t;
@@ -173,6 +176,10 @@ constexpr auto out_edges(G& graph, node_t<G, Traits> const& node)
 template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
 constexpr auto in_edges(G& graph, node_t<G, Traits> const& node)
       -> iterator::in_edge_iterable<G, Traits>;
+
+template<class G, class Traits = graph_traits<G>, bool = it_is_a_graph_v<G, Traits>>
+constexpr auto in_out_edges(G& graph, node_t<G, Traits> const& node)
+      -> iterator::in_out_edge_iterable<G, Traits>;
 }
 
 #endif //BXLX_GRAPH_INTERFACE_HPP

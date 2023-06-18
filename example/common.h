@@ -30,5 +30,7 @@ namespace common {
     for (auto& n : arr)
       o << n << ", ";
     o << "\n";
+
+    o << "Is connected: " << is_connected(t) << "\n";
   }
 }

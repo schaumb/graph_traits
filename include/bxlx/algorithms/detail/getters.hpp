@@ -8,11 +8,11 @@
 #ifndef BXLX_GRAPH_GETTERS_HPP
 #define BXLX_GRAPH_GETTERS_HPP
 
-#include "constants.hpp"
-#include "getter_types.hpp"
 #include "bitset_iterator.hpp"
-#include "node_iterator.hpp"
+#include "bxlx/algorithms/constants.hpp"
 #include "edge_iterator.hpp"
+#include "getter_types.hpp"
+#include "node_iterator.hpp"
 #include "node_set.hpp"
 #include <climits>
 #include <set>

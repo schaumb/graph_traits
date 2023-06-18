@@ -8,8 +8,8 @@
 #ifndef BXLX_GRAPH_SEARCH_HPP
 #define BXLX_GRAPH_SEARCH_HPP
 
-#include "bxlx/algorithms/detail/constants.hpp"
 #include "bxlx/algorithms/detail/node_set.hpp"
+#include "constants.hpp"
 
 namespace bxlx::graph {
 
@@ -28,6 +28,18 @@ struct node_types {
   using post_visit_t = std::integral_constant<type, post_visit>;
 };
 using node_type = node_types::type;
+
+constexpr static auto with_out_edges = [] (auto& g, auto from) {
+  return bxlx::graph::out_edges(g, from);
+};
+
+constexpr static auto with_in_edges = [] (auto& g, auto from) {
+  return bxlx::graph::in_edges(g, from);
+};
+
+constexpr static auto with_all_edges = [] (auto& g, auto from) {
+  return bxlx::graph::in_out_edges(g, from);
+};
 
 namespace detail {
   template<class ...Types>
@@ -52,8 +64,10 @@ namespace detail {
   constexpr std::integral_constant<std::size_t, 2> black {};
 }
 
-template<class Dist = size_t, class OutIt, class G, class Traits = graph_traits<G>,
-      class NodeSetT = detail::node_set_t<G, Traits, detail::dfs_need_states<OutIt, node_t<G, Traits>, edge_repr_t<G, Traits>>>>
+template<class Dist = size_t, class OutIt,
+          class G, class Traits = graph_traits<G>,
+                class NodeSetT = detail::node_set_t<G, Traits, detail::dfs_need_states<OutIt, node_t<G, Traits>, edge_repr_t<G, Traits>>>,
+                auto* edges_as_neighbours = &with_out_edges>
 constexpr OutIt depth_first_search(G const& g, node_t<G, Traits> from,
                                    OutIt out, NodeSetT&& nodes = {}, Dist max_dist = ~Dist()) {
   using NodeSet = std::remove_reference_t<NodeSetT>;
@@ -70,7 +84,7 @@ constexpr OutIt depth_first_search(G const& g, node_t<G, Traits> from,
     }
 
     if (max_dist > distance) {
-      for (auto [to, val] : out_edges(g, from)) {
+      for (auto [to, val] : (*edges_as_neighbours)(g, from)) {
         const auto current_state = [] (NodeSet& nodes, node_t<G, Traits> const& to_node) {
           if constexpr (type_traits::range_type_v<NodeSet> == type_traits::range_type_t::set_like) {
             return nodes.count(to_node);

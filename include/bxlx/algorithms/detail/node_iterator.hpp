@@ -118,7 +118,7 @@ struct node_iterable<G, Traits, Cmp, std::enable_if_t<!has_node_container_v<G, T
     using difference_type = std::ptrdiff_t;
     using pointer = const value_type*;
     using reference = const value_type&;
-    using It = typename edge_list_container_t<G, Traits>::const_iterator;
+    using It = bxlx::graph::type_traits::detail::std_begin_t<const edge_list_container_t<G, Traits>>;
 
     constexpr static auto source = detail::source_getter<G, Traits>{};
     constexpr static auto target = detail::target_getter<G, Traits>{};

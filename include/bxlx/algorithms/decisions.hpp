@@ -12,13 +12,39 @@
 #include "bxlx/algorithms/search.hpp"
 #include "detail/edge_repr.hpp"
 
+#include <map>
 
 namespace bxlx::graph {
 
 namespace detail {
   template<class G, class Traits = graph_traits<G>>
   constexpr bool is_strongly_connected(G const& g) {
-    return false;
+    struct Node {
+      std::size_t index;
+      std::size_t lowlink;
+    };
+    std::size_t curr_index{};
+    std::map<node_t<G, Traits>, Node> node_map;
+
+    auto strong_connect = [&] (auto strong_connect, node_t<G, Traits> node) -> Node* {
+      Node& e = node_map.try_emplace(node, Node{curr_index, curr_index}).first->second;
+      ++curr_index;
+      for (auto [to, val] : out_edges(g, node)) {
+        if (auto it = node_map.find(to); it == node_map.end()) {
+          auto* n = strong_connect(strong_connect, to);
+          if (n == nullptr)
+            return nullptr;
+          e.lowlink = std::min(e.lowlink, n->lowlink);
+        }
+        else {
+          e.lowlink = std::min(e.lowlink, it->second.index);
+        }
+      }
+      return e.index == e.lowlink && e.index != 0 ? nullptr : &e;
+    };
+
+    return strong_connect(strong_connect, *std::begin(node_indices(g))) &&
+           curr_index == node_count(g);
   }
 
   template<class G, class Traits = graph_traits<G>>
@@ -32,7 +58,7 @@ namespace detail {
       constexpr const It& operator*() const {
         return *this;
       }
-      constexpr const It& operator=(std::pair<node_t<G, Traits>, edge_types::tree_t> const&) const {
+      constexpr const It& operator=(std::pair<node_t<G, Traits>, node_types::pre_visit_t> const&) const {
         ++count;
         return *this;
       }
@@ -44,7 +70,25 @@ namespace detail {
 
   template<class G, class Traits = graph_traits<G>>
   constexpr bool is_weakly_both_side_connected(G const& g) {
-    node_t<G, Traits> start = *std::begin(node_indices(g));
+    /*
+    std::size_t count{};
+    struct It {
+      std::size_t& count;
+      constexpr const It& operator++() const {
+        return *this;
+      }
+      constexpr const It& operator*() const {
+        return *this;
+      }
+      constexpr const It& operator=(std::pair<node_t<G, Traits>, node_types::pre_visit_t> const&) const {
+        ++count;
+        return *this;
+      }
+    } it{count};
+    depth_first_search<size_t, It, G, Traits, std::set<node_t<G, Traits>>, &with_all_edges>
+          (g, *std::begin(node_indices(g)), it);
+
+    return count == node_count(g);*/
     return false;
   }
 
