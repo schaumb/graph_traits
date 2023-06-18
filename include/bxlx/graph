@@ -8,11 +8,11 @@
 #ifndef BXLX_GRAPH_INCLUDED
 #define BXLX_GRAPH_INCLUDED
 
-#include <type_traits>
-#include <string_view>
-#include "algorithms/decisions.hpp"
 #include "algorithms/search.hpp"
 #include "algorithms/sort.hpp"
+#include "bxlx/algorithms/decisions.hpp"
+#include <string_view>
+#include <type_traits>
 
 
 namespace bxlx::graph {

@@ -446,12 +446,8 @@ struct range_traits_impl<
 };
 
 template <class M>
-struct range_traits<M, std::enable_if_t<required_template_arguments_defined_v<M> && !std::is_array_v<M>>>
-      : range_traits_impl<M, true, true> {};
-
-template <class M>
-struct range_traits<M, std::enable_if_t<!required_template_arguments_defined_v<M> && !std::is_array_v<M>>>
-      : range_traits_impl<M, !is_optional_v<M>, false> {};
+struct range_traits<M, std::enable_if_t<!std::is_array_v<M>>>
+      : range_traits_impl<M, true, required_template_arguments_defined_v<M>> {};
 
 template <class M, std::size_t N>
 struct range_traits<M[N]> {

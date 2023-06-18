@@ -8,8 +8,9 @@
 #ifndef BXLX_GRAPH_DECISIONS_HPP
 #define BXLX_GRAPH_DECISIONS_HPP
 
-#include "getters.hpp"
-#include "search.hpp"
+#include "bxlx/algorithms/detail/getters.hpp"
+#include "bxlx/algorithms/search.hpp"
+#include "detail/edge_repr.hpp"
 
 
 namespace bxlx::graph {
@@ -68,8 +69,8 @@ constexpr std::enable_if_t<detail::has_directed_edges_v<G, Traits>, bool> is_con
   }
 }
 
-template<class Strongly = std::nullptr_t, class G, class Traits = graph_traits<G>>
-constexpr bool is_connected(G const& g, Strongly&& s = std::enable_if_t<!detail::has_directed_edges_v<G, Traits>, Strongly>{}) {
+template<class G, class Traits = graph_traits<G>, class Strongly = std::enable_if_t<!detail::has_directed_edges_v<G, Traits>, std::nullptr_t>>
+constexpr bool is_connected(G const& g, Strongly&& s = {}) {
   if constexpr (detail::has_directed_edges_v<const G, Traits>) {
     static_assert(std::is_convertible_v<Strongly, bool>);
     if (s) {
@@ -77,9 +78,7 @@ constexpr bool is_connected(G const& g, Strongly&& s = std::enable_if_t<!detail:
     } else {
       return detail::is_weakly_both_side_connected<const G, Traits>(g);
     }
-  }
-
-  if constexpr (std::is_convertible_v<Strongly, bool>) {
+  } else if constexpr (std::is_convertible_v<Strongly, bool>) {
     if (s) {
       return detail::is_strongly_connected<const G, Traits>(g);
     } else {
@@ -89,9 +88,7 @@ constexpr bool is_connected(G const& g, Strongly&& s = std::enable_if_t<!detail:
         return detail::is_weakly_both_side_connected<const G, Traits>(g);
       }
     }
-  }
-
-  if (detail::all_edge_has_both_direction<G, Traits>(g)){
+  } else if (detail::all_edge_has_both_direction<G, Traits>(g)){
     return detail::is_weakly_connected<G, Traits>(g);
   } else {
     return detail::is_strongly_connected<G, Traits>(g);

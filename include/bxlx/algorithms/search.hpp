@@ -8,7 +8,8 @@
 #ifndef BXLX_GRAPH_SEARCH_HPP
 #define BXLX_GRAPH_SEARCH_HPP
 
-#include "constants.hpp"
+#include "bxlx/algorithms/detail/constants.hpp"
+#include "bxlx/algorithms/detail/node_set.hpp"
 
 namespace bxlx::graph {
 
@@ -30,7 +31,7 @@ using node_type = node_types::type;
 
 namespace detail {
   template<class ...Types>
-  struct tuple_t{};
+  using tuple_t = std::tuple<Types...>;
 
   template<class It, class Tup, class = void>
   constexpr static bool can_assign_with_tup = false;
@@ -52,9 +53,10 @@ namespace detail {
 }
 
 template<class Dist = size_t, class OutIt, class G, class Traits = graph_traits<G>,
-      class NodeSet = detail::node_set_t<G, Traits, detail::dfs_need_states<OutIt, node_t<G, Traits>, edge_repr_t<G, Traits>>>>
+      class NodeSetT = detail::node_set_t<G, Traits, detail::dfs_need_states<OutIt, node_t<G, Traits>, edge_repr_t<G, Traits>>>>
 constexpr OutIt depth_first_search(G const& g, node_t<G, Traits> from,
-                                   OutIt out, NodeSet&& nodes = {}, Dist max_dist = ~Dist()) {
+                                   OutIt out, NodeSetT&& nodes = {}, Dist max_dist = ~Dist()) {
+  using NodeSet = std::remove_reference_t<NodeSetT>;
   constexpr auto recursive = [](auto recursive, G const& g, OutIt& out, NodeSet& nodes, node_t<G, Traits> from, Dist max_dist, Dist distance = 0) -> void {
 
     if constexpr (detail::can_assign_any<OutIt, node_t<G, Traits>, node_types::pre_visit_t, Dist>) {
@@ -79,12 +81,16 @@ constexpr OutIt depth_first_search(G const& g, node_t<G, Traits> from,
 
         switch (static_cast<std::size_t>(current_state)) {
         case detail::white:
-          if constexpr (detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_repr_t<G, Traits>, edge_types::tree_t>) {
-            *out++ = {from, to, val, edge_types::tree_t{}};
+          if constexpr (
+                // detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_repr_t<G, Traits>, edge_types::tree_t>
+                detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_types::tree_t>
+                      ) {
+            //*out++ = {from, to, val, edge_types::tree_t{}};
+            *out++ = {from, to, edge_types::tree_t{}};
           }
           recursive(recursive, g, out, nodes, to, max_dist, distance + 1);
           break;
-        case detail::grey:
+        case detail::grey:/*
           if constexpr (
                 (type_traits::range_type_v<NodeSet> != type_traits::range_type_t::set_like || type_traits::is_associative_multi_v<NodeSet>) &&
                 !type_traits::is_bool_v<decltype(current_state)> &&
@@ -92,15 +98,16 @@ constexpr OutIt depth_first_search(G const& g, node_t<G, Traits> from,
             *out++ = {from, to, val, edge_types::reverse_t{}};
           } else if constexpr (detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_repr_t<G, Traits>, edge_types::not_tree_t>) {
             *out++ = {from, to, val, edge_types::not_tree_t{}};
-          }
-        default:
+          }*/
+        default:/*
           if constexpr (
                 (type_traits::range_type_v<NodeSet> != type_traits::range_type_t::set_like || type_traits::is_associative_multi_v<NodeSet>) &&
                 !type_traits::is_bool_v<decltype(current_state)> &&
                 detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_repr_t<G, Traits>, edge_types::forward_or_cross_t>) {
             *out++ = {from, to, val, edge_types::reverse_t{}};
-          } else if constexpr (detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_repr_t<G, Traits>, edge_types::not_tree_t>) {
-            *out++ = {from, to, val, edge_types::not_tree_t{}};
+          } else */
+          if constexpr (detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>/*, edge_repr_t<G, Traits>*/, edge_types::not_tree_t>) {
+            *out++ = {from, to/*, val*/, edge_types::not_tree_t{}};
           }
           continue;
         }

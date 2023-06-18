@@ -72,12 +72,8 @@ struct optional_traits_impl<Opt<O, Oth...>,
 };
 
 template <class T>
-struct optional_traits<T, true, std::enable_if_t<required_template_arguments_defined_v<T>>>
-      : optional_traits_impl<T, !is_range_v<T>, true> {};
-
-template <class T>
-struct optional_traits<T, true, std::enable_if_t<!required_template_arguments_defined_v<T>>>
-      : optional_traits_impl<T, true, false> {};
+struct optional_traits<T, true>
+      : optional_traits_impl<T, true, required_template_arguments_defined_v<T>> {};
 
 } // namespace bxlx::graph::type_traits::detail
 

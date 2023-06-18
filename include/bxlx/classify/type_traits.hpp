@@ -23,9 +23,102 @@ constexpr inline bool is_tuple_v<T, std::void_t<decltype(std::tuple_size<T>::val
 
 namespace detail {
   //////////////////////////////////////////////////////////////
+  ///////////////////////// IS_DEFINED /////////////////////////
+  //////////////////////////////////////////////////////////////
+  template <class T, std::size_t = sizeof(T)>
+  [[maybe_unused]] constexpr std::true_type defined_type(int);
+  template <class>
+  constexpr std::false_type defined_type(...);
+
+  template <class T>
+  using is_sizeof_gettable = decltype(defined_type<T>(0));
+
+  template <class T, class = void>
+  struct is_defined : is_sizeof_gettable<T> {};
+
+  template <bool any>
+  struct is_defined<std::bool_constant<any>> : std::true_type {};
+
+  template <class T>
+  struct is_defined<T, std::enable_if_t<std::is_function_v<T>>> : std::true_type {};
+
+  template <class T>
+  constexpr inline bool is_defined_v = is_defined<T>::value;
+
+  //////////////////////////////////////////////////////////////
+  ////////////////// REQUIRED_TEMPLATE_TRAITS //////////////////
+  //////////////////////////////////////////////////////////////
+  template <class T, bool = !is_tuple_v<T>, class = void>
+  struct one_required_templated_class : std::false_type {};
+
+  template <template <class, class...> class T, class U, class... Vs>
+  struct one_required_templated_class<T<U, Vs...>, true, std::void_t<T<U>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
+  template <template <class, class...> class T, class U, class... Vs>
+  struct one_required_templated_class<const T<U, Vs...>, true, std::void_t<T<U>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
+  template <class T, bool = !is_tuple_v<T>, class = void>
+  struct two_required_templated_class : std::false_type {};
+
+  template <template <class, class, class...> class T, class U, class V, class... Vs>
+  struct two_required_templated_class<
+        T<U, V, Vs...>, true,
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U> && is_defined_v<V>;
+  };
+
+  template <template <class, class, class...> class T, class U, class V, class... Vs>
+  struct two_required_templated_class<
+        const T<U, V, Vs...>, true,
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U> && is_defined_v<V>;
+  };
+
+  template <class T, class = void>
+  struct array_like_required_template_class : std::false_type {};
+
+  template <template <class, auto, class...> class T, class U, auto V, class... Vs>
+  struct array_like_required_template_class<
+        T<U, V, Vs...>,
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
+  template <template <class, auto, class...> class T, class U, auto V, class... Vs>
+  struct array_like_required_template_class<
+        const T<U, V, Vs...>,
+        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
+  template <class T, class = void>
+  struct array_like_required_template_class_2 : std::false_type {};
+
+  template <template <class, std::size_t> class T, class U, auto V>
+  struct array_like_required_template_class_2<
+        T<U, V>,
+        std::enable_if_t<!one_required_templated_class<T<U, V>>::value &&
+                         !array_like_required_template_class<T<U, V>>::value>> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
+  template <template <class, std::size_t> class T, class U, auto V>
+  struct array_like_required_template_class_2<
+        const T<U, V>,
+        std::enable_if_t<!one_required_templated_class<const T<U, V>>::value &&
+                         !array_like_required_template_class<const T<U, V>>::value
+                         >> : std::true_type {
+    constexpr static bool is_defined = is_defined_v<U>;
+  };
+
+  //////////////////////////////////////////////////////////////
   ////////////////////// TEMPLATE_INSPECT //////////////////////
   //////////////////////////////////////////////////////////////
-  template <class T>
+  template <class T, class = void>
   struct template_inspect {
     using types = std::tuple<>;
   };
@@ -36,13 +129,13 @@ namespace detail {
   };
 
   template <template <class, auto> class TT, class T, auto U>
-  struct template_inspect<TT<T, U>> {
-    using types = std::tuple<T, std::integral_constant<decltype(U), U>>;
+  struct template_inspect<TT<T, U>, std::enable_if_t<array_like_required_template_class_2<TT<T, U>>::value>> {
+    using types = std::tuple<T>;
   };
 
   template <template <class, auto, class...> class TT, class T, auto U, class... Oth>
-  struct template_inspect<TT<T, U, Oth...>> {
-    using types = std::tuple<T, std::integral_constant<decltype(U), U>, Oth...>;
+  struct template_inspect<TT<T, U, Oth...>, std::enable_if_t<!array_like_required_template_class_2<TT<T, U, Oth...>>::value>> {
+    using types = std::tuple<T, Oth...>;
   };
 
   //////////////////////////////////////////////////////////////
@@ -132,28 +225,6 @@ namespace detail {
   template <class From, class To>
   using copy_cvref_t = typename copy_cvref<From, To>::type;
 
-  template <class T, std::size_t = sizeof(T)>
-  [[maybe_unused]] constexpr std::true_type defined_type(int);
-  template <class>
-  constexpr std::false_type defined_type(...);
-
-  template <class T>
-  using is_sizeof_gettable = decltype(defined_type<T>(0));
-
-  template <class T, class = void>
-  struct is_defined : is_sizeof_gettable<T> {};
-
-  template <>
-  struct is_defined<std::true_type> : std::true_type {};
-  template <>
-  struct is_defined<std::false_type> : std::true_type {};
-
-  template <class T>
-  struct is_defined<T, std::enable_if_t<std::is_function_v<T>>> : std::true_type {};
-
-  template <class T>
-  constexpr inline bool is_defined_v = is_defined<T>::value;
-
   template <class T,
             class TL = typename template_inspect<std::remove_cv_t<T>>::types,
             class    = std::make_index_sequence<std::tuple_size_v<TL>>>
@@ -165,77 +236,8 @@ namespace detail {
   struct all_template_defined<T, TL, std::index_sequence<ix...>>
         : std::conjunction<is_defined<std::tuple_element_t<ix, TL>>...> {};
 
-
-  template <class T, bool = !is_tuple_v<T>, class = void>
-  struct one_required_templated_class : std::false_type {};
-
-  template <template <class, class...> class T, class U, class... Vs>
-  struct one_required_templated_class<T<U, Vs...>, true, std::void_t<T<U>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U>;
-  };
-
-  template <template <class, class...> class T, class U, class... Vs>
-  struct one_required_templated_class<const T<U, Vs...>, true, std::void_t<T<U>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U>;
-  };
-
-  template <class T, bool = !is_tuple_v<T>, class = void>
-  struct two_required_templated_class : std::false_type {};
-
-  template <template <class, class, class...> class T, class U, class V, class... Vs>
-  struct two_required_templated_class<
-        T<U, V, Vs...>, true,
-        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U> && is_defined_v<V>;
-  };
-
-  template <template <class, class, class...> class T, class U, class V, class... Vs>
-  struct two_required_templated_class<
-        const T<U, V, Vs...>, true,
-        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U> && is_defined_v<V>;
-  };
-
-  template <class T, class = void>
-  struct array_like_required_template_class : std::false_type {};
-
-  template <template <class, auto, class...> class T, class U, auto V, class... Vs>
-  struct array_like_required_template_class<
-        T<U, V, Vs...>,
-        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U>;
-  };
-
-  template <template <class, auto, class...> class T, class U, auto V, class... Vs>
-  struct array_like_required_template_class<
-        const T<U, V, Vs...>,
-        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V, Vs...>>::value>, T<U, V>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U>;
-  };
-
-  template <class T, class = void>
-  struct array_like_required_template_class_2 : std::false_type {};
-
-  template <template <class, std::size_t> class T, class U, auto V>
-  struct array_like_required_template_class_2<
-        T<U, V>,
-        std::void_t<std::enable_if_t<!one_required_templated_class<T<U, V>>::value && !array_like_required_template_class<T<U, V>>::value>, T<U, V>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U>;
-  };
-
-  template <template <class, std::size_t> class T, class U, auto V>
-  struct array_like_required_template_class_2<
-        const T<U, V>,
-        std::void_t<std::enable_if_t<!one_required_templated_class<const T<U, V>>::value && !array_like_required_template_class<const T<U, V>>::value>, T<U, V>>> : std::true_type {
-    constexpr static bool is_defined = is_defined_v<U>;
-  };
-
-
   template <class T, class = void>
   constexpr bool required_template_arguments_defined_v = all_template_defined<T>::value;
-
-  template<class T, T val>
-  constexpr bool required_template_arguments_defined_v<std::integral_constant<T, val>> = true;
 
   template <class T>
   constexpr bool required_template_arguments_defined_v<T, std::enable_if_t<one_required_templated_class<T>::value>> =
@@ -457,7 +459,7 @@ template <class T>
 template <class T>
 using bitset_reference_t = typename detail::bitset_traits<T>::reference;
 
-template <class T, bool = std::is_class_v<T>&& detail::all_template_defined<T>::value, class = void>
+template <class T, bool = std::is_class_v<T> && detail::all_template_defined<T>::value, class = void>
 constexpr inline bool is_bitset_v = false;
 template <class T>
 constexpr inline bool is_bitset_v<T, true, std::enable_if_t<detail::is_bool_ref_v<bitset_reference_t<T>>>> = true;

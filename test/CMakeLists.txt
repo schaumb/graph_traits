@@ -13,6 +13,7 @@ add_executable(graph_test
         )
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-backtrace-limit=0")
     target_compile_options(graph_test INTERFACE
             $<BUILD_INTERFACE:
             "-Wfatal-errors" # stops on first error

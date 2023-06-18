@@ -85,3 +85,5 @@ if(BXLX_GRAPH_BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLi
     enable_testing()
     add_subdirectory(test)
 endif()
+
+add_subdirectory(example)
