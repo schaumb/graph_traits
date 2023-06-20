@@ -70,6 +70,11 @@ template<class G, class Traits, class States>
 struct node_set<G, Traits, States, std::enable_if_t</*max_node_size_v<G, Traits> == std::numeric_limits<std::size_t>::max() &&*/ States{} == 2>> {
   using type = std::set<node_t<G, Traits>>;
 };
+
+template<class G, class Traits, class States>
+struct node_set<G, Traits, States, std::enable_if_t<(States{} > 2)>> {
+  using type = std::multiset<node_t<G, Traits>>;
+};
 }
 
 #endif //BXLX_GRAPH_NODE_SET_HPP

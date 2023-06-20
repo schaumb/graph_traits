@@ -126,10 +126,10 @@ struct node_iterable<G, Traits, Cmp, std::enable_if_t<!has_node_container_v<G, T
     It it;
     bool first = true;
     It end;
-    Cmp& cmp;
+    Cmp cmp;
 
     constexpr const_iterator(const edge_list_container_t<G, Traits>& list, bool end,
-                             Cmp& cmp) :
+                             Cmp cmp) :
           it(end ? std::end(list) : std::begin(list)),
           end(std::end(list)), cmp(cmp) {
       while (it != this->end && !check()) {

@@ -374,6 +374,12 @@ constexpr auto in_edges(G& graph, node_t<G, Traits> const& node)
       -> iterator::in_edge_iterable<G, Traits> {
   return {graph, node};
 }
+
+template<class G, class Traits, bool>
+constexpr auto in_out_edges(G& graph, node_t<G, Traits> const& node)
+      -> iterator::in_out_edge_iterable<G, Traits> {
+    return {graph, node};
+}
 }
 
 #endif //BXLX_GRAPH_GETTERS_HPP

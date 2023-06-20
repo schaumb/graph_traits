@@ -9,9 +9,12 @@
 #define BXLX_GRAPH_SORT_HPP
 #include "bxlx/algorithms/detail/getters.hpp"
 
+#include <sstream>
+
 namespace bxlx::graph {
 
-template<class OutIt, class G, class Traits = graph_traits<G>, class NodeSet = detail::node_set_t<G, Traits>>
+template<class OutIt, class G, class Traits = graph_traits<G>, class NodeSet =
+  detail::node_set_t<G, Traits, std::integral_constant<std::size_t, 3>>>
 constexpr OutIt topological_sort(
       G const& g, OutIt out, NodeSet&& nodes = {}) {
   auto it = std::make_reverse_iterator(std::next(out, node_count(g)));
@@ -30,6 +33,15 @@ constexpr OutIt topological_sort(
 
     constexpr out_it_t& operator*() {
       return *this;
+    }
+
+    [[noreturn]]
+    const out_it_t& operator=(std::tuple<node_t<G, Traits>, node_t<G, Traits>, edge_types::reverse_t> const& v) {
+      std::stringstream ss;
+
+      ss << "Not a DAG, found circle: " << std::get<0>(v) << " -> " << std::get<1>(v) << " -~> " << std::get<0>(v);
+
+      bxlx::graph::detail::throw_or_terminate<std::logic_error>(ss.str());
     }
 
     constexpr const out_it_t& operator=(std::tuple<node_t<G, Traits>, node_types::post_visit_t, size_t> const& v) {

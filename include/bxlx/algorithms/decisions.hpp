@@ -55,10 +55,13 @@ namespace detail {
       constexpr const It& operator++() const {
         return *this;
       }
+      constexpr const It& operator++(int) const {
+        return *this;
+      }
       constexpr const It& operator*() const {
         return *this;
       }
-      constexpr const It& operator=(std::pair<node_t<G, Traits>, node_types::pre_visit_t> const&) const {
+      constexpr const It& operator=(std::tuple<node_t<G, Traits>, node_types::pre_visit_t, size_t> const&) const {
         ++count;
         return *this;
       }
@@ -70,17 +73,20 @@ namespace detail {
 
   template<class G, class Traits = graph_traits<G>>
   constexpr bool is_weakly_both_side_connected(G const& g) {
-    /*
+
     std::size_t count{};
     struct It {
       std::size_t& count;
       constexpr const It& operator++() const {
         return *this;
       }
+      constexpr const It& operator++(int) const {
+        return *this;
+      }
       constexpr const It& operator*() const {
         return *this;
       }
-      constexpr const It& operator=(std::pair<node_t<G, Traits>, node_types::pre_visit_t> const&) const {
+      constexpr const It& operator=(std::tuple<node_t<G, Traits>, node_types::pre_visit_t, size_t> const&) const {
         ++count;
         return *this;
       }
@@ -88,7 +94,7 @@ namespace detail {
     depth_first_search<size_t, It, G, Traits, std::set<node_t<G, Traits>>, &with_all_edges>
           (g, *std::begin(node_indices(g)), it);
 
-    return count == node_count(g);*/
+    return count == node_count(g);
     return false;
   }
 

@@ -96,30 +96,34 @@ constexpr OutIt depth_first_search(G const& g, node_t<G, Traits> from,
         switch (static_cast<std::size_t>(current_state)) {
         case detail::white:
           if constexpr (
-                // detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_repr_t<G, Traits>, edge_types::tree_t>
-                detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_types::tree_t>
+                detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>/*, edge_repr_t<G, Traits>*/, edge_types::tree_t>
                       ) {
-            //*out++ = {from, to, val, edge_types::tree_t{}};
-            *out++ = {from, to, edge_types::tree_t{}};
+            *out++ = {from, to/*, val*/, edge_types::tree_t{}};
           }
           recursive(recursive, g, out, nodes, to, max_dist, distance + 1);
           break;
-        case detail::grey:/*
+        case detail::grey:
           if constexpr (
-                (type_traits::range_type_v<NodeSet> != type_traits::range_type_t::set_like || type_traits::is_associative_multi_v<NodeSet>) &&
+                (type_traits::range_type_v<NodeSet> != type_traits::range_type_t::set_like ||
+                 type_traits::is_associative_multi_v<NodeSet>) &&
                 !type_traits::is_bool_v<decltype(current_state)> &&
-                detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_repr_t<G, Traits>, edge_types::reverse_t>) {
-            *out++ = {from, to, val, edge_types::reverse_t{}};
-          } else if constexpr (detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_repr_t<G, Traits>, edge_types::not_tree_t>) {
-            *out++ = {from, to, val, edge_types::not_tree_t{}};
-          }*/
-        default:/*
+                detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>/*, edge_repr_t<G, Traits>*/, edge_types::reverse_t>
+                ) {
+            *out++ = {from, to/*, val*/, edge_types::reverse_t{}};
+          } else if constexpr (
+                detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>/*, edge_repr_t<G, Traits>*/, edge_types::not_tree_t>
+                ) {
+            *out++ = {from, to/*, val*/, edge_types::not_tree_t{}};
+          }
+          break;
+        default:
           if constexpr (
-                (type_traits::range_type_v<NodeSet> != type_traits::range_type_t::set_like || type_traits::is_associative_multi_v<NodeSet>) &&
+                (type_traits::range_type_v<NodeSet> != type_traits::range_type_t::set_like ||
+                 type_traits::is_associative_multi_v<NodeSet>) &&
                 !type_traits::is_bool_v<decltype(current_state)> &&
-                detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>, edge_repr_t<G, Traits>, edge_types::forward_or_cross_t>) {
-            *out++ = {from, to, val, edge_types::reverse_t{}};
-          } else */
+                detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>/*, edge_repr_t<G, Traits>*/, edge_types::forward_or_cross_t>) {
+            *out++ = {from, to/*, val*/, edge_types::forward_or_cross_t{}};
+          } else
           if constexpr (detail::can_assign_any<OutIt, node_t<G, Traits>, node_t<G, Traits>/*, edge_repr_t<G, Traits>*/, edge_types::not_tree_t>) {
             *out++ = {from, to/*, val*/, edge_types::not_tree_t{}};
           }

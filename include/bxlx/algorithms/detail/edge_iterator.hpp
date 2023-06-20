@@ -184,6 +184,65 @@ struct in_edge_iterable<G, Traits, std::enable_if_t<has_edge_list_container_v<G,
       : edge_list_iterable<G, Traits, detail::target_getter<G, Traits>, detail::source_getter<G, Traits>> {
 };
 
+
+template<class G, class Traits>
+struct in_out_edge_iterable<G, Traits> {
+  G& g;
+  node_t<G, Traits> node;
+
+  struct const_iterator {
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = std::pair<node_t<G, Traits>, void* /*edge_repr_t<G, Traits> */>;
+    using difference_type = std::ptrdiff_t;
+    using pointer = const value_type*;
+    using reference = const value_type&;
+
+    G* g;
+    node_t<G, Traits> node;
+    decltype(std::begin(node_indices(std::declval<const G&>()))) end, curr;
+
+    constexpr const_iterator(
+          G& g,
+          node_t<G, Traits> node,
+          bool end
+          ) : g(&g), node(node),
+          end(std::end(node_indices(g))),
+          curr(end ? this->end : std::begin(node_indices(g)))
+    {
+      if (curr != this->end && !(has_edge(g, node, *curr) || has_edge(g, *curr, node)))
+        ++*this;
+    }
+
+    constexpr bool operator!=(const_iterator const& rhs) const {
+      return curr != rhs.curr;
+    }
+
+    constexpr const_iterator& operator++() {
+      while (++curr != end) {
+        if (has_edge(*g, node, *curr) || has_edge(*g, *curr, node))
+          break;
+      }
+      return *this;
+    }
+
+    constexpr value_type operator*() const {
+      if constexpr (has_edge_container_v<G, Traits>) {
+        return {*curr, /* get_edge(that->g, detail::edge_index_getter<G, Traits>{}(it))*/ nullptr};
+      } else {
+        return {*curr, /* it*/ nullptr};
+      }
+    }
+  };
+
+  constexpr const_iterator begin() const {
+    return {g, node, false};
+  }
+
+  constexpr const_iterator end() const {
+    return {g, node, true};
+  }
+};
+
 }
 
 #endif //BXLX_GRAPH_EDGE_ITERATOR_HPP
