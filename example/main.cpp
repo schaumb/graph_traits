@@ -17,7 +17,7 @@ int main () {
                   -------
  */
 
-#if EXAMPLE == 1  // szomszédsági lista
+#if (EXAMPLE+0) == 1  // szomszédsági lista
   std::vector<std::vector<int>> graph {
         /* 0 -> */ {3},
         /* 1 -> */ {3},
@@ -32,7 +32,7 @@ int main () {
   };
 
   std::cout << "example 1: ";
-#elif EXAMPLE == 2  // szomszédsági mátrix
+#elif (EXAMPLE+0) == 2  // szomszédsági mátrix
     char d[] =    //0123456789
         /* 0 -> */ "0001000000"
         /* 1 -> */ "0001000000"
@@ -49,7 +49,7 @@ int main () {
     std::bitset<sizeof(d)/sizeof(d[0]) - 1> graph{d};
 
     std::cout << "example 2: ";
-#elif EXAMPLE == 3  // éllista
+#elif (EXAMPLE+0) == 3  // éllista
     std::pair<std::string, std::string> graph[] {
           {"0", "3"},
           {"1", "3"},
@@ -61,7 +61,12 @@ int main () {
           {"4", "7"},
           {"4", "9"},
           {"5", "8"},
-          {"6", "8"}
+          {"6", "8"},
+/*
+          {"9", "0"},
+          {"8", "1"},
+          {"7", "2"}
+ */
     };
 
     std::cout << "example 3: ";
