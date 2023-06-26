@@ -7,16 +7,16 @@
 
 
 namespace common {
-  template<class T>
-  void run_example(T& t, std::ostream& o = std::cout) {
+  template<class G>
+  void run_example(G& g, std::ostream& o = std::cout) {
     using namespace bxlx::graph;
 
-    o << "Recognized " << magic_enum::enum_name(representation_v<T>);
+    o << "Recognized " << magic_enum::enum_name(representation_v<G>);
 
     o << "\n\nTopological sort:\n";
     try {
-      std::vector<node_t<T>> arr(node_count(t));
-      topological_sort(t, arr.begin());
+      std::vector<node_t<G>> arr(node_count(g));
+      topological_sort(g, arr.begin());
 
       for (auto& n : arr) o << n << ", ";
     }
@@ -24,13 +24,13 @@ namespace common {
       o << "Failed: " << err.what();
     }
 
-    o << "\n\nIs weakly connected:\t" << std::boolalpha << is_connected(t, std::false_type{})
-      <<   "\nIs strongly connected:\t"                 << is_connected(t);
+    o << "\n\nIs weakly connected:\t" << std::boolalpha << is_connected(g, std::false_type{})
+      <<   "\nIs strongly connected:\t"                 << is_connected(g);
 
-    std::vector<std::tuple<node_t<T>, node_t<T>, edge_type>> edges;
-    node_t<T> start = *std::begin(node_indices(t));
+    std::vector<std::tuple<node_t<G>, node_t<G>, edge_type>> edges;
+    node_t<G> start = *std::begin(node_indices(g));
 
-    depth_first_search(t, start, std::back_inserter(edges), std::multiset<node_t<T>>{});
+    depth_first_search(g, start, std::back_inserter(edges), std::multiset<node_t<G>>{});
     
     o << "\n\nEdge types at depth first search from start node: " << start << "\n";
     for (auto& [from, to, edge] : edges) {

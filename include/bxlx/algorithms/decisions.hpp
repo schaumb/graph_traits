@@ -95,7 +95,6 @@ namespace detail {
           (g, *std::begin(node_indices(g)), it);
 
     return count == node_count(g);
-    return false;
   }
 
   template<class G, class Traits = graph_traits<G>>
