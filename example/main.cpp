@@ -71,7 +71,7 @@ int main () {
 
     std::cout << "example 3: ";
 #else
-#error Define EXAMPLE macro to 1..3
+#error Define EXAMPLE macro between 1 and 3
 #endif
   common::run_example(graph);
 }

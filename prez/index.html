@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Modern C++ Gráf Könyvtár</title>
+  <link rel="stylesheet" href="impress-demo.css">
+  <style>
+  .text, h1 {
+      text-align: center;
+  }
+  h1 {
+      font-size: larger;
+  }
+  code {
+      font-family: monospace;
+      font-size: inherit;
+  }
+  p > code {
+      font-size: large;
+      line-height: 0px;
+      background: #ffeff0;
+      word-wrap: break-word;
+      box-decoration-break: clone;
+      padding: 0;
+      border-radius: .2rem;
+      margin : 0;
+  }
+  </style>
+</head>
+<body>
+
+    <div id="impress" data-autoplay="0">
+        <div id="osszegzes" class="step text" data-x="0" data-y="0" data-scale="4">
+            <p style="font-size:40px;">Modern C++ gráf könyvtár</p>
+            <br>
+        </div>
+        <div id="state" class="step slide" style="background-color: #89CFF0;" data-x="-1000" data-y="500" data-scale="1" data-rotate-x="-30">
+        <h1>Nincs standardizált gráf</h1>
+            <br />
+            <p>Persze léteznek...</p>
+            <ul style="list-style-type:circle">
+                <li>boost::graph [1]</li>
+                <li>NGraph [2]</li>
+                <li>CXXGraph [3]</li>
+                <li>varia [4]</li>
+                <li>LEMON [5]</li>
+            </ul>
+
+        </div>
+        <div id="problem" class="step slide" style="background-color: #E9967A;" data-x="0" data-y="500" data-rotate-x="-30">
+        <h1>Probléma</h1>
+            <br />
+            <ul style="list-style-type:circle">
+                <li>Nem intuitív</li>
+                <li>Nem rugalmas, vagy csak bonyolultan</li>
+                <li>Vagy formátumból, vagy egyesével lehet felépíteni</li>
+                <li>Nem használ fel fordítás idejű adatot</li>
+                <li>Embedded környezetben nem használható</li>
+                <li>Elavult, új szabványokat nem támogat</li>
+            </ul>
+        </div>
+        <div id="solution" class="step slide" style="background-color: #98FB98;" data-x="1000" data-y="500" data-rotate-x="-30">
+            <h1 class="text">Könyvtáram</h1>
+            <p>
+                <code>bxlx::graph::topological_sort(g, it);</code>
+            </p>
+        </div>
+        <div id="s1" class="step" data-x="1000" data-y="710" data-z="0"  data-rotate-x="-30" data-scale="0.8">
+            <img src="lower.png" height="311" alt="">
+        </div>
+        <div id="s2" class="step" data-x="1000" data-y="500" data-z="130" data-rotate-x="-30" data-scale="0.8">
+            <img src="upper.png" height="316" alt="">
+        </div>
+        <div id="demo" class="step text" data-x="0" data-y="-100" data-z="0" data-scale="2"  data-rotate-x="-15">
+        <p style="transform: translateY(-500%); background: yellow; border-radius: 25px;">Demó</p>
+        </div>
+        <div id="references" class="step slide" data-x="0" data-y="" data-z="-500" data-scale="10" data-rotate-y="180">
+        <h1>Köszönöm a figyelmet!</h1>
+            <ul style="list-style-type:circle; font-size: small">
+                <li>[1] https://www.boost.org/doc/libs/1_82_0/libs/graph/doc/index.html</li>
+                <li>[2] https://math.nist.gov/~RPozo/ngraph/</li>
+                <li>[3] https://zigrazor.github.io/CXXGraph/</li>
+                <li>[4] https://gitlab.com/MartenBE/varia/</li>
+                <li>[5] https://lemon.cs.elte.hu/</li>
+            </ul>
+        </div>
+    </div>
+
+  <script src="impress.js"></script>
+  <script>
+    impress().init();
+  </script>
+</body>
+</html>
