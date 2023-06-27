@@ -55,9 +55,9 @@ namespace detail {
   template<class It, class ...Types>
   constexpr static bool can_assign_any = can_assign_with_tup<It, tuple_t<Types...>>;
 
-  template<class It, class Node, class Val>
-  using dfs_need_states = std::integral_constant<std::size_t, 2 + (can_assign_any<It, Node, Node, Val, edge_types::reverse_t> ||
-                                                                   can_assign_any<It, Node, Node, Val, edge_types::forward_or_cross_t>)>;
+  template<class It, class Node>
+  using dfs_need_states = std::integral_constant<std::size_t, 2 + (can_assign_any<It, Node, Node, edge_types::reverse_t> ||
+                                                                   can_assign_any<It, Node, Node, edge_types::forward_or_cross_t>)>;
 
   constexpr std::integral_constant<std::size_t, 0> white {};
   constexpr std::integral_constant<std::size_t, 1> grey {};
@@ -66,7 +66,7 @@ namespace detail {
 
 template<class Dist = size_t, class OutIt,
           class G, class Traits = graph_traits<G>,
-                class NodeSetT = detail::node_set_t<G, Traits, detail::dfs_need_states<OutIt, node_t<G, Traits>, edge_repr_t<G, Traits>>>,
+                class NodeSetT = detail::node_set_t<G, Traits, detail::dfs_need_states<OutIt, node_t<G, Traits>>>,
                 auto* edges_as_neighbours = &with_out_edges>
 constexpr OutIt depth_first_search(G const& g, node_t<G, Traits> from,
                                    OutIt out, NodeSetT&& nodes = {}, Dist max_dist = ~Dist()) {

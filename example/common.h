@@ -8,9 +8,10 @@
 
 namespace common {
   template<class G>
-  void run_example(G& g, std::ostream& o = std::cout) {
+  void run_example(G& g) {
     using namespace bxlx::graph;
 
+    std::ostream& o = std::cout;
     o << "Recognized " << magic_enum::enum_name(representation_v<G>);
 
     o << "\n\nTopological sort:\n";
@@ -30,7 +31,7 @@ namespace common {
     std::vector<std::tuple<node_t<G>, node_t<G>, edge_type>> edges;
     node_t<G> start = *std::begin(node_indices(g));
 
-    depth_first_search(g, start, std::back_inserter(edges), std::multiset<node_t<G>>{});
+    depth_first_search(g, start, std::back_inserter(edges));
     
     o << "\n\nEdge types at depth first search from start node: " << start << "\n";
     for (auto& [from, to, edge] : edges) {
