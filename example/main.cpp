@@ -3,7 +3,9 @@
 #include <utility>
 #include <list>
 
+#ifndef EXAMPLE
 #define EXAMPLE
+#endif
 
 int main () {
   /*
